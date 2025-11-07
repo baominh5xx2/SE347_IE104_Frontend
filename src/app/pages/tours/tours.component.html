@@ -1,0 +1,72 @@
+<div class="tours-page">
+  <div class="search-section">
+    <div class="container mx-auto px-6 py-6">
+      <app-search-bar 
+        [searchType]="'tour'" 
+        (onSearch)="onSearch($event)">
+      </app-search-bar>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <div class="filters-section mb-8">
+      <div class="categories-filter mb-6">
+        <h3 class="filter-title">Danh muc</h3>
+        <div class="categories-grid">
+          @for (category of categories; track category.id) {
+            <button 
+              class="category-btn"
+              [class.active]="selectedCategory === category.id"
+              (click)="selectCategory(category.id)">
+              <i class="fas" [ngClass]="category.icon"></i>
+              <span>{{ category.name }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="sort-filter">
+        <label class="filter-label">Sap xep theo:</label>
+        <select [ngModel]="sortBy" (ngModelChange)="changeSortBy($event)" class="sort-select">
+          <option value="popular">Pho bien nhat</option>
+          <option value="price_asc">Gia thap den cao</option>
+          <option value="price_desc">Gia cao den thap</option>
+          <option value="duration">Thoi gian</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="results-header mb-6">
+      <h2 class="results-title">
+        @if (isLoading) {
+          Đang tìm kiếm...
+        } @else {
+          Tìm thấy {{ filteredTours.length }} tour
+        }
+      </h2>
+    </div>
+
+    @if (isLoading) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải danh sách tour...</p>
+      </div>
+    } @else if (filteredTours.length > 0) {
+      <div class="tours-grid">
+        @for (tour of filteredTours; track tour.package_id) {
+          <app-tour-card [tour]="tour"></app-tour-card>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <h3>Không tìm thấy tour nào</h3>
+        <p>Thử thay đổi tiêu chí tìm kiếm hoặc xóa bộ lọc</p>
+        <button class="btn-reset" (click)="loadTours()">
+          <i class="fas fa-redo"></i>
+          Tải lại
+        </button>
+      </div>
+    }
+  </div>
+</div>

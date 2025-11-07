@@ -1,0 +1,96 @@
+<section class="relative hero pt-12 ">
+  <div class="relative from-blue-900 to-transparent pt-10">
+    <div class="container mx-auto px-6 py-12 text-white flex flex-col">
+      <h1 class="text-3xl font-bold mx-auto hero-title text-white">Biến Chuyến Đi Thành Hiện Thực Theo Cách Của Bạn</h1>
+      <div class="bg-transparent rounded-lg mt-6 p-6 text-white box-border">
+        <div class="flex items-center justify-between space-x-4 border-b-2 border-solid pb-8 box-border text-gray-300">
+
+          @for (item of menuItems; track $index) {
+
+            <button class="rounded-3xl text-black flex flex-col justify-center items-center gap-2 plr16 plb8 h-full mh-80"
+            [ngClass]="{
+              'bg-white': item.isActive,
+              'text-black': item.isActive,
+              'hover:border' : !item.isActive,
+              'hover:border-solid' : !item.isActive,
+            }">
+              <span class="icon">
+                <img [src]="item.path" [alt]="item.label">
+              </span>
+              <span class="font-bold " [ngClass]="item.isActive ? 'text-black' : 'text-gray-300' ">
+                {{ item.label }}
+              </span>
+            </button>
+
+          }
+
+          <!-- <button class="py-2 px-4 rounded-3xl hover:border hover:border-solid flex flex-col justify-center gap-2">
+            <span class="icon">
+              <img src="icon/train.png" alt="">
+            </span>
+            <span class="font-bold">
+              Tiket Kereta Api
+            </span>
+          </button> -->
+
+
+
+        </div>
+
+        <div class="flex flex-row justify-between items-center pt-8">
+          <div class="flex gap-4 font-bold">
+            <button class="bg-blue-500 text-white px-4 py-2 rounded-md">Một Chiều / Khứ Hồi</button>
+            <button class="bg-black bg-opacity-50 text-white px-4 py-2 rounded-md ">Nhiều Thành Phố</button>
+          </div>
+
+          <div class="flex gap-4 items-center right-form">
+            <div class="text-gray-700 bg-transparent bg-opacity-50 w-rp">
+              <select  class="border border-white rounded-md shadow-sm p-2 bg-opacity-50">
+                <option>Phổ thông</option>
+                <option>Thương gia</option>
+                <option>Hạng nhất</option>
+              </select>
+            </div>
+            <div class="text-gray-700 bg-gray bg-opacity-50 w-rp">
+              <select  class="border border-white rounded-md shadow-sm p-2 bg-opacity-50">
+                <option>Phổ thông</option>
+                <option>Thương gia</option>
+                <option>Hạng nhất</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+
+
+
+        <div class="flex justify-between gap-4 ">
+
+          <div class="mt-6 grid grid-cols-1 md:grid-cols-3 mr-2 flex-auto wrapper-form">
+            <div>
+              <label class="block text-sm font-semibold mb-2 text-white">Thành phố, điểm đến hoặc tên khách sạn</label>
+              <input type="text" placeholder="Lembang" class="w-full p-2 border bg-white input-1" />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-2 text-white">Ngày nhận phòng & trả phòng</label>
+              <input type="text" placeholder="24 Tháng 1 2025 - 25 Tháng 1 2025" class="w-full p-2 border bg-white input-2" />
+            </div>
+            <div >
+              <label class="block text-sm font-semibold mb-2 text-white">Khách và phòng</label>
+              <div class="wrapper-input relative">
+                <input type="text" placeholder="1 Người lớn, 0 Trẻ em, 1 Phòng" class="w-full p-2 border bg-white input-3" />
+                <button class="absolute bg-orange-500 text-white btn-search" (click)="onSearch()">Tìm kiếm</button>
+
+              </div>
+            </div>
+          </div>
+
+
+        </div>
+
+
+
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,50 @@
+<div class="search-container">
+  <div class="search-tabs">
+    <button 
+      class="tab-btn"
+      [class.active]="searchType === 'hotel'"
+      (click)="switchSearchType('hotel')">
+      <i class="fas fa-hotel"></i>
+      Khách sạn
+    </button>
+    <button 
+      class="tab-btn"
+      [class.active]="searchType === 'tour'"
+      (click)="switchSearchType('tour')">
+      <i class="fas fa-map-marked-alt"></i>
+      Tour du lịch
+    </button>
+  </div>
+
+  @if (searchType === 'hotel') {
+    <div class="grid grid-cols-1 md:grid-cols-3 flex-auto wrapper-form">
+      <div>
+        <input type="text" [(ngModel)]="hotelSearchObj.name" placeholder="Hồ Chí Minh" class="w-full p-2 border input-1 bg-white" />
+      </div>
+      <div>
+        <input type="text" [(ngModel)]="hotelSearchObj.date" placeholder="24 Tháng 1 - 25 Tháng 1, 1 đêm" class="w-full p-2 border input-2 bg-white" />
+      </div>
+      <div>
+        <div class="wrapper-input relative">
+          <input type="text" [(ngModel)]="hotelSearchObj.capacity" placeholder="1 Người lớn, 0 Trẻ em, 1 Phòng" class="w-full p-2 border input-3 bg-white" />
+          <button class="absolute bg-blue-500 text-white btn-search absolute right-0 h-full p-2" (click)="bindSearch()">Tìm khách sạn</button>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 md:grid-cols-3 flex-auto wrapper-form">
+      <div>
+        <input type="text" [(ngModel)]="tourSearchObj.destination" placeholder="Điểm đến" class="w-full p-2 border input-1 bg-white" />
+      </div>
+      <div>
+        <input type="text" [(ngModel)]="tourSearchObj.departure_location" placeholder="Nơi khởi hành" class="w-full p-2 border input-2 bg-white" />
+      </div>
+      <div>
+        <div class="wrapper-input relative">
+          <input type="date" [(ngModel)]="tourSearchObj.date_from" placeholder="Ngày đi" class="w-full p-2 border input-3 bg-white" />
+          <button class="absolute bg-blue-500 text-white btn-search absolute right-0 h-full p-2" (click)="bindSearch()">Tìm tour</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

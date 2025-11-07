@@ -1,0 +1,151 @@
+<div class="chatbot-overlay" (click)="onClose()">
+  <div class="chat-container" (click)="$event.stopPropagation()">
+    <div class="chat-header">
+      <div class="header-content">
+        <div class="header-icon">
+          <i class="fas fa-plane-departure"></i>
+        </div>
+        <div class="header-text">
+          <h1>Travel Assistant</h1>
+          <div class="subtitle">AI-Powered Tour Recommendations</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>{{ headerStatus }}</span>
+        </div>
+        <button class="close-button" (click)="onClose()" title="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="messages-container" #messagesContainer>
+      @for (message of messages; track $index) {
+        <div class="message" [class.user]="message.isUser" [class.assistant]="!message.isUser">
+          @if (message.isError) {
+            <div class="error-message">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span [innerHTML]="message.content"></span>
+            </div>
+          } @else {
+            <div class="message-content">
+              <div class="avatar">
+                @if (message.isUser) {
+                  <i class="fas fa-user"></i>
+                } @else {
+                  <i class="fas fa-robot"></i>
+                }
+              </div>
+              <div class="message-bubble" [innerHTML]="message.isUser ? message.content : formatMessageContent(message.content)"></div>
+            </div>
+          }
+
+          @if (!message.isUser && message.tourSelections && message.tourSelections.length > 0) {
+            <div class="tour-selections-container">
+              @for (tourSelection of message.tourSelections; track tourSelection.index) {
+                <div class="tour-selection-card">
+                  <div class="tour-selection-header">
+                    <h3 class="tour-selection-title">{{ tourSelection.name }}</h3>
+                    <div class="tour-selection-price">{{ formatPrice(tourSelection.price) }}</div>
+                  </div>
+                  <div class="tour-selection-actions">
+                    <button class="btn btn-primary btn-sm" (click)="selectTour(tourSelection.name, tourSelection.price.toString())">
+                      <i class="fas fa-check"></i>
+                      Chọn tour này
+                    </button>
+                    <button class="btn btn-secondary btn-sm" (click)="viewTourDetails(tourSelection.name)">
+                      <i class="fas fa-info-circle"></i>
+                      Xem chi tiết
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          
+          @if (!message.isUser && message.tours && message.tours.length > 0) {
+            <div class="tour-recommendations">
+              @for (tour of message.tours; track $index) {
+                <div class="tour-card">
+                  <div class="tour-card-content">
+                    <div class="tour-header">
+                      <div class="tour-title">
+                        <div class="tour-name">{{ tour.package_name || 'Tour Package' }}</div>
+                        <div class="text-xs text-gray-500" *ngIf="tour.package_id">ID: {{ tour.package_id }}</div>
+                      </div>
+                      <div>
+                        <div class="tour-price-label">Giá từ</div>
+                        <div class="tour-price">{{ formatPrice(tour.price || 0) }}</div>
+                      </div>
+                    </div>
+                    <div class="tour-details">
+                      <div class="tour-detail-item">
+                        <i class="fas fa-map-marker-alt icon"></i>
+                        <span class="text">{{ tour.destination || 'Unknown' }}</span>
+                      </div>
+                      <div class="tour-detail-item">
+                        <i class="fas fa-clock icon"></i>
+                        <span class="text">{{ tour.duration_days || 0 }} ngày</span>
+                      </div>
+                      <div class="tour-detail-item">
+                        <i class="fas fa-plane icon"></i>
+                        <span class="text">{{ tour.departure_location || 'Unknown' }}</span>
+                      </div>
+                    </div>
+                    <div class="tour-actions">
+                      <button 
+                        class="btn btn-primary" 
+                        (click)="navigateToTourDetail(tour.package_id)"
+                        [disabled]="!tour.package_id">
+                        <i class="fas fa-info-circle"></i>
+                        Xem chi tiết
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+      
+      @if (isTyping) {
+        <div class="message assistant">
+          <div class="message-content">
+            <div class="avatar">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="typing-indicator">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="input-container">
+      <div class="input-wrapper">
+        <textarea 
+          #messageInput
+          [(ngModel)]="userMessage"
+          (keydown)="onKeyDown($event)"
+          (input)="onTextareaInput($event)"
+          placeholder="Ask me anything about tours, destinations, or travel plans..."
+          rows="1"
+        ></textarea>
+        <button 
+          class="send-button" 
+          (click)="sendMessage()"
+          [disabled]="isStreaming || !userMessage.trim()"
+        >
+          <span>Send</span>
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

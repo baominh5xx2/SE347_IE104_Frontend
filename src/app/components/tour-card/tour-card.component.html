@@ -1,0 +1,58 @@
+<div class="tour-card" *ngIf="tour">
+  <div class="tour-image">
+    <img [src]="tour.image_url || 'img/tour-default.jpg'" [alt]="tour.package_name">
+    <div class="tour-badge" *ngIf="tour.discount">
+      <span>-{{ tour.discount }}%</span>
+    </div>
+    <div class="tour-category" *ngIf="tour.category">
+      <span>{{ tour.category }}</span>
+    </div>
+  </div>
+  
+  <div class="tour-content">
+    <div class="tour-header">
+      <h3 class="tour-name">{{ tour.package_name }}</h3>
+      <div class="tour-rating" *ngIf="tour.rating">
+        <i class="fas fa-star"></i>
+        <span>{{ tour.rating }}</span>
+        <span class="reviews" *ngIf="tour.reviews">({{ tour.reviews }})</span>
+      </div>
+    </div>
+
+    <div class="tour-info">
+      <div class="info-item">
+        <i class="fas fa-map-marker-alt"></i>
+        <span>{{ tour.destination }}</span>
+      </div>
+      <div class="info-item">
+        <i class="fas fa-plane-departure"></i>
+        <span>{{ tour.departure_location }}</span>
+      </div>
+      <div class="info-item">
+        <i class="fas fa-clock"></i>
+        <span>{{ tour.duration_days }} ngày</span>
+      </div>
+    </div>
+
+    <div class="tour-highlights" *ngIf="showDetails && tour.highlights && tour.highlights.length > 0">
+      <div class="highlight" *ngFor="let highlight of tour.highlights.slice(0, 3)">
+        <i class="fas fa-check"></i>
+        <span>{{ highlight }}</span>
+      </div>
+    </div>
+
+    <div class="tour-footer">
+      <div class="tour-price">
+        <div class="price-label">From</div>
+        <div class="current-price">{{ formatPrice(getDiscountedPrice()) }}</div>
+        <div class="original-price" *ngIf="tour.discount && tour.original_price">
+          {{ formatPrice(tour.original_price) }}
+        </div>
+      </div>
+      <a [routerLink]="['/tour-details', tour.package_id]" class="btn-view-details">
+        Xem chi tiết
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+</div>
