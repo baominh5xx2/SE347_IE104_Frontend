@@ -1,151 +1,217 @@
-<div class="chatbot-overlay" (click)="onClose()">
-  <div class="chat-container" (click)="$event.stopPropagation()">
-    <div class="chat-header">
-      <div class="header-content">
-        <div class="header-icon">
-          <i class="fas fa-plane-departure"></i>
+<div class="agent-overlay" (click)="onClose()">
+  <div class="agent-dialog" (click)="$event.stopPropagation()">
+    <aside class="agent-sidebar">
+      <div class="sidebar-header">
+        <div class="agent-brand">
+          <div class="agent-icon">
+            <i class="fas fa-compass"></i>
+          </div>
+          <div>
+            <h2>Travel Agent</h2>
+            <p>Trợ lý du lịch thông minh</p>
+          </div>
         </div>
-        <div class="header-text">
-          <h1>Travel Assistant</h1>
-          <div class="subtitle">AI-Powered Tour Recommendations</div>
-        </div>
-      </div>
-      <div class="header-actions">
-        <div class="status-indicator">
-          <span class="status-dot"></span>
-          <span>{{ headerStatus }}</span>
-        </div>
-        <button class="close-button" (click)="onClose()" title="Close">
+        <button class="icon-button" (click)="onClose()" title="Đóng">
           <i class="fas fa-times"></i>
         </button>
       </div>
-    </div>
 
-    <div class="messages-container" #messagesContainer>
-      @for (message of messages; track $index) {
-        <div class="message" [class.user]="message.isUser" [class.assistant]="!message.isUser">
-          @if (message.isError) {
-            <div class="error-message">
-              <i class="fas fa-exclamation-triangle"></i>
-              <span [innerHTML]="message.content"></span>
-            </div>
-          } @else {
-            <div class="message-content">
-              <div class="avatar">
-                @if (message.isUser) {
-                  <i class="fas fa-user"></i>
-                } @else {
-                  <i class="fas fa-robot"></i>
-                }
-              </div>
-              <div class="message-bubble" [innerHTML]="message.isUser ? message.content : formatMessageContent(message.content)"></div>
-            </div>
-          }
-
-          @if (!message.isUser && message.tourSelections && message.tourSelections.length > 0) {
-            <div class="tour-selections-container">
-              @for (tourSelection of message.tourSelections; track tourSelection.index) {
-                <div class="tour-selection-card">
-                  <div class="tour-selection-header">
-                    <h3 class="tour-selection-title">{{ tourSelection.name }}</h3>
-                    <div class="tour-selection-price">{{ formatPrice(tourSelection.price) }}</div>
-                  </div>
-                  <div class="tour-selection-actions">
-                    <button class="btn btn-primary btn-sm" (click)="selectTour(tourSelection.name, tourSelection.price.toString())">
-                      <i class="fas fa-check"></i>
-                      Chọn tour này
-                    </button>
-                    <button class="btn btn-secondary btn-sm" (click)="viewTourDetails(tourSelection.name)">
-                      <i class="fas fa-info-circle"></i>
-                      Xem chi tiết
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-          
-          @if (!message.isUser && message.tours && message.tours.length > 0) {
-            <div class="tour-recommendations">
-              @for (tour of message.tours; track $index) {
-                <div class="tour-card">
-                  <div class="tour-card-content">
-                    <div class="tour-header">
-                      <div class="tour-title">
-                        <div class="tour-name">{{ tour.package_name || 'Tour Package' }}</div>
-                        <div class="text-xs text-gray-500" *ngIf="tour.package_id">ID: {{ tour.package_id }}</div>
-                      </div>
-                      <div>
-                        <div class="tour-price-label">Giá từ</div>
-                        <div class="tour-price">{{ formatPrice(tour.price || 0) }}</div>
-                      </div>
-                    </div>
-                    <div class="tour-details">
-                      <div class="tour-detail-item">
-                        <i class="fas fa-map-marker-alt icon"></i>
-                        <span class="text">{{ tour.destination || 'Unknown' }}</span>
-                      </div>
-                      <div class="tour-detail-item">
-                        <i class="fas fa-clock icon"></i>
-                        <span class="text">{{ tour.duration_days || 0 }} ngày</span>
-                      </div>
-                      <div class="tour-detail-item">
-                        <i class="fas fa-plane icon"></i>
-                        <span class="text">{{ tour.departure_location || 'Unknown' }}</span>
-                      </div>
-                    </div>
-                    <div class="tour-actions">
-                      <button 
-                        class="btn btn-primary" 
-                        (click)="navigateToTourDetail(tour.package_id)"
-                        [disabled]="!tour.package_id">
-                        <i class="fas fa-info-circle"></i>
-                        Xem chi tiết
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </div>
-      }
-      
-      @if (isTyping) {
-        <div class="message assistant">
-          <div class="message-content">
-            <div class="avatar">
-              <i class="fas fa-robot"></i>
-            </div>
-            <div class="typing-indicator">
-              <div class="typing-dot"></div>
-              <div class="typing-dot"></div>
-              <div class="typing-dot"></div>
-            </div>
-          </div>
-        </div>
-      }
-    </div>
-
-    <div class="input-container">
-      <div class="input-wrapper">
-        <textarea 
-          #messageInput
-          [(ngModel)]="userMessage"
-          (keydown)="onKeyDown($event)"
-          (input)="onTextareaInput($event)"
-          placeholder="Ask me anything about tours, destinations, or travel plans..."
-          rows="1"
-        ></textarea>
-        <button 
-          class="send-button" 
-          (click)="sendMessage()"
-          [disabled]="isStreaming || !userMessage.trim()"
-        >
-          <span>Send</span>
-          <i class="fas fa-paper-plane"></i>
+      <div class="sidebar-controls">
+        <button class="primary-button" (click)="startNewConversation()" [disabled]="isStreaming">
+          <i class="fas fa-plus"></i>
+          Cuộc trò chuyện mới
         </button>
       </div>
-    </div>
+
+      <div class="sidebar-section-label">Lịch sử trò chuyện</div>
+      <div class="conversation-list" role="list">
+        @if (!conversations.length) {
+          <div class="conversation-empty">
+            <i class="fas fa-comments"></i>
+            <p>Bắt đầu trò chuyện để lưu lịch sử tại đây.</p>
+          </div>
+        } @else {
+          @for (conversation of conversations; track conversation.id) {
+            <div
+              class="conversation-item"
+              role="button"
+              tabindex="0"
+              [class.active]="conversation.id === activeConversation?.id"
+              (click)="selectConversation(conversation.id)"
+              (keydown.enter)="selectConversation(conversation.id)"
+              (keydown.space)="$event.preventDefault(); selectConversation(conversation.id)"
+            >
+              <div class="conversation-meta">
+                <div class="conversation-title">{{ conversation.title }}</div>
+              </div>
+              <div class="conversation-preview">{{ getConversationPreview(conversation) }}</div>
+              <button
+                type="button"
+                class="conversation-delete"
+                title="Xóa cuộc trò chuyện"
+                (click)="$event.stopPropagation(); deleteConversation(conversation.id)"
+                [disabled]="isStreaming"
+              >
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          }
+        }
+      </div>
+    </aside>
+
+    <section class="agent-stage">
+      <header class="stage-header">
+        <div class="stage-heading">
+          <div class="stage-icon">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div>
+            <h1>Travel Intelligence</h1>
+            <p>Định hướng kế hoạch du lịch cá nhân hoá</p>
+          </div>
+        </div>
+        <div class="stage-actions">
+          <div class="status-chip" [class.error]="headerStatus === 'Error'">
+            <span class="status-dot"></span>
+            {{ headerStatus }}
+          </div>
+        </div>
+      </header>
+
+      <div class="stage-body">
+        <div class="messages-container" #messagesContainer>
+          @if (!messages.length && !isTyping) {
+            <div class="stage-empty">
+              <div class="empty-illustration">
+                <i class="fas fa-map-marked-alt"></i>
+              </div>
+              <h2>Xin chào! Tôi có thể giúp gì cho hành trình tiếp theo của bạn?</h2>
+              <p>Đặt câu hỏi về điểm đến, ngân sách, ưu đãi hoặc bất kỳ điều gì liên quan đến tour.</p>
+            </div>
+          }
+
+          @for (message of messages; track $index) {
+            <div class="message-row" [class.user]="message.isUser" [class.assistant]="!message.isUser">
+              @if (message.isError) {
+                <div class="message-error">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <span [innerHTML]="message.content"></span>
+                </div>
+              } @else {
+                <div class="message-body">
+                  <div class="message-avatar">
+                    @if (message.isUser) {
+                      <i class="fas fa-user"></i>
+                    } @else {
+                      <i class="fas fa-robot"></i>
+                    }
+                  </div>
+                  <div class="message-bubble" [innerHTML]="message.isUser ? message.content : formatMessageContent(message.content)"></div>
+                </div>
+              }
+
+              @if (!message.isUser && message.tourSelections?.length) {
+                <div class="tour-selection-deck">
+                  @for (tourSelection of message.tourSelections; track tourSelection.index) {
+                    <div class="tour-selection-card">
+                      <div class="tour-selection-heading">
+                        <h3>{{ tourSelection.name }}</h3>
+                        <span>{{ formatPrice(tourSelection.price) }}</span>
+                      </div>
+                      <div class="tour-selection-actions">
+                        <button class="pill-button primary" (click)="selectTour(tourSelection.name, tourSelection.price.toString())">
+                          <i class="fas fa-check"></i>
+                          Chọn tour này
+                        </button>
+                        <button class="pill-button ghost" (click)="viewTourDetails(tourSelection.name)">
+                          <i class="fas fa-eye"></i>
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (!message.isUser && message.tours?.length) {
+                <div class="tour-carousel">
+                  @for (tour of message.tours; track $index) {
+                    <div class="tour-card">
+                      <div class="tour-card-header">
+                        <div>
+                          <h4>{{ tour.package_name || 'Tour Package' }}</h4>
+                          @if (tour.package_id) {
+                            <span>ID: {{ tour.package_id }}</span>
+                          }
+                        </div>
+                        <div class="tour-card-price">
+                          <small>Giá từ</small>
+                          <strong>{{ formatPrice(tour.price || 0) }}</strong>
+                        </div>
+                      </div>
+                      <div class="tour-card-body">
+                        <div class="tour-attribute">
+                          <i class="fas fa-map-marker-alt"></i>
+                          <span>{{ tour.destination || 'Đang cập nhật' }}</span>
+                        </div>
+                        <div class="tour-attribute">
+                          <i class="fas fa-clock"></i>
+                          <span>{{ tour.duration_days || 0 }} ngày</span>
+                        </div>
+                        <div class="tour-attribute">
+                          <i class="fas fa-plane"></i>
+                          <span>{{ tour.departure_location || 'Đang cập nhật' }}</span>
+                        </div>
+                      </div>
+                      <div class="tour-card-actions">
+                        <button class="pill-button primary" (click)="navigateToTourDetail(tour.package_id)" [disabled]="!tour.package_id">
+                          <i class="fas fa-info-circle"></i>
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          @if (isTyping) {
+            <div class="message-row assistant">
+              <div class="message-body">
+                <div class="message-avatar">
+                  <i class="fas fa-robot"></i>
+                </div>
+                <div class="typing-ellipsis">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <footer class="stage-composer">
+        <div class="composer-bar">
+          <textarea
+            #messageInput
+            [(ngModel)]="userMessage"
+            (keydown)="onKeyDown($event)"
+            (input)="onTextareaInput($event)"
+            placeholder="Đặt câu hỏi về hành trình, điểm đến hay các ưu đãi du lịch..."
+            rows="1"
+          ></textarea>
+          <div class="composer-actions">
+            <button class="send-button" type="button" (click)="sendMessage()" [disabled]="isStreaming || !userMessage.trim()">
+              Gửi
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </footer>
+    </section>
   </div>
 </div>
