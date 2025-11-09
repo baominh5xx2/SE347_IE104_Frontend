@@ -1,9 +1,11 @@
-import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit } from '@angular/core';
 import { CommonModule, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ChatService } from '../../services/chat.service';
 import { TourService } from '../../services/tour.service';
+
+const STORAGE_KEY = 'ai.chatbot.conversations';
 
 interface TourSelection {
   name: string;
@@ -19,13 +21,23 @@ interface Message {
   isError?: boolean;
 }
 
+interface Conversation {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  remoteConversationId: string | null;
+  userId: string | null;
+  messages: Message[];
+}
+
 @Component({
   selector: 'app-ai-chatbot',
   imports: [CommonModule, NgIf, FormsModule],
   templateUrl: './ai-chatbot.component.html',
   styleUrl: './ai-chatbot.component.scss'
 })
-export class AiChatbotComponent {
+export class AiChatbotComponent implements OnInit {
   @Output() close = new EventEmitter<void>();
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('messageInput') messageInputRef!: ElementRef;
@@ -38,6 +50,8 @@ export class AiChatbotComponent {
   userId: string | null = null;
   headerStatus = 'Online';
   currentStreamContent = '';
+  conversations: Conversation[] = [];
+  activeConversation: Conversation | null = null;
 
   constructor(
     private chatService: ChatService,
@@ -45,6 +59,15 @@ export class AiChatbotComponent {
     private router: Router,
     private tourService: TourService
   ) {}
+
+  ngOnInit(): void {
+    this.loadConversations();
+    if (!this.conversations.length) {
+      this.startNewConversation();
+    } else {
+      this.selectConversation(this.conversations[0].id);
+    }
+  }
 
   onClose(): void {
     this.close.emit();
@@ -54,8 +77,16 @@ export class AiChatbotComponent {
     if (this.isStreaming || !this.userMessage.trim()) return;
 
     const message = this.userMessage.trim();
+    const conversation = this.ensureActiveConversation();
+
     this.messages.push({ content: message, isUser: true });
     this.userMessage = '';
+
+    this.touchConversation(conversation);
+    if (!conversation.messages.some(m => !m.isUser)) {
+      conversation.title = this.generateConversationTitle(message);
+    }
+    this.persistConversations();
     
     if (this.messageInputRef && this.messageInputRef.nativeElement) {
       this.messageInputRef.nativeElement.style.height = 'auto';
@@ -64,6 +95,8 @@ export class AiChatbotComponent {
     this.isStreaming = true;
     this.isTyping = true;
     this.headerStatus = 'Thinking...';
+    this.conversationId = conversation.remoteConversationId;
+    this.userId = conversation.userId;
     
     setTimeout(() => this.scrollToBottom(), 100);
 
@@ -91,7 +124,11 @@ export class AiChatbotComponent {
                 case 'start':
                   this.conversationId = event.conversation_id;
                   this.userId = event.user_id;
+                  conversation.remoteConversationId = event.conversation_id;
+                  conversation.userId = event.user_id;
+                  this.touchConversation(conversation);
                   console.log('Conversation started:', this.conversationId);
+                  this.persistConversations();
                   break;
                   
                 case 'token':
@@ -111,6 +148,8 @@ export class AiChatbotComponent {
                       assistantMessage.tourSelections = tourSelections;
                     }
                   }
+                  this.touchConversation(conversation, false);
+                  this.persistConversations();
                   setTimeout(() => this.scrollToBottom(), 0);
                   break;
                   
@@ -119,16 +158,21 @@ export class AiChatbotComponent {
                   if (assistantMessage && event.data) {
                     assistantMessage.tours = event.data;
                     console.log('Tours assigned to message:', assistantMessage.tours);
-                    if (assistantMessage.tours) {
-                      console.log('Tour IDs:', assistantMessage.tours.map(t => ({ name: t.package_name, id: t.package_id })));
+                    if (assistantMessage.tours && assistantMessage.tours.length > 0) {
+                      console.log('First tour data:', JSON.stringify(assistantMessage.tours[0], null, 2));
+                      console.log('Tour fields:', Object.keys(assistantMessage.tours[0]));
                     }
                     this.cdr.detectChanges();
+                    this.touchConversation(conversation, false);
+                    this.persistConversations();
                   }
                   setTimeout(() => this.scrollToBottom(), 100);
                   break;
                   
                 case 'complete':
                   console.log('Complete:', event.full_response);
+                  this.touchConversation(conversation);
+                  this.persistConversations();
                   break;
                   
                 case 'error':
@@ -143,6 +187,8 @@ export class AiChatbotComponent {
                     this.currentStreamContent += '\n\n[ERROR]: ' + event.content;
                     assistantMessage.content = this.currentStreamContent;
                   }
+                  this.touchConversation(conversation);
+                  this.persistConversations();
                   break;
               }
             } catch (e) {
@@ -153,6 +199,8 @@ export class AiChatbotComponent {
       }
 
       this.headerStatus = 'Online';
+      this.touchConversation(conversation);
+      this.persistConversations();
     } catch (error: any) {
       this.isTyping = false;
       let errorMessage = 'Unknown error occurred';
@@ -171,6 +219,9 @@ export class AiChatbotComponent {
         isUser: false,
         isError: true
       });
+      const conversation = this.ensureActiveConversation();
+      this.touchConversation(conversation);
+      this.persistConversations();
       this.headerStatus = 'Error';
       console.error('Chat error:', error);
     } finally {
@@ -204,6 +255,86 @@ export class AiChatbotComponent {
     let html = this.parseMarkdown(content);
     
     return html;
+  }
+
+  startNewConversation(): void {
+    if (this.isStreaming) return;
+
+    const conversation: Conversation = {
+      id: this.generateId(),
+      title: 'Cuộc trò chuyện mới',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      remoteConversationId: null,
+      userId: null,
+      messages: []
+    };
+
+    this.conversations = [conversation, ...this.conversations];
+    this.selectConversation(conversation.id);
+    this.persistConversations();
+  }
+
+  selectConversation(conversationId: string): void {
+    if (this.isStreaming && this.activeConversation?.id !== conversationId) return;
+
+    const conversation = this.conversations.find(conv => conv.id === conversationId);
+    if (!conversation) return;
+
+    this.activeConversation = conversation;
+    this.messages = conversation.messages;
+    this.conversationId = conversation.remoteConversationId;
+    this.userId = conversation.userId;
+    this.isTyping = false;
+    this.isStreaming = false;
+    this.currentStreamContent = '';
+    setTimeout(() => this.scrollToBottom(), 100);
+  }
+
+  deleteConversation(conversationId: string): void {
+    if (this.isStreaming) return;
+
+    const index = this.conversations.findIndex(conv => conv.id === conversationId);
+    if (index === -1) return;
+
+    const wasActive = this.activeConversation?.id === conversationId;
+    this.conversations.splice(index, 1);
+
+    if (!this.conversations.length) {
+      this.startNewConversation();
+    } else if (wasActive) {
+      const nextConversation = this.conversations[Math.min(index, this.conversations.length - 1)];
+      this.selectConversation(nextConversation.id);
+    }
+
+    this.persistConversations();
+  }
+
+  formatTimestamp(timestamp: number): string {
+    if (!timestamp) return '';
+    try {
+      return new Intl.DateTimeFormat('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+      }).format(timestamp);
+    } catch (error) {
+      console.warn('Timestamp format error:', error);
+      return new Date(timestamp).toLocaleString();
+    }
+  }
+
+  getConversationPreview(conversation: Conversation): string {
+    if (!conversation.messages.length) {
+      return 'Chưa có nội dung nào.';
+    }
+    const lastMessage = conversation.messages[conversation.messages.length - 1].content || '';
+    const cleaned = lastMessage.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    if (!cleaned) {
+      return 'Đang chờ nội dung từ trợ lý.';
+    }
+    return cleaned.length > 70 ? cleaned.slice(0, 67) + '…' : cleaned;
   }
 
   private parseMarkdown(text: string): string {
@@ -345,6 +476,72 @@ export class AiChatbotComponent {
     if (this.messagesContainer) {
       const element = this.messagesContainer.nativeElement;
       element.scrollTop = element.scrollHeight;
+    }
+  }
+
+  private loadConversations(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored) as Conversation[];
+      this.conversations = parsed.map(conversation => ({
+        ...conversation,
+        messages: conversation.messages || []
+      }));
+    } catch (error) {
+      console.warn('Failed to load conversations:', error);
+      this.conversations = [];
+    }
+  }
+
+  private persistConversations(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const payload = JSON.stringify(this.conversations);
+      localStorage.setItem(STORAGE_KEY, payload);
+    } catch (error) {
+      console.warn('Failed to persist conversations:', error);
+    }
+  }
+
+  private ensureActiveConversation(): Conversation {
+    if (!this.activeConversation) {
+      this.startNewConversation();
+    }
+    return this.activeConversation!;
+  }
+
+  private generateConversationTitle(message: string): string {
+    const cleaned = message.replace(/\s+/g, ' ').trim();
+    if (!cleaned) {
+      return 'Cuộc trò chuyện mới';
+    }
+    return cleaned.length > 40 ? `${cleaned.slice(0, 37)}…` : cleaned;
+  }
+
+  private generateId(): string {
+    try {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+    } catch (error) {
+      console.warn('crypto.randomUUID unavailable:', error);
+    }
+    return Math.random().toString(36).slice(2, 11);
+  }
+
+  private touchConversation(conversation: Conversation, bump: boolean = true): void {
+    conversation.updatedAt = Date.now();
+    if (!bump) {
+      return;
+    }
+
+    const index = this.conversations.findIndex(conv => conv.id === conversation.id);
+    if (index > 0) {
+      this.conversations.splice(index, 1);
+      this.conversations.unshift(conversation);
     }
   }
 }
