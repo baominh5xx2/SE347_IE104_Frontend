@@ -32,6 +32,20 @@
         <i class="fas fa-clock"></i>
         <span>{{ tour.duration_days }} ngày</span>
       </div>
+      <div class="info-item" *ngIf="tour.start_date || tour.end_date">
+        <i class="fas fa-calendar-alt"></i>
+        <span>
+          <span *ngIf="tour.start_date && tour.end_date">
+            {{ formatDate(tour.start_date) }} - {{ formatDate(tour.end_date) }}
+          </span>
+          <span *ngIf="tour.start_date && !tour.end_date">
+            Bắt đầu: {{ formatDate(tour.start_date) }}
+          </span>
+          <span *ngIf="!tour.start_date && tour.end_date">
+            Kết thúc: {{ formatDate(tour.end_date) }}
+          </span>
+        </span>
+      </div>
     </div>
 
     <div class="tour-highlights" *ngIf="showDetails && tour.highlights && tour.highlights.length > 0">

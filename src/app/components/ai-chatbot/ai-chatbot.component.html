@@ -163,6 +163,20 @@
                           <i class="fas fa-plane"></i>
                           <span>{{ tour.departure_location || 'Đang cập nhật' }}</span>
                         </div>
+                        @if (tour.start_date || tour.end_date) {
+                          <div class="tour-attribute">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>
+                              @if (tour.start_date && tour.end_date) {
+                                {{ formatDate(tour.start_date) }} - {{ formatDate(tour.end_date) }}
+                              } @else if (tour.start_date) {
+                                Bắt đầu: {{ formatDate(tour.start_date) }}
+                              } @else if (tour.end_date) {
+                                Kết thúc: {{ formatDate(tour.end_date) }}
+                              }
+                            </span>
+                          </div>
+                        }
                       </div>
                       <div class="tour-card-actions">
                         <button class="pill-button primary" (click)="navigateToTourDetail(tour.package_id)" [disabled]="!tour.package_id">
