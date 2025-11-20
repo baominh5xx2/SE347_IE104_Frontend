@@ -71,12 +71,22 @@
       </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md p-4">
+    <div class="bg-white rounded-lg shadow-md p-4" *ngIf="tour.start_date || tour.end_date">
       <div class="flex items-center gap-3">
         <i class="fas fa-calendar-alt text-2xl text-blue-500"></i>
         <div>
-          <p class="text-sm text-gray-600">Khởi hành</p>
-          <p class="font-semibold">{{ tour.start_date || 'Hàng ngày' }}</p>
+          <p class="text-sm text-gray-600">Ngày khởi hành</p>
+          <p class="font-semibold">
+            <span *ngIf="tour.start_date && tour.end_date">
+              {{ formatDate(tour.start_date) }} - {{ formatDate(tour.end_date) }}
+            </span>
+            <span *ngIf="tour.start_date && !tour.end_date">
+              {{ formatDate(tour.start_date) }}
+            </span>
+            <span *ngIf="!tour.start_date && tour.end_date">
+              {{ formatDate(tour.end_date) }}
+            </span>
+          </p>
         </div>
       </div>
     </div>

@@ -155,6 +155,21 @@ export class ProducDetailsComponent implements OnInit {
     return tour.price;
   }
 
+  formatDate(dateString: string | undefined): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(date);
+    } catch (error) {
+      console.warn('Date format error:', error);
+      return dateString;
+    }
+  }
+
   onBookTour(): void {
     if (this.tour) {
       this.router.navigate(['/booking', this.tour.package_id]);

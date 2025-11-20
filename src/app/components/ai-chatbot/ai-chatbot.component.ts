@@ -1,9 +1,11 @@
+
 import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit } from '@angular/core';
 import { CommonModule, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ChatService } from '../../services/chat.service';
 import { TourService } from '../../services/tour.service';
+import { marked } from 'marked';
 
 const STORAGE_KEY = 'ai.chatbot.conversations';
 
@@ -33,7 +35,7 @@ interface Conversation {
 
 @Component({
   selector: 'app-ai-chatbot',
-  imports: [CommonModule, NgIf, FormsModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './ai-chatbot.component.html',
   styleUrl: './ai-chatbot.component.scss'
 })
@@ -252,9 +254,41 @@ export class AiChatbotComponent implements OnInit {
   formatMessageContent(content: string): string {
     if (!content) return '';
     
-    let html = this.parseMarkdown(content);
-    
-    return html;
+    try {
+      // Configure marked options
+      // With breaks: false, double line breaks (\n\n) create paragraphs <p>
+      // Single line breaks (\n) within paragraphs are ignored (standard markdown)
+      marked.setOptions({
+        breaks: false, // Use standard markdown: double line breaks = paragraphs
+        gfm: true, // GitHub Flavored Markdown
+      });
+      
+      // Pre-process content to ensure proper spacing
+      // Normalize and ensure double line breaks for paragraphs
+      let normalizedContent = content
+        .replace(/\r\n/g, '\n') // Normalize Windows line breaks
+        .replace(/\r/g, '\n') // Normalize Mac line breaks
+        .replace(/\n{3,}/g, '\n\n') // Multiple line breaks become double
+        .trim();
+      
+      // Render markdown to HTML
+      // Marked will convert:
+      // - Double line breaks (\n\n) → <p>paragraphs</p>
+      // - Lists with proper spacing → <ul><li> or <ol><li>
+      // - Bold/italic/code → proper HTML tags
+      const html = marked.parse(normalizedContent);
+      return html as string;
+    } catch (error) {
+      console.warn('Markdown parsing error:', error);
+      // Fallback: preserve line breaks as paragraphs
+      const paragraphs = content
+        .split(/\n\n+/) // Split on double or more line breaks
+        .map(p => p.trim())
+        .filter(p => p.length > 0)
+        .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+      return paragraphs || content.replace(/\n/g, '<br>');
+    }
   }
 
   startNewConversation(): void {
@@ -325,6 +359,21 @@ export class AiChatbotComponent implements OnInit {
     }
   }
 
+  formatDate(dateString: string | undefined): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(date);
+    } catch (error) {
+      console.warn('Date format error:', error);
+      return dateString;
+    }
+  }
+
   getConversationPreview(conversation: Conversation): string {
     if (!conversation.messages.length) {
       return 'Chưa có nội dung nào.';
@@ -337,19 +386,6 @@ export class AiChatbotComponent implements OnInit {
     return cleaned.length > 70 ? cleaned.slice(0, 67) + '…' : cleaned;
   }
 
-  private parseMarkdown(text: string): string {
-    if (!text) return '';
-    
-    let html = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^(\d+)\.\s+(.+)$/gm, '<div class="list-item"><span class="list-number">$1.</span> $2</div>')
-      .replace(/\r\n|\r|\n/g, '<br>');
-    
-    return html;
-  }
 
   extractTourSelections(content: string): TourSelection[] {
     const patterns = [
