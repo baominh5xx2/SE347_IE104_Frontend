@@ -7,6 +7,7 @@ import { PaymentComponent } from './pages/payment/payment.component';
 import { LoginComponent } from './pages/auth/login/login.component';
 import { RegisterComponent } from './pages/auth/register/register.component';
 import { ToursComponent } from './pages/tours/tours.component';
+import { AiChatbotComponent } from './components/ai-chatbot/ai-chatbot.component';
 
 export const routes: Routes = [
   {
@@ -39,5 +40,8 @@ export const routes: Routes = [
   },
   {
     path: 'register', component: RegisterComponent
+  },
+  {
+    path: 'chat', component: AiChatbotComponent
   },
 ];

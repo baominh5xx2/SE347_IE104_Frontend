@@ -1,18 +1,16 @@
 import { NgClass, NgIf } from '@angular/common';
 import { Component, HostListener, OnInit } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
-import { AiChatbotComponent } from '../../components/ai-chatbot/ai-chatbot.component';
 
 @Component({
   selector: 'app-header',
-  imports: [NgClass, NgIf, RouterLink, AiChatbotComponent],
+  imports: [NgClass, NgIf, RouterLink],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
 export class HeaderComponent implements OnInit {
   isScrolled = false;
   isHomePage = false;
-  showChatbot = false;
 
   classHeader: string = '';
   textClass: string = ''
@@ -76,11 +74,8 @@ export class HeaderComponent implements OnInit {
   }
 
   openChatbot(): void {
-    this.showChatbot = true;
-  }
-
-  closeChatbot(): void {
-    this.showChatbot = false;
+    // Navigate to chat page instead of opening modal
+    this.router.navigate(['/chat']);
   }
 }
 

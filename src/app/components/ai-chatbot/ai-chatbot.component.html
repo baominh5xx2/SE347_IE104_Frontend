@@ -1,20 +1,19 @@
-<div class="agent-overlay" (click)="onClose()">
-  <div class="agent-dialog" (click)="$event.stopPropagation()">
-    <aside class="agent-sidebar">
-      <div class="sidebar-header">
-        <div class="agent-brand">
-          <div class="agent-icon">
-            <i class="fas fa-compass"></i>
-          </div>
-          <div>
-            <h2>Travel Agent</h2>
-            <p>Trợ lý du lịch thông minh</p>
-          </div>
+<div class="agent-page">
+  <aside class="agent-sidebar">
+    <div class="sidebar-header">
+      <div class="agent-brand">
+        <div class="agent-icon">
+          <i class="fas fa-compass"></i>
         </div>
-        <button class="icon-button" (click)="onClose()" title="Đóng">
-          <i class="fas fa-times"></i>
-        </button>
+        <div>
+          <h2>Travel Agent</h2>
+          <p>Trợ lý du lịch thông minh</p>
+        </div>
       </div>
+      <button class="icon-button" (click)="onClose()" title="Đóng">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+    </div>
 
       <div class="sidebar-controls">
         <button class="primary-button" (click)="startNewConversation()" [disabled]="isStreaming">
@@ -134,58 +133,23 @@
                 </div>
               }
 
-              @if (!message.isUser && message.tours?.length) {
-                <div class="tour-carousel">
-                  @for (tour of message.tours; track $index) {
-                    <div class="tour-card">
-                      <div class="tour-card-header">
-                        <div>
-                          <h4>{{ tour.package_name || 'Tour Package' }}</h4>
-                          @if (tour.package_id) {
-                            <span>ID: {{ tour.package_id }}</span>
-                          }
-                        </div>
-                        <div class="tour-card-price">
-                          <small>Giá từ</small>
-                          <strong>{{ formatPrice(tour.price || 0) }}</strong>
-                        </div>
-                      </div>
-                      <div class="tour-card-body">
-                        <div class="tour-attribute">
-                          <i class="fas fa-map-marker-alt"></i>
-                          <span>{{ tour.destination || 'Đang cập nhật' }}</span>
-                        </div>
-                        <div class="tour-attribute">
-                          <i class="fas fa-clock"></i>
-                          <span>{{ tour.duration_days || 0 }} ngày</span>
-                        </div>
-                        <div class="tour-attribute">
-                          <i class="fas fa-plane"></i>
-                          <span>{{ tour.departure_location || 'Đang cập nhật' }}</span>
-                        </div>
-                        @if (tour.start_date || tour.end_date) {
-                          <div class="tour-attribute">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span>
-                              @if (tour.start_date && tour.end_date) {
-                                {{ formatDate(tour.start_date) }} - {{ formatDate(tour.end_date) }}
-                              } @else if (tour.start_date) {
-                                Bắt đầu: {{ formatDate(tour.start_date) }}
-                              } @else if (tour.end_date) {
-                                Kết thúc: {{ formatDate(tour.end_date) }}
-                              }
-                            </span>
-                          </div>
-                        }
-                      </div>
-                      <div class="tour-card-actions">
-                        <button class="pill-button primary" (click)="navigateToTourDetail(tour.package_id)" [disabled]="!tour.package_id">
-                          <i class="fas fa-info-circle"></i>
-                          Xem chi tiết
-                        </button>
-                      </div>
-                    </div>
+              @if (!message.isUser && (message.mcpUiResource || message.mcpUiHtml)) {
+                <div class="mcp-ui-container">
+                  <!-- Render HTML content directly (Custom styled UI) -->
+                  @if (message.mcpUiHtml || (message.mcpUiResource && message.mcpUiResource.text)) {
+                    <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiHtml || message.mcpUiResource?.text || '')"></div>
                   }
+                  
+                  <!-- Web Component (Hidden for now due to process is not defined error, but kept for reference) -->
+                  <!-- 
+                  @if (message.mcpUiResource && false) {
+                    <ui-resource-renderer 
+                      [id]="'mcp-ui-' + $index"
+                      [attr.resource]="getUiResourceJson(message.mcpUiResource)"
+                      (onUIAction)="handleMcpUIAction($event)">
+                    </ui-resource-renderer>
+                  } 
+                  -->
                 </div>
               }
             </div>
@@ -209,6 +173,12 @@
       </div>
 
       <footer class="stage-composer">
+        @if (contextLengthWarning) {
+          <div class="context-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>{{ contextLengthWarning }}</span>
+          </div>
+        }
         <div class="composer-bar">
           <textarea
             #messageInput
@@ -227,5 +197,4 @@
         </div>
       </footer>
     </section>
-  </div>
 </div>
