@@ -1,8 +1,9 @@
 
-import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ChatService } from '../../services/chat.service';
 import { TourService } from '../../services/tour.service';
 import { marked } from 'marked';
@@ -18,9 +19,14 @@ interface TourSelection {
 interface Message {
   content: string;
   isUser: boolean;
-  tours?: any[];
   tourSelections?: TourSelection[];
   isError?: boolean;
+  mcpUiHtml?: string; // MCP UI HTML content (backward compatibility)
+  mcpUiResource?: { // MCP-UI standard UIResource object
+    uri: string;
+    mimeType?: string;
+    text?: string;
+  };
 }
 
 interface Conversation {
@@ -37,7 +43,8 @@ interface Conversation {
   selector: 'app-ai-chatbot',
   imports: [CommonModule, FormsModule],
   templateUrl: './ai-chatbot.component.html',
-  styleUrl: './ai-chatbot.component.scss'
+  styleUrl: './ai-chatbot.component.scss',
+  schemas: [CUSTOM_ELEMENTS_SCHEMA] // Allow web components like ui-resource-renderer
 })
 export class AiChatbotComponent implements OnInit {
   @Output() close = new EventEmitter<void>();
@@ -54,12 +61,15 @@ export class AiChatbotComponent implements OnInit {
   currentStreamContent = '';
   conversations: Conversation[] = [];
   activeConversation: Conversation | null = null;
+  maxContextLength = 1000;
+  contextLengthWarning: string | null = null;
 
   constructor(
     private chatService: ChatService,
     private cdr: ChangeDetectorRef,
     private router: Router,
-    private tourService: TourService
+    private tourService: TourService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -72,13 +82,50 @@ export class AiChatbotComponent implements OnInit {
   }
 
   onClose(): void {
+    const previousUrl = document.referrer;
+    if (previousUrl && previousUrl.includes(window.location.origin)) {
+      this.router.navigateByUrl('/home');
+    } else {
+      this.router.navigate(['/home']);
+    }
     this.close.emit();
+  }
+
+  private getTotalContextLength(): number {
+    return this.messages.reduce((total, msg) => {
+      return total + (msg.content?.length || 0);
+    }, 0);
+  }
+
+  private wouldExceedContextLimit(newMessageLength: number): boolean {
+    const currentLength = this.getTotalContextLength();
+    return (currentLength + newMessageLength) > this.maxContextLength;
+  }
+
+  getRemainingContextLength(): number {
+    const currentLength = this.getTotalContextLength();
+    return Math.max(0, this.maxContextLength - currentLength);
   }
 
   async sendMessage(): Promise<void> {
     if (this.isStreaming || !this.userMessage.trim()) return;
 
     const message = this.userMessage.trim();
+    
+    // Check if adding this message would exceed context limit
+    if (this.wouldExceedContextLimit(message.length)) {
+      const remaining = this.getRemainingContextLength();
+      this.contextLengthWarning = `Bạn đã đạt giới hạn ${this.maxContextLength} ký tự. Vui lòng bắt đầu cuộc trò chuyện mới hoặc xóa một số tin nhắn cũ. (Còn lại: ${remaining} ký tự)`;
+      setTimeout(() => {
+        this.contextLengthWarning = null;
+        this.cdr.detectChanges();
+      }, 5000);
+      this.cdr.detectChanges();
+      return;
+    }
+
+    // Clear warning if message is valid
+    this.contextLengthWarning = null;
     const conversation = this.ensureActiveConversation();
 
     this.messages.push({ content: message, isUser: true });
@@ -129,7 +176,6 @@ export class AiChatbotComponent implements OnInit {
                   conversation.remoteConversationId = event.conversation_id;
                   conversation.userId = event.user_id;
                   this.touchConversation(conversation);
-                  console.log('Conversation started:', this.conversationId);
                   this.persistConversations();
                   break;
                   
@@ -155,24 +201,48 @@ export class AiChatbotComponent implements OnInit {
                   setTimeout(() => this.scrollToBottom(), 0);
                   break;
                   
-                case 'recommendations':
-                  console.log('Recommendations received:', event.data);
-                  if (assistantMessage && event.data) {
-                    assistantMessage.tours = event.data;
-                    console.log('Tours assigned to message:', assistantMessage.tours);
-                    if (assistantMessage.tours && assistantMessage.tours.length > 0) {
-                      console.log('First tour data:', JSON.stringify(assistantMessage.tours[0], null, 2));
-                      console.log('Tour fields:', Object.keys(assistantMessage.tours[0]));
+                case 'mcp_ui':
+                  if (!assistantMessage) {
+                    this.isTyping = false;
+                    assistantMessage = { content: '', isUser: false };
+                    this.messages.push(assistantMessage);
+                    isFirstToken = false;
+                  }
+                  
+                  if (assistantMessage) {
+                    if (event.ui_resource) {
+                      assistantMessage.mcpUiResource = event.ui_resource;
+                      if (event.html || event.ui_resource.text) {
+                        assistantMessage.mcpUiHtml = event.html || event.ui_resource.text;
+                      }
+                    } else if (event.html) {
+                      assistantMessage.mcpUiHtml = event.html;
                     }
+                    
                     this.cdr.detectChanges();
+                    
+                    setTimeout(() => {
+                      this.cdr.detectChanges();
+                      if (assistantMessage) {
+                        this.setupMcpUiHandlers(assistantMessage);
+                      }
+                      this.scrollToBottom();
+                    }, 0);
+                    
+                    setTimeout(() => {
+                      this.cdr.detectChanges();
+                      this.scrollToBottom();
+                    }, 50);
+                    
                     this.touchConversation(conversation, false);
                     this.persistConversations();
                   }
-                  setTimeout(() => this.scrollToBottom(), 100);
+                  break;
+                  
+                case 'recommendations':
                   break;
                   
                 case 'complete':
-                  console.log('Complete:', event.full_response);
                   this.touchConversation(conversation);
                   this.persistConversations();
                   break;
@@ -240,8 +310,33 @@ export class AiChatbotComponent implements OnInit {
 
   onTextareaInput(event: Event): void {
     const textarea = event.target as HTMLTextAreaElement;
+    const currentInput = textarea.value;
+    
+    // Check if adding this input would exceed context limit
+    const currentContextLength = this.getTotalContextLength();
+    const totalWithInput = currentContextLength + currentInput.length;
+    
+    if (totalWithInput > this.maxContextLength) {
+      // Prevent further input
+      const maxAllowed = this.maxContextLength - currentContextLength;
+      if (maxAllowed > 0) {
+        textarea.value = currentInput.substring(0, maxAllowed);
+        this.userMessage = textarea.value;
+      } else {
+        textarea.value = '';
+        this.userMessage = '';
+      }
+      
+      const remaining = this.getRemainingContextLength();
+      this.contextLengthWarning = `Đã đạt giới hạn ${this.maxContextLength} ký tự.`;
+      this.cdr.detectChanges();
+    } else {
+      // Clear warning if under limit
+      this.contextLengthWarning = null;
+    }
+    
     textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    textarea.style.height = Math.min(textarea.scrollHeight, 160) + 'px';
   }
 
   formatPrice(price: number): string {
@@ -279,7 +374,6 @@ export class AiChatbotComponent implements OnInit {
       const html = marked.parse(normalizedContent);
       return html as string;
     } catch (error) {
-      console.warn('Markdown parsing error:', error);
       // Fallback: preserve line breaks as paragraphs
       const paragraphs = content
         .split(/\n\n+/) // Split on double or more line breaks
@@ -354,7 +448,6 @@ export class AiChatbotComponent implements OnInit {
         month: '2-digit'
       }).format(timestamp);
     } catch (error) {
-      console.warn('Timestamp format error:', error);
       return new Date(timestamp).toLocaleString();
     }
   }
@@ -369,7 +462,6 @@ export class AiChatbotComponent implements OnInit {
         year: 'numeric'
       }).format(date);
     } catch (error) {
-      console.warn('Date format error:', error);
       return dateString;
     }
   }
@@ -437,16 +529,12 @@ export class AiChatbotComponent implements OnInit {
 
   async viewTourDetails(tourName: string): Promise<void> {
     try {
-      console.log('Searching for tour:', tourName);
-      
       const normalizedSearchName = tourName.toLowerCase().trim();
       let foundTour = null;
       
       // Tìm trong recommended tours trước
       try {
         const recommendedTours = await this.tourService.getRecommendedTours(100);
-        console.log('Available recommended tours:', recommendedTours.map(t => t.package_name));
-        
         foundTour = recommendedTours.find(tour => {
           const normalizedTourName = tour.package_name.toLowerCase().trim();
           return normalizedTourName === normalizedSearchName ||
@@ -454,15 +542,12 @@ export class AiChatbotComponent implements OnInit {
                  normalizedSearchName.includes(normalizedTourName);
         });
       } catch (error) {
-        console.log('Error loading recommended tours:', error);
+        // Error loading recommended tours
       }
       
-      // Nếu không tìm thấy trong recommended tours, tìm trong tất cả tours
       if (!foundTour) {
         try {
           const allTours = await this.tourService.getTours();
-          console.log('Available all tours:', allTours.map(t => t.package_name));
-          
           foundTour = allTours.find(tour => {
             const normalizedTourName = tour.package_name.toLowerCase().trim();
             return normalizedTourName === normalizedSearchName ||
@@ -470,16 +555,14 @@ export class AiChatbotComponent implements OnInit {
                    normalizedSearchName.includes(normalizedTourName);
           });
         } catch (error) {
-          console.log('Error loading all tours:', error);
+          // Error loading tours
         }
       }
 
       if (foundTour && foundTour.package_id) {
-        console.log('Found tour:', foundTour.package_name, 'ID:', foundTour.package_id);
         this.onClose();
         this.router.navigate(['/tour-details', foundTour.package_id]);
       } else {
-        console.warn('Tour not found, redirecting to tours list');
         alert('Không tìm thấy tour này. Đang chuyển đến danh sách tour...');
         this.onClose();
         this.router.navigate(['/tours']);
@@ -493,12 +576,7 @@ export class AiChatbotComponent implements OnInit {
   }
 
   navigateToTourDetail(tourId: string): void {
-    console.log('Navigating to tour detail:', tourId);
-    console.log('Tour ID type:', typeof tourId);
-    console.log('Tour ID value:', tourId);
-    
     if (!tourId) {
-      console.error('Tour ID is undefined or null');
       alert('Không thể mở chi tiết tour. ID không hợp lệ.');
       return;
     }
@@ -527,7 +605,6 @@ export class AiChatbotComponent implements OnInit {
         messages: conversation.messages || []
       }));
     } catch (error) {
-      console.warn('Failed to load conversations:', error);
       this.conversations = [];
     }
   }
@@ -538,7 +615,7 @@ export class AiChatbotComponent implements OnInit {
       const payload = JSON.stringify(this.conversations);
       localStorage.setItem(STORAGE_KEY, payload);
     } catch (error) {
-      console.warn('Failed to persist conversations:', error);
+      // Failed to persist
     }
   }
 
@@ -563,7 +640,7 @@ export class AiChatbotComponent implements OnInit {
         return crypto.randomUUID();
       }
     } catch (error) {
-      console.warn('crypto.randomUUID unavailable:', error);
+      // crypto.randomUUID unavailable, fallback to random string
     }
     return Math.random().toString(36).slice(2, 11);
   }
@@ -578,6 +655,75 @@ export class AiChatbotComponent implements OnInit {
     if (index > 0) {
       this.conversations.splice(index, 1);
       this.conversations.unshift(conversation);
+    }
+  }
+
+  setupMcpUiHandlers(message: Message): void {
+    setTimeout(() => {
+      (window as any).handleBooking = (packageId: string, packageName: string) => {
+        this.userMessage = `Tôi muốn đặt tour "${packageName}" với ID ${packageId}`;
+        this.sendMessage();
+      };
+      
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'tool') {
+          const payload = event.data.payload;
+          if (payload.toolName === 'create_booking') {
+            const params = payload.params;
+            this.userMessage = `Tôi muốn đặt tour "${params.package_name || 'tour'}" với ID ${params.package_id}`;
+            this.sendMessage();
+          }
+        }
+      });
+    }, 200);
+  }
+
+  sanitizeHtml(html: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  getUiResourceJson(resource: any): string {
+    const resourceObj = {
+      uri: resource.uri || '',
+      mimeType: resource.mimeType || 'text/html',
+      text: resource.text || ''
+    };
+    return JSON.stringify(resourceObj);
+  }
+
+  initializeMcpUiRenderer(message: Message): void {
+    if (message.mcpUiResource) {
+      const index = this.messages.indexOf(message);
+      const rendererId = `mcp-ui-${index}`;
+      const renderer = document.getElementById(rendererId) as any;
+      
+      if (renderer) {
+        try {
+          const resourceJson = this.getUiResourceJson(message.mcpUiResource);
+          renderer.setAttribute('resource', resourceJson);
+          renderer.addEventListener('onUIAction', (event: any) => {
+            this.handleMcpUIAction(event);
+          });
+        } catch (error) {
+          const fallback = document.querySelector(`#mcp-ui-${index} + .mcp-ui-fallback`) as HTMLElement;
+          if (fallback) {
+            fallback.style.display = 'block';
+          }
+        }
+      }
+    }
+  }
+
+  handleMcpUIAction(event: any): void {
+    if (event.detail) {
+      const action = event.detail;
+      if (action.type === 'mcp_ui_booking' || action.packageId) {
+        const packageId = action.packageId || action.package_id;
+        const packageName = action.packageName || action.package_name;
+        if (packageId && packageName) {
+          this.selectTour(packageName, '0');
+        }
+      }
     }
   }
 }
