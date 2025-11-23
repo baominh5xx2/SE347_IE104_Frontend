@@ -13,6 +13,28 @@ export class TourCardComponent {
   @Input() tour!: Tour;
   @Input() showDetails: boolean = true;
 
+  // Parse image_urls (pipe-separated) into array
+  getImageUrls(): string[] {
+    if (this.tour.image_urls) {
+      const urls = this.tour.image_urls.split('|').filter(url => url.trim());
+      // Reverse to get last image as featured (as per user requirement)
+      return urls.reverse();
+    }
+    return this.tour.image_url ? [this.tour.image_url] : [];
+  }
+
+  // Get featured image (last image in reversed list)
+  getFeaturedImage(): string {
+    const urls = this.getImageUrls();
+    return urls.length > 0 ? urls[0] : (this.tour.image_url || 'img/tour-default.jpg');
+  }
+
+  // Get gallery images (next 3 images after featured)
+  getGalleryImages(): string[] {
+    const urls = this.getImageUrls();
+    return urls.length > 1 ? urls.slice(1, 4) : []; // Get 3 images after featured
+  }
+
   formatPrice(price: number): string {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -40,5 +62,9 @@ export class TourCardComponent {
       console.warn('Date format error:', error);
       return dateString;
     }
+  }
+
+  openImage(url: string): void {
+    window.open(url, '_blank');
   }
 }

@@ -1,6 +1,6 @@
 <div class="tour-card" *ngIf="tour">
   <div class="tour-image">
-    <img [src]="tour.image_url || 'img/tour-default.jpg'" [alt]="tour.package_name">
+    <img [src]="getFeaturedImage()" [alt]="tour.package_name">
     <div class="tour-badge" *ngIf="tour.discount">
       <span>-{{ tour.discount }}%</span>
     </div>
@@ -52,6 +52,15 @@
       <div class="highlight" *ngFor="let highlight of tour.highlights.slice(0, 3)">
         <i class="fas fa-check"></i>
         <span>{{ highlight }}</span>
+      </div>
+    </div>
+
+    <!-- Gallery: Show 3 additional images in a row -->
+    <div class="tour-gallery" *ngIf="showDetails && getGalleryImages().length > 0">
+      <div class="gallery-grid">
+        <div class="gallery-item" *ngFor="let imageUrl of getGalleryImages()" (click)="openImage(imageUrl)">
+          <img [src]="imageUrl" [alt]="tour.package_name" loading="lazy">
+        </div>
       </div>
     </div>
 
