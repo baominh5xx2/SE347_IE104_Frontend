@@ -37,6 +37,7 @@ export interface Tour {
   highlights?: string[];
   included_services?: string[];
   image_url?: string;
+  image_urls?: string; // Pipe-separated image URLs (e.g., "url1|url2|url3")
   available_dates?: string[];
   max_participants?: number;
   category?: string;

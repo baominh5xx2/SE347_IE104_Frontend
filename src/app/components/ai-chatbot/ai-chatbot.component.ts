@@ -6,6 +6,8 @@ import { Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ChatService } from '../../services/chat.service';
 import { TourService } from '../../services/tour.service';
+import { Tour } from '../../shared/models/tour.model';
+import { TourCardComponent } from '../tour-card/tour-card.component';
 import { marked } from 'marked';
 
 const STORAGE_KEY = 'ai.chatbot.conversations';
@@ -21,12 +23,13 @@ interface Message {
   isUser: boolean;
   tourSelections?: TourSelection[];
   isError?: boolean;
-  mcpUiHtml?: string; // MCP UI HTML content (backward compatibility)
+  mcpUiHtml?: string; // MCP UI HTML content (backward compatibility - deprecated)
   mcpUiResource?: { // MCP-UI standard UIResource object
     uri: string;
     mimeType?: string;
     text?: string;
   };
+  tourPackages?: Tour[]; // Tour packages data for frontend component rendering
 }
 
 interface Conversation {
@@ -41,7 +44,7 @@ interface Conversation {
 
 @Component({
   selector: 'app-ai-chatbot',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TourCardComponent],
   templateUrl: './ai-chatbot.component.html',
   styleUrl: './ai-chatbot.component.scss',
   schemas: [CUSTOM_ELEMENTS_SCHEMA] // Allow web components like ui-resource-renderer
@@ -61,8 +64,8 @@ export class AiChatbotComponent implements OnInit {
   currentStreamContent = '';
   conversations: Conversation[] = [];
   activeConversation: Conversation | null = null;
-  maxContextLength = 1000;
-  contextLengthWarning: string | null = null;
+  private isUserNearBottom = true; // Track if user is near bottom (within 100px)
+  private scrollDebounceTimer: any = null;
 
   constructor(
     private chatService: ChatService,
@@ -79,6 +82,33 @@ export class AiChatbotComponent implements OnInit {
     } else {
       this.selectConversation(this.conversations[0].id);
     }
+    
+    // Setup scroll listener to detect user scroll position
+    setTimeout(() => {
+      this.setupScrollListener();
+    }, 500);
+  }
+
+  private setupScrollListener(): void {
+    if (!this.messagesContainer) return;
+    
+    const element = this.messagesContainer.nativeElement;
+    element.addEventListener('scroll', () => {
+      this.checkScrollPosition();
+    }, { passive: true });
+  }
+
+  private checkScrollPosition(): void {
+    if (!this.messagesContainer) return;
+    
+    const element = this.messagesContainer.nativeElement;
+    const scrollTop = element.scrollTop;
+    const scrollHeight = element.scrollHeight;
+    const clientHeight = element.clientHeight;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    
+    // User is "near bottom" if within 100px from bottom
+    this.isUserNearBottom = distanceFromBottom <= 100;
   }
 
   onClose(): void {
@@ -91,41 +121,10 @@ export class AiChatbotComponent implements OnInit {
     this.close.emit();
   }
 
-  private getTotalContextLength(): number {
-    return this.messages.reduce((total, msg) => {
-      return total + (msg.content?.length || 0);
-    }, 0);
-  }
-
-  private wouldExceedContextLimit(newMessageLength: number): boolean {
-    const currentLength = this.getTotalContextLength();
-    return (currentLength + newMessageLength) > this.maxContextLength;
-  }
-
-  getRemainingContextLength(): number {
-    const currentLength = this.getTotalContextLength();
-    return Math.max(0, this.maxContextLength - currentLength);
-  }
-
   async sendMessage(): Promise<void> {
     if (this.isStreaming || !this.userMessage.trim()) return;
 
     const message = this.userMessage.trim();
-    
-    // Check if adding this message would exceed context limit
-    if (this.wouldExceedContextLimit(message.length)) {
-      const remaining = this.getRemainingContextLength();
-      this.contextLengthWarning = `Bạn đã đạt giới hạn ${this.maxContextLength} ký tự. Vui lòng bắt đầu cuộc trò chuyện mới hoặc xóa một số tin nhắn cũ. (Còn lại: ${remaining} ký tự)`;
-      setTimeout(() => {
-        this.contextLengthWarning = null;
-        this.cdr.detectChanges();
-      }, 5000);
-      this.cdr.detectChanges();
-      return;
-    }
-
-    // Clear warning if message is valid
-    this.contextLengthWarning = null;
     const conversation = this.ensureActiveConversation();
 
     this.messages.push({ content: message, isUser: true });
@@ -147,8 +146,9 @@ export class AiChatbotComponent implements OnInit {
     this.conversationId = conversation.remoteConversationId;
     this.userId = conversation.userId;
     
-    setTimeout(() => this.scrollToBottom(), 100);
+    setTimeout(() => this.scrollToBottom(true), 100); // Force scroll when starting new message
 
+    let lastAssistantMessage: Message | null = null; // Track last message for finally block
     try {
       const reader = await this.chatService.sendMessage(message, this.conversationId, this.userId, 5);
       const decoder = new TextDecoder();
@@ -190,6 +190,7 @@ export class AiChatbotComponent implements OnInit {
                   if (assistantMessage) {
                     this.currentStreamContent += event.content;
                     assistantMessage.content = this.currentStreamContent;
+                    lastAssistantMessage = assistantMessage; // Track for finally block
                     
                     const tourSelections = this.extractTourSelections(this.currentStreamContent);
                     if (tourSelections.length > 0) {
@@ -198,7 +199,8 @@ export class AiChatbotComponent implements OnInit {
                   }
                   this.touchConversation(conversation, false);
                   this.persistConversations();
-                  setTimeout(() => this.scrollToBottom(), 0);
+                  // Use debounced scroll - only scroll if user is near bottom
+                  this.debouncedScrollToBottom();
                   break;
                   
                 case 'mcp_ui':
@@ -210,29 +212,57 @@ export class AiChatbotComponent implements OnInit {
                   }
                   
                   if (assistantMessage) {
-                    if (event.ui_resource) {
+                    lastAssistantMessage = assistantMessage; // Track for finally block
+                    // Priority: Use tourPackages data (new approach) if available
+                    // BUT: Store in temporary property, will render after streaming completes
+                    if (event.tourPackages && Array.isArray(event.tourPackages) && event.tourPackages.length > 0) {
+                      // Map tour packages data but DON'T assign to tourPackages yet (wait for complete)
+                      const mappedPackages = event.tourPackages.map((pkg: any) => {
+                        // Keep image_urls as-is (pipe-separated) for gallery display
+                        // Also set image_url for backward compatibility (featured image)
+                        let image_url = pkg.image_url;
+                        if (!image_url && pkg.image_urls) {
+                          const urls = pkg.image_urls.split('|').filter((url: string) => url.trim());
+                          if (urls.length > 0) {
+                            // Reverse to get last image as featured (as per user requirement)
+                            image_url = urls.reverse()[0].trim();
+                          }
+                        }
+                        
+                        return {
+                          ...pkg,
+                          image_url: image_url || pkg.image_url || 'img/tour-default.jpg',
+                          image_urls: pkg.image_urls || pkg.image_url, // Keep image_urls for gallery
+                          departure_location: pkg.departure_location || pkg.destination || ''
+                        } as Tour;
+                      });
+                      
+                      // Store in temporary property - will be assigned to tourPackages when streaming completes
+                      (assistantMessage as any).pendingTourPackages = mappedPackages;
+                      console.log(`✅ Received ${mappedPackages.length} tour packages (will render after streaming completes)`);
+                    }
+                    // Fallback: Keep HTML rendering for backward compatibility (render immediately)
+                    else if (event.ui_resource) {
                       assistantMessage.mcpUiResource = event.ui_resource;
                       if (event.html || event.ui_resource.text) {
                         assistantMessage.mcpUiHtml = event.html || event.ui_resource.text;
+                        // HTML can render immediately
+                        this.cdr.detectChanges();
+                        setTimeout(() => {
+                          if (assistantMessage) {
+                            this.setupMcpUiHandlers(assistantMessage);
+                          }
+                          this.debouncedScrollToBottom();
+                        }, 0);
                       }
                     } else if (event.html) {
                       assistantMessage.mcpUiHtml = event.html;
+                      // HTML can render immediately
+                      this.cdr.detectChanges();
+                      setTimeout(() => {
+                        this.debouncedScrollToBottom();
+                      }, 0);
                     }
-                    
-                    this.cdr.detectChanges();
-                    
-                    setTimeout(() => {
-                      this.cdr.detectChanges();
-                      if (assistantMessage) {
-                        this.setupMcpUiHandlers(assistantMessage);
-                      }
-                      this.scrollToBottom();
-                    }, 0);
-                    
-                    setTimeout(() => {
-                      this.cdr.detectChanges();
-                      this.scrollToBottom();
-                    }, 50);
                     
                     this.touchConversation(conversation, false);
                     this.persistConversations();
@@ -243,6 +273,18 @@ export class AiChatbotComponent implements OnInit {
                   break;
                   
                 case 'complete':
+                case 'done':
+                  // Streaming complete - now render tour cards if we have pending tour packages
+                  if (assistantMessage && (assistantMessage as any).pendingTourPackages) {
+                    assistantMessage.tourPackages = (assistantMessage as any).pendingTourPackages;
+                    delete (assistantMessage as any).pendingTourPackages;
+                    this.cdr.detectChanges();
+                    // Force scroll to bottom when streaming completes (user expects to see new content)
+                    setTimeout(() => {
+                      this.scrollToBottom(true);
+                    }, 0);
+                  }
+                  this.isStreaming = false;
                   this.touchConversation(conversation);
                   this.persistConversations();
                   break;
@@ -297,6 +339,16 @@ export class AiChatbotComponent implements OnInit {
       this.headerStatus = 'Error';
       console.error('Chat error:', error);
     } finally {
+      // Ensure tour cards are rendered if streaming ended without 'complete' event
+      if (lastAssistantMessage && (lastAssistantMessage as any).pendingTourPackages) {
+        lastAssistantMessage.tourPackages = (lastAssistantMessage as any).pendingTourPackages;
+        delete (lastAssistantMessage as any).pendingTourPackages;
+        this.cdr.detectChanges();
+        // Force scroll to bottom when streaming ends
+        setTimeout(() => {
+          this.scrollToBottom(true);
+        }, 0);
+      }
       this.isStreaming = false;
     }
   }
@@ -310,31 +362,6 @@ export class AiChatbotComponent implements OnInit {
 
   onTextareaInput(event: Event): void {
     const textarea = event.target as HTMLTextAreaElement;
-    const currentInput = textarea.value;
-    
-    // Check if adding this input would exceed context limit
-    const currentContextLength = this.getTotalContextLength();
-    const totalWithInput = currentContextLength + currentInput.length;
-    
-    if (totalWithInput > this.maxContextLength) {
-      // Prevent further input
-      const maxAllowed = this.maxContextLength - currentContextLength;
-      if (maxAllowed > 0) {
-        textarea.value = currentInput.substring(0, maxAllowed);
-        this.userMessage = textarea.value;
-      } else {
-        textarea.value = '';
-        this.userMessage = '';
-      }
-      
-      const remaining = this.getRemainingContextLength();
-      this.contextLengthWarning = `Đã đạt giới hạn ${this.maxContextLength} ký tự.`;
-      this.cdr.detectChanges();
-    } else {
-      // Clear warning if under limit
-      this.contextLengthWarning = null;
-    }
-    
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 160) + 'px';
   }
@@ -416,7 +443,7 @@ export class AiChatbotComponent implements OnInit {
     this.isTyping = false;
     this.isStreaming = false;
     this.currentStreamContent = '';
-    setTimeout(() => this.scrollToBottom(), 100);
+    setTimeout(() => this.scrollToBottom(true), 100); // Force scroll when selecting conversation
   }
 
   deleteConversation(conversationId: string): void {
@@ -586,11 +613,33 @@ export class AiChatbotComponent implements OnInit {
   }
 
 
-  private scrollToBottom(): void {
+  private scrollToBottom(force: boolean = false): void {
+    // Only auto-scroll if user is near bottom OR force is true
+    if (!force && !this.isUserNearBottom) {
+      return; // User scrolled up, don't auto-scroll
+    }
+    
     if (this.messagesContainer) {
       const element = this.messagesContainer.nativeElement;
-      element.scrollTop = element.scrollHeight;
+      // Use requestAnimationFrame for smooth scrolling
+      requestAnimationFrame(() => {
+        element.scrollTop = element.scrollHeight;
+        // Update scroll position after scroll
+        setTimeout(() => {
+          this.checkScrollPosition();
+        }, 0);
+      });
     }
+  }
+
+  private debouncedScrollToBottom(force: boolean = false): void {
+    // Debounce scroll to avoid too many calls during streaming
+    if (this.scrollDebounceTimer) {
+      clearTimeout(this.scrollDebounceTimer);
+    }
+    this.scrollDebounceTimer = setTimeout(() => {
+      this.scrollToBottom(force);
+    }, 100); // Debounce 100ms
   }
 
   private loadConversations(): void {

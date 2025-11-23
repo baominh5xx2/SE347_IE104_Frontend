@@ -133,10 +133,18 @@
                 </div>
               }
 
-              @if (!message.isUser && (message.mcpUiResource || message.mcpUiHtml)) {
+              @if (!message.isUser && (message.tourPackages || message.mcpUiResource || message.mcpUiHtml)) {
                 <div class="mcp-ui-container">
-                  <!-- Render HTML content directly (Custom styled UI) -->
-                  @if (message.mcpUiHtml || (message.mcpUiResource && message.mcpUiResource.text)) {
+                  <!-- Render Tour Packages using TourCardComponent (Preferred - New Approach) -->
+                  @if (message.tourPackages && message.tourPackages.length > 0) {
+                    <div class="mcp-ui-content tour-packages-grid" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+                      @for (tour of message.tourPackages; track tour.package_id) {
+                        <app-tour-card [tour]="tour" [showDetails]="true"></app-tour-card>
+                      }
+                    </div>
+                  }
+                  <!-- Fallback: Render HTML content directly (Backward Compatibility) -->
+                  @else if (message.mcpUiHtml || (message.mcpUiResource && message.mcpUiResource.text)) {
                     <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiHtml || message.mcpUiResource?.text || '')"></div>
                   }
                   
@@ -173,12 +181,6 @@
       </div>
 
       <footer class="stage-composer">
-        @if (contextLengthWarning) {
-          <div class="context-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <span>{{ contextLengthWarning }}</span>
-          </div>
-        }
         <div class="composer-bar">
           <textarea
             #messageInput

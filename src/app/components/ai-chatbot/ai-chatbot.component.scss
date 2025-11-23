@@ -872,6 +872,7 @@ $shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.08);
   max-width: 100%;
   
   .mcp-ui-content,
+  .tour-packages-grid,
   ui-resource-renderer {
     width: 100%;
     display: block;
@@ -958,6 +959,32 @@ $shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.08);
       h3, p, span {
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
+      }
+    }
+  }
+  
+  // Tour packages grid styling (for TourCardComponent)
+  .tour-packages-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    
+    // Ensure TourCardComponent fits well in chat context
+    ::ng-deep {
+      app-tour-card {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+      }
+      
+      .tour-card {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
       }
     }
   }
