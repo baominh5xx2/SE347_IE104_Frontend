@@ -35,21 +35,37 @@
 
 
         <div class="flex items-center space-x-4">
-          <button
-              (click)="openChatbot()"
-              [class.text-white]="!isScrolled && isHomePage"
-              [class.text-gray-700]="isScrolled"
-              [ngClass]="textClass"
-              class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 hover:bg-opacity-10 hover:bg-black transition-all">
-            <i class="fas fa-robot mr-2"></i>AI Agent
-          </button>
-          <a
-              routerLink="/login"
-              [class.text-white]="!isScrolled && isHomePage"
-              [class.text-gray-700]="isScrolled"
-              [ngClass]="textClass"
-              class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 no-underline">Đăng nhập</a>
-          <a routerLink="/register" class="bg-blue-500 text-white px-4 py-2 rounded no-underline">Đăng ký</a>
+          <ng-container *ngIf="isAuthenticated">
+            <button
+                (click)="openChatbot()"
+                [class.text-white]="!isScrolled && isHomePage"
+                [class.text-gray-700]="isScrolled"
+                [ngClass]="textClass"
+                class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 hover:bg-opacity-10 hover:bg-black transition-all">
+              <i class="fas fa-robot mr-2"></i>AI Agent
+            </button>
+          </ng-container>
+          
+          <ng-container *ngIf="!isAuthenticated">
+            <a
+                routerLink="/login"
+                [class.text-white]="!isScrolled && isHomePage"
+                [class.text-gray-700]="isScrolled"
+                [ngClass]="textClass"
+                class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 no-underline">Đăng nhập</a>
+            <a routerLink="/register" class="bg-blue-500 text-white px-4 py-2 rounded no-underline">Đăng ký</a>
+          </ng-container>
+
+          <ng-container *ngIf="isAuthenticated && currentUser">
+            <a
+                routerLink="/profile"
+                [class.text-white]="!isScrolled && isHomePage"
+                [class.text-gray-700]="isScrolled"
+                [ngClass]="textClass"
+                class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 hover:bg-opacity-10 hover:bg-black transition-all no-underline cursor-pointer">
+              {{ currentUser.full_name }}
+            </a>
+          </ng-container>
         </div>
       </div>
     </div>
@@ -75,3 +91,7 @@
     </div>
   </div>
 </header>
+
+@if (showChatbot) {
+  <app-ai-chatbot (close)="closeChatbot()"></app-ai-chatbot>
+}

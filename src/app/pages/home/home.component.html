@@ -33,6 +33,33 @@
     </div>
   </section>
 
+  <section class="latest-tours py-12 bg-white">
+    <div class="container mx-auto px-6">
+      <div class="section-header mb-8">
+        <h2 class="text-3xl font-bold text-gray-900">Tour mới nhất</h2>
+        <p class="text-gray-600 mt-2">Những tour mới được thêm vào hệ thống</p>
+      </div>
+      
+      @if (isLoadingLatestTours) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Đang tải...</p>
+        </div>
+      } @else if (latestTours.length > 0) {
+        <div class="tours-grid">
+          @for (tour of latestTours; track tour.package_id) {
+            <app-tour-card [tour]="tour"></app-tour-card>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <i class="fas fa-suitcase-rolling"></i>
+          <p>Không có tour mới nào</p>
+        </div>
+      }
+    </div>
+  </section>
+
   <app-destination-cards></app-destination-cards>
 
 

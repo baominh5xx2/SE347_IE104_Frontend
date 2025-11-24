@@ -85,3 +85,23 @@ export interface TourRecommendation {
   context?: string;
 }
 
+export interface TourPackageListResponse {
+  EC: number;
+  EM: string;
+  total: number;
+  packages: Tour[];
+}
+
+export interface TourPackageParams {
+  is_active?: boolean | null;
+  destination?: string | null;
+  limit?: number | null;
+  offset?: number | null;
+}
+
+export interface TourPackageDetailResponse {
+  EC: number;
+  EM: string;
+  package: Tour;
+}
+

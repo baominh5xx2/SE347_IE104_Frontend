@@ -1,10 +1,9 @@
-import { NgClass } from '@angular/common';
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-hero',
-  imports: [NgClass],
+  imports: [],
   templateUrl: './hero.component.html',
   styleUrl: './hero.component.scss'
 })
@@ -45,7 +44,6 @@ export class HeroComponent {
       label: 'Khác', url: '', path: 'icon/car.png',
       isActive: false
     },
-
   ]
 
   onSearch() {

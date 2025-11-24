@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Tour, TourSearchParams, ChatMessage, StreamEvent } from '../shared/models/tour.model';
+import { Tour, TourSearchParams, ChatMessage, StreamEvent, TourPackageListResponse, TourPackageParams, TourPackageDetailResponse } from '../shared/models/tour.model';
 
 @Injectable({
   providedIn: 'root'
@@ -12,34 +12,114 @@ export class TourService {
 
   constructor() { }
 
+  async getTourPackages(params?: TourPackageParams): Promise<TourPackageListResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params) {
+        if (params.is_active !== undefined && params.is_active !== null) {
+          queryParams.append('is_active', params.is_active.toString());
+        }
+        if (params.destination !== undefined && params.destination !== null && params.destination !== '') {
+          queryParams.append('destination', params.destination);
+        }
+        if (params.limit !== undefined && params.limit !== null) {
+          queryParams.append('limit', params.limit.toString());
+        }
+        if (params.offset !== undefined && params.offset !== null) {
+          queryParams.append('offset', params.offset.toString());
+        }
+      }
+
+      const url = `${this.apiBaseUrl}/tour-packages${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      console.log('Fetching tour packages from URL:', url);
+      
+      const response = await fetch(url);
+      
+      console.log('Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn('Tour packages endpoint not found (404). Backend may not have this endpoint yet.');
+          console.warn('Returning empty result. Please ensure backend has /api/v1/tour-packages endpoint implemented.');
+          return {
+            EC: 0,
+            EM: 'Success',
+            total: 0,
+            packages: []
+          };
+        }
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`Failed to fetch tour packages: ${response.status} ${response.statusText}`);
+      }
+      
+      const data: TourPackageListResponse = await response.json();
+      console.log('API Response data:', data);
+      
+      if (data.EC !== 0) {
+        console.error('API returned error code:', data.EC, 'Message:', data.EM);
+        throw new Error(`API Error: ${data.EM}`);
+      }
+      
+      if (!data.packages || !Array.isArray(data.packages)) {
+        console.error('Invalid packages data:', data);
+        throw new Error('Invalid response format: packages is not an array');
+      }
+      
+      console.log('Tour packages loaded from API:', data.packages.length, 'Total:', data.total);
+      this.toursSubject.next(data.packages);
+      
+      return data;
+    } catch (error) {
+      console.error('Error fetching tour packages from API:', error);
+      console.warn('Returning empty result due to error');
+      return {
+        EC: 0,
+        EM: 'Success',
+        total: 0,
+        packages: []
+      };
+    }
+  }
+
   async getTours(): Promise<Tour[]> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/tours`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tours: ${response.status} ${response.statusText}`);
-      }
-      const tours = await response.json();
-      console.log('Tours loaded from API:', tours.length);
-      this.toursSubject.next(tours);
-      return tours;
+      const response = await this.getTourPackages({ is_active: true });
+      return response.packages;
     } catch (error) {
       console.error('Error fetching tours from API:', error);
       throw error;
     }
   }
 
-  async getTourById(id: string): Promise<Tour | null> {
+  async getTourPackageById(packageId: string): Promise<TourPackageDetailResponse> {
     try {
-      console.log('Fetching tour by ID from API:', id);
-      const response = await fetch(`${this.apiBaseUrl}/tours/${id}`);
+      console.log('Fetching tour package by ID from API:', packageId);
+      const response = await fetch(`${this.apiBaseUrl}/tour-packages/${packageId}`);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch tour ${id}: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch tour package ${packageId}: ${response.status} ${response.statusText}`);
       }
       
-      const tour = await response.json();
-      console.log('Tour loaded from API:', tour);
-      return tour;
+      const data: TourPackageDetailResponse = await response.json();
+      
+      if (data.EC !== 0) {
+        throw new Error(`API Error: ${data.EM}`);
+      }
+      
+      console.log('Tour package loaded from API:', data.package);
+      return data;
+    } catch (error) {
+      console.error('Error fetching tour package from API:', error);
+      throw error;
+    }
+  }
+
+  async getTourById(id: string): Promise<Tour | null> {
+    try {
+      const response = await this.getTourPackageById(id);
+      return response.package;
     } catch (error) {
       console.error('Error fetching tour from API:', error);
       throw error;
@@ -48,19 +128,22 @@ export class TourService {
 
   async searchTours(params: TourSearchParams): Promise<Tour[]> {
     try {
-      const queryParams = new URLSearchParams();
-      
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, value.toString());
-        }
-      });
+      const packageParams: TourPackageParams = {
+        is_active: true
+      };
 
-      const response = await fetch(`${this.apiBaseUrl}/tours/search?${queryParams}`);
-      if (!response.ok) {
-        throw new Error(`Failed to search tours: ${response.status} ${response.statusText}`);
+      if (params.destination) {
+        packageParams.destination = params.destination;
       }
-      const tours = await response.json();
+
+      const response = await this.getTourPackages(packageParams);
+      let tours = response.packages;
+
+      if (params.departure_location || params.price_min || params.price_max || 
+          params.duration_min || params.duration_max || params.category) {
+        tours = this.filterTours(tours, params);
+      }
+
       console.log('Search results from API:', tours.length);
       this.toursSubject.next(tours);
       return tours;
@@ -80,13 +163,12 @@ export class TourService {
 
   async getRecommendedTours(limit: number = 6): Promise<Tour[]> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/tours/recommended?limit=${limit}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch recommended tours: ${response.status} ${response.statusText}`);
-      }
-      const tours = await response.json();
-      console.log('Recommended tours from API:', tours.length);
-      return tours;
+      const response = await this.getTourPackages({ 
+        is_active: true, 
+        limit: limit 
+      });
+      console.log('Recommended tours from API:', response.packages.length);
+      return response.packages;
     } catch (error) {
       console.error('Error fetching recommended tours from API:', error);
       throw error;
