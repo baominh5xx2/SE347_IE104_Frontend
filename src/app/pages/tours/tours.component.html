@@ -10,28 +10,16 @@
 
   <div class="container mx-auto px-6 py-8">
     <div class="filters-section mb-8">
-      <div class="categories-filter mb-6">
-        <h3 class="filter-title">Danh muc</h3>
-        <div class="categories-grid">
-          @for (category of categories; track category.id) {
-            <button 
-              class="category-btn"
-              [class.active]="selectedCategory === category.id"
-              (click)="selectCategory(category.id)">
-              <i class="fas" [ngClass]="category.icon"></i>
-              <span>{{ category.name }}</span>
-            </button>
-          }
-        </div>
-      </div>
-
       <div class="sort-filter">
-        <label class="filter-label">Sap xep theo:</label>
+        <label class="filter-label">
+          <span class="sort-icon">⇅</span>
+          <span>Sắp xếp theo:</span>
+        </label>
         <select [ngModel]="sortBy" (ngModelChange)="changeSortBy($event)" class="sort-select">
-          <option value="popular">Pho bien nhat</option>
-          <option value="price_asc">Gia thap den cao</option>
-          <option value="price_desc">Gia cao den thap</option>
-          <option value="duration">Thoi gian</option>
+          <option value="popular">Phổ biến nhất</option>
+          <option value="price_asc">Giá thấp đến cao</option>
+          <option value="price_desc">Giá cao đến thấp</option>
+          <option value="duration">Thời gian</option>
         </select>
       </div>
     </div>
@@ -41,7 +29,11 @@
         @if (isLoading) {
           Đang tìm kiếm...
         } @else {
-          Tìm thấy {{ filteredTours.length }} tour
+          @if (totalFound > 0) {
+            Tìm thấy {{ totalFound }} tour
+          } @else {
+            Tìm thấy {{ filteredTours.length }} tour
+          }
         }
       </h2>
     </div>
@@ -50,6 +42,16 @@
       <div class="loading-state">
         <div class="spinner"></div>
         <p>Đang tải danh sách tour...</p>
+      </div>
+    } @else if (errorMessage) {
+      <div class="error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>Lỗi khi tải danh sách tour</h3>
+        <p>{{ errorMessage }}</p>
+        <button class="btn-reset" (click)="loadTours()">
+          <i class="fas fa-redo"></i>
+          Thử lại
+        </button>
       </div>
     } @else if (filteredTours.length > 0) {
       <div class="tours-grid">

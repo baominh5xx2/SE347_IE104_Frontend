@@ -4,8 +4,14 @@
     <div class="tour-badge" *ngIf="tour.discount">
       <span>-{{ tour.discount }}%</span>
     </div>
+    <div class="tour-badge new-badge" *ngIf="isNewTour()">
+      <span>Mới</span>
+    </div>
     <div class="tour-category" *ngIf="tour.category">
-      <span>{{ tour.category }}</span>
+      <span>{{ getCategoryName(tour.category) }}</span>
+    </div>
+    <div class="tour-status" *ngIf="tour.is_active === false">
+      <span class="status-inactive">Hết hạn</span>
     </div>
   </div>
   
@@ -19,12 +25,16 @@
       </div>
     </div>
 
+    <div class="tour-description" *ngIf="tour.description">
+      <p>{{ getShortDescription() }}</p>
+    </div>
+
     <div class="tour-info">
       <div class="info-item">
         <i class="fas fa-map-marker-alt"></i>
         <span>{{ tour.destination }}</span>
       </div>
-      <div class="info-item">
+      <div class="info-item" *ngIf="tour.departure_location">
         <i class="fas fa-plane-departure"></i>
         <span>{{ tour.departure_location }}</span>
       </div>
@@ -46,6 +56,18 @@
           </span>
         </span>
       </div>
+      <div class="info-item" *ngIf="tour.available_slots !== undefined">
+        <i class="fas fa-users"></i>
+        <span>Còn {{ tour.available_slots }} chỗ</span>
+      </div>
+      <div class="info-item" *ngIf="tour.cuisine">
+        <i class="fas fa-utensils"></i>
+        <span>{{ tour.cuisine }}</span>
+      </div>
+      <div class="info-item" *ngIf="tour.suitable_for">
+        <i class="fas fa-user-check"></i>
+        <span>{{ tour.suitable_for }}</span>
+      </div>
     </div>
 
     <div class="tour-highlights" *ngIf="showDetails && tour.highlights && tour.highlights.length > 0">
@@ -55,7 +77,30 @@
       </div>
     </div>
 
-    <!-- Gallery: Show 3 additional images in a row -->
+    <div class="tour-includes-preview" *ngIf="showDetails && tour.includes && tour.includes.length > 0">
+      <div class="includes-label">Bao gồm:</div>
+      <div class="includes-list">
+        <span class="include-item" *ngFor="let item of tour.includes.slice(0, 3)">
+          {{ item }}
+        </span>
+        <span class="include-more" *ngIf="tour.includes.length > 3">
+          +{{ tour.includes.length - 3 }} khác
+        </span>
+      </div>
+    </div>
+
+    <div class="tour-services-preview" *ngIf="showDetails && tour.included_services && tour.included_services.length > 0">
+      <div class="services-label">Dịch vụ:</div>
+      <div class="services-list">
+        <span class="service-item" *ngFor="let service of tour.included_services.slice(0, 3)">
+          {{ service }}
+        </span>
+        <span class="service-more" *ngIf="tour.included_services.length > 3">
+          +{{ tour.included_services.length - 3 }} dịch vụ khác
+        </span>
+      </div>
+    </div>
+
     <div class="tour-gallery" *ngIf="showDetails && getGalleryImages().length > 0">
       <div class="gallery-grid">
         <div class="gallery-item" *ngFor="let imageUrl of getGalleryImages()" (click)="openImage(imageUrl)">
@@ -66,10 +111,13 @@
 
     <div class="tour-footer">
       <div class="tour-price">
-        <div class="price-label">From</div>
+        <div class="price-label">Giá từ</div>
         <div class="current-price">{{ formatPrice(getDiscountedPrice()) }}</div>
         <div class="original-price" *ngIf="tour.discount && tour.original_price">
           {{ formatPrice(tour.original_price) }}
+        </div>
+        <div class="price-note" *ngIf="tour.duration_days">
+          / {{ tour.duration_days }} ngày
         </div>
       </div>
       <a [routerLink]="['/tour-details', tour.package_id]" class="btn-view-details">
