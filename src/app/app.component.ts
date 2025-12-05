@@ -17,6 +17,7 @@ import Aura from '@primeng/themes/aura';
 export class AppComponent implements OnInit {
   title = 'traveloka-clone';
   isChatPage = false;
+  isAdminPage = false;
 
   constructor(
     private primeng: PrimeNG,
@@ -47,5 +48,6 @@ export class AppComponent implements OnInit {
 
   private checkRoute(): void {
     this.isChatPage = this.router.url === '/chat';
+    this.isAdminPage = this.router.url.startsWith('/admin');
   }
 }
