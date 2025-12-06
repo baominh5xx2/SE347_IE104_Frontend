@@ -1,40 +1,46 @@
-<div class="bg-white rounded-lg shadow-md p-4">
-  <!-- Hotel Name and Rating -->
-  <h2 class="text-xl font-bold">{{ booking.hotelName }}</h2>
-  <div class="flex items-center mb-2">
-    <span class="text-blue-500 font-bold">{{ booking.rating }}</span>
-    <span class="text-gray-500 text-sm"> ({{ booking.reviews }} đánh giá)</span>
-  </div>
+@if (tourPackage) {
+  <div class="bg-white rounded-lg shadow-md p-4">
+    <!-- Tour Name -->
+    <h2 class="text-xl font-bold mb-2">{{ tourPackage.package_name }}</h2>
+    <p class="text-gray-600 text-sm mb-4">{{ tourPackage.destination }}</p>
 
-  <!-- Hotel Image -->
-  <img [src]="booking.imageUrl" alt="{{ booking.hotelName }}" class="w-full h-48 object-cover rounded-lg mb-4">
-
-  <!-- Check-in and Check-out -->
-  <div class="flex justify-between mb-4">
-    <div>
-      <p class="text-gray-600">Nhận phòng</p>
-      <p class="font-semibold">{{ booking.checkIn }}</p>
+    <!-- Tour Dates -->
+    <div class="flex justify-between mb-4">
+      <div>
+        <p class="text-gray-600 text-sm">Ngày khởi hành</p>
+        <p class="font-semibold">{{ formatDate(tourPackage.start_date) }}</p>
+      </div>
+      <div>
+        <p class="text-gray-600 text-sm">Ngày kết thúc</p>
+        <p class="font-semibold">{{ formatDate(tourPackage.end_date) }}</p>
+      </div>
     </div>
-    <div>
-      <p class="text-gray-600">Trả phòng</p>
-      <p class="font-semibold">{{ booking.checkOut }}</p>
+
+    <!-- Tour Details -->
+    <div class="mb-4 space-y-2">
+      <p class="text-gray-600 text-sm">
+        <span class="font-medium">Thời lượng:</span> {{ tourPackage.duration_days }} ngày
+      </p>
+      <p class="text-gray-600 text-sm">
+        <span class="font-medium">Số người:</span> {{ numberOfPeople }} người
+      </p>
+      <p class="text-gray-600 text-sm">
+        <span class="font-medium">Giá mỗi người:</span> {{ formatPrice(tourPackage.price) }}
+      </p>
+    </div>
+
+    <!-- Total Price -->
+    <div class="border-t border-gray-200 pt-4">
+      <div class="flex justify-between items-center">
+        <span class="text-gray-600">Tổng giá:</span>
+        <p class="text-xl font-bold text-orange-500">{{ formatPrice(tourPackage.price * numberOfPeople) }}</p>
+      </div>
     </div>
   </div>
-
-  <!-- Room Description -->
-  <div class="mb-4">
-    <p class="text-gray-600">{{ booking.roomType }}</p>
-    <p class="text-gray-600">Còn lại 2 phòng!</p>
-    <p class="text-gray-600">{{ booking.guests }} Khách, {{ booking.beds }} Giường</p>
-    <p class="text-gray-600">{{ booking.breakfastIncluded ? 'Bao gồm bữa sáng' : 'Không bao gồm bữa sáng' }}</p>
-  </div>
-
-  <!-- Total Price -->
-  <div class="flex justify-between items-center">
-    <div>
-      <p class="text-gray-500 line-through">Rp {{ booking.originalPrice  }}</p>
-      <p class="text-xl font-bold text-orange-500">Rp {{ booking.totalPrice  }}</p>
+} @else {
+  <div class="bg-white rounded-lg shadow-md p-4">
+    <div class="flex justify-center items-center py-8">
+      <p class="text-gray-500">Đang tải thông tin tour...</p>
     </div>
-    <!-- <button class="bg-orange-500 text-white rounded-md py-2 px-4">Pilih Kamar</button> -->
   </div>
-</div>
+}

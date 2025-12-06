@@ -1,6 +1,7 @@
 import { NgFor } from '@angular/common';
-import { Component, ViewEncapsulation } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
+import { PromotionService, Promotion } from '../../services/promotion.service';
 
 @Component({
   selector: 'app-coupon-list',
@@ -9,45 +10,62 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
   styleUrl: './coupon-list.component.scss',
   encapsulation: ViewEncapsulation.None
 })
-export class CouponListComponent {
+export class CouponListComponent implements OnInit {
 
   pathImg = {
     left: 'icon/left.png',
     next: 'icon/next.png'
   }
 
-  coupons: Coupon[] = [
-    {
-      code: 'HELLOSGCAID',
-      description: 'Mã giảm giá lên đến 300.000đ',
-      discount: 'Áp dụng cho người dùng mới.',
-    },
-    {
-      code: 'JALANYUK',
-      description: 'Giảm 8%',
-      discount: 'tối thiểu giao dịch 500.000đ',
-    },
-    {
-      code: 'JALANYUK',
-      description: 'Giảm lên đến 8%',
-      discount: 'tối thiểu giao dịch 300.000đ',
-    },
-    {
-      code: 'JALANYUK',
-      description: 'Giảm lên đến 8%',
-      discount: 'tối thiểu giao dịch 300.000đ',
-    },
-    {
-      code: 'JALANYUK',
-      description: 'Giảm lên đến 8%',
-      discount: 'tối thiểu giao dịch 300.000đ',
-    },
-    {
-      code: 'JALANYUK',
-      description: 'Giảm lên đến 8%',
-      discount: 'tối thiểu giao dịch 300.000đ',
-    },
-  ];
+  coupons: Coupon[] = [];
+  isLoading = false;
+  errorMessage = '';
+
+  constructor(private promotionService: PromotionService) {}
+
+  ngOnInit() {
+    this.loadPromotions();
+  }
+
+  loadPromotions() {
+    this.isLoading = true;
+    this.errorMessage = '';
+    
+    this.promotionService.getAvailablePromotions().subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.coupons = response.promotions.map(promo => ({
+            code: promo.promotion_id,
+            description: promo.name,
+            discount: this.formatDiscount(promo)
+          }));
+        } else {
+          this.errorMessage = response.EM || 'Không thể tải danh sách mã khuyến mãi';
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi tải danh sách mã khuyến mãi';
+        console.error('Load promotions error:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  formatDiscount(promo: Promotion): string {
+    if (promo.discount_type === 'PERCENTAGE') {
+      return `Giảm ${promo.discount_value}% - ${promo.description}`;
+    } else {
+      return `Giảm ${this.formatPrice(promo.discount_value)} - ${promo.description}`;
+    }
+  }
+
+  formatPrice(price: number): string {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  }
 
   customOptions: OwlOptions = {
     loop: true,

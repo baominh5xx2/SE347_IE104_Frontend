@@ -1,0 +1,222 @@
+// Variables
+$primary-color: #3b82f6; // blue-500
+$success-color: #10b981; // emerald-500
+$warning-color: #f59e0b; // amber-500
+$danger-color: #ef4444; // red-500
+$text-primary: #111827; // gray-900
+$text-secondary: #6b7280; // gray-500
+$bg-card: #ffffff;
+$bg-hover: #f9fafb;
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$radius-md: 0.75rem; // 12px
+$radius-lg: 1rem; // 16px
+
+:host {
+  display: block;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: $text-primary;
+}
+
+// Animations
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bounceShort {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+// Gradient Flow Animation
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.bg-size-300 {
+  background-size: 300% 300%;
+}
+
+.animate-gradient-flow {
+  animation: gradientFlow 6s ease infinite;
+}
+
+// Common Classes
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0; // Start hidden
+  animation-fill-mode: forwards;
+}
+
+.animate-bounce-short {
+  animation: bounceShort 0.5s ease-in-out;
+}
+
+// Apply staggered animation to list items
+@for $i from 1 through 10 {
+  .order-card:nth-child(#{$i}) {
+    animation-delay: #{$i * 0.1}s;
+  }
+}
+
+// Status Badges & Indicators
+.status-indicator {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors duration-300;
+  
+  &.pending {
+    @apply bg-amber-50 text-amber-700 border-amber-200;
+  }
+  &.confirmed {
+    @apply bg-blue-50 text-blue-700 border-blue-200;
+  }
+  &.completed {
+    @apply bg-emerald-50 text-emerald-700 border-emerald-200;
+  }
+  &.cancelled {
+    @apply bg-red-50 text-red-700 border-red-200;
+  }
+}
+
+// Card Styles
+.order-card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300;
+  opacity: 0; // Initial state for animation
+  animation: fadeInUp 0.5s ease-out forwards;
+
+  &:hover {
+    @apply shadow-lg border-blue-100 transform -translate-y-1;
+    
+    .action-buttons {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  // Left colored border strip
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    transition: background-color 0.3s ease;
+  }
+
+  &.status-pending::before { background-color: $warning-color; }
+  &.status-confirmed::before { background-color: $primary-color; }
+  &.status-completed::before { background-color: $success-color; }
+  &.status-cancelled::before { background-color: $danger-color; }
+}
+
+// Tab Filter Styles
+.filter-tab {
+  @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap;
+  
+  &.active {
+    @apply bg-blue-600 text-white shadow-md transform scale-105;
+  }
+  
+  &:not(.active) {
+    @apply text-gray-600 hover:bg-gray-100 hover:text-gray-900;
+  }
+}
+
+// Stats Cards (Modern)
+.stat-card {
+  @apply bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 transition-all duration-300;
+  
+  &:hover {
+    @apply shadow-md border-gray-200 transform scale-[1.02];
+  }
+
+  .icon-wrapper {
+    @apply w-12 h-12 rounded-full flex items-center justify-center text-xl;
+  }
+}
+
+// Modal Styles
+.modal-backdrop {
+  @apply fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content {
+  @apply bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col;
+  animation: zoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.description-content {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.7;
+  color: #4b5563;
+  
+  div {
+    @apply border-l-4 border-blue-500 pl-4 py-2 bg-blue-50 rounded-r-lg my-4 italic;
+  }
+}
+
+// Custom Scrollbar
+.custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    
+    &:hover {
+      background: #94a3b8;
+    }
+  }
+}
+
+// Responsive typography
+h1 {
+  @apply text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight;
+}
+
+// Loading Skeleton
+.skeleton {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes zoomIn { 
+  from { opacity: 0; transform: scale(0.95) translateY(10px); } 
+  to { opacity: 1; transform: scale(1) translateY(0); } 
+}
