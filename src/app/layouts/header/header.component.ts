@@ -1,5 +1,5 @@
-import { NgClass, NgIf } from '@angular/common';
-import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
+import { NgClass } from '@angular/common';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ChatbotService } from '../../services/chatbot.service';
@@ -8,7 +8,7 @@ import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-header',
-  imports: [NgClass, NgIf, RouterLink, AiChatbotComponent],
+  imports: [NgClass, RouterLink],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
