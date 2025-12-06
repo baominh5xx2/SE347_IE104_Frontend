@@ -9,9 +9,12 @@ import { Component } from '@angular/core';
 })
 export class CancellationPolicyComponent {
 
-  description: string = 'Bạn đã chọn được phòng với giá tốt nhất từ các lựa chọn này!';
+  description: string = 'Chính sách hủy và đổi lịch cho tour du lịch của bạn.';
   policies: string[] = [
-    'Đặt phòng này không thể hoàn tiền.',
-    'Không thể đổi lịch'
+    'Hủy trước 7 ngày: Hoàn lại 80% giá trị tour',
+    'Hủy trước 3-7 ngày: Hoàn lại 50% giá trị tour',
+    'Hủy trước 1-3 ngày: Hoàn lại 30% giá trị tour',
+    'Hủy trong vòng 24 giờ: Không hoàn tiền',
+    'Đổi lịch: Có thể đổi lịch trước 7 ngày với phí 10% giá trị tour'
   ];
 }

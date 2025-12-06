@@ -1,40 +1,31 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-booking-card',
-  imports: [],
+  imports: [CommonModule],
   templateUrl: './booking-card.component.html',
   styleUrl: './booking-card.component.scss'
 })
 export class BookingCardComponent {
+  @Input() tourPackage: any = null;
+  @Input() numberOfPeople: number = 1;
 
-  booking: Booking = {
-    hotelName: 'Bukit Vipassana Hotel',
-    rating: 8.4,
-    reviews: 1160,
-    imageUrl: 'img/hotel.jpeg',
-    checkIn: 'Kam, 23 Jan 2025',
-    checkOut: 'Jum, 24 Jan 2025',
-    roomType: '(1x) Superior King Bed',
-    guests: 2,
-    beds: 1,
-    breakfastIncluded: false,
-    totalPrice: 450023,
-    originalPrice: 600030,
-  };
-}
+  formatDate(dateString: string): string {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('vi-VN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  }
 
-interface Booking {
-  hotelName: string;
-  rating: number;
-  reviews: number;
-  imageUrl: string;
-  checkIn: string;
-  checkOut: string;
-  roomType: string;
-  guests: number;
-  beds: number;
-  breakfastIncluded: boolean;
-  totalPrice: number;
-  originalPrice: number;
+  formatPrice(price: number): string {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  }
 }

@@ -9,6 +9,9 @@ import { RegisterComponent } from './pages/auth/register/register.component';
 import { GoogleCallbackComponent } from './pages/auth/google-callback/google-callback.component';
 import { ToursComponent } from './pages/tours/tours.component';
 import { ProfileComponent } from './pages/profile/profile.component';
+import { MyBookingsComponent } from './pages/my-bookings/my-bookings.component';
+import { MyPaymentsComponent } from './pages/my-payments/my-payments.component';
+import { VnpayCallbackComponent } from './pages/payment/vnpay-callback.component';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 
@@ -18,6 +21,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
+    canActivate: [authGuard],
     loadChildren: () => import('./pages/admin/admin.routes').then(m => m.ADMIN_ROUTES)
   },
   {
@@ -52,5 +56,14 @@ export const routes: Routes = [
   },
   {
     path: 'profile', component: ProfileComponent, canActivate: [authGuard]
+  },
+  {
+    path: 'my-bookings', component: MyBookingsComponent, canActivate: [authGuard]
+  },
+  {
+    path: 'my-payments', component: MyPaymentsComponent, canActivate: [authGuard]
+  },
+  {
+    path: 'payment/vnpay/callback', component: VnpayCallbackComponent
   },
 ];

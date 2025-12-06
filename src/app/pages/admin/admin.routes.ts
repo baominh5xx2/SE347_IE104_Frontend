@@ -22,6 +22,10 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./customers/customer-list.component').then(m => m.CustomerListComponent)
       },
       {
+        path: 'promotions',
+        loadComponent: () => import('./promotions/promotion-list.component').then(m => m.PromotionListComponent)
+      },
+      {
         path: '',
         redirectTo: 'dashboard',
         pathMatch: 'full'

@@ -1,5 +1,5 @@
-import { NgClass } from '@angular/common';
-import { Component, HostListener, OnInit } from '@angular/core';
+import { NgClass, CommonModule } from '@angular/common';
+import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ChatbotService } from '../../services/chatbot.service';
@@ -8,7 +8,7 @@ import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-header',
-  imports: [NgClass, RouterLink],
+  imports: [NgClass, RouterLink, CommonModule, AiChatbotComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
@@ -24,14 +24,23 @@ export class HeaderComponent implements OnInit, OnDestroy {
   textClass: string = ''
 
 
-  topMenu: Menu[] = [
+  topMenuPublic: Menu[] = [
     { label: 'Trang chủ', url: '/home' },
     { label: 'Khuyến mãi', url: '' },
     { label: 'Trợ giúp', url: '' },
     { label: 'Trở thành đối tác', url: '' },
     { label: 'Cho doanh nghiệp', url: '' },
-    { label: 'Đơn hàng', url: '' },
   ]
+
+  get topMenu(): Menu[] {
+    if (this.isAuthenticated) {
+      return [
+        ...this.topMenuPublic,
+        { label: 'Đơn hàng', url: '/my-bookings' }
+      ];
+    }
+    return this.topMenuPublic;
+  }
 
   bottomMenu: Menu[] = [
     { label: 'Tour du lịch', url: '/tours' },

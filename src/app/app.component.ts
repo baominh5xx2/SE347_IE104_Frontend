@@ -37,12 +37,12 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     this.authStateService.checkAuthState();
-    this.checkChatPage();
+    this.checkRoute();
     
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
-        this.checkChatPage();
+        this.checkRoute();
       });
   }
 
