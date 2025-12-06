@@ -3,40 +3,6 @@
     <div class="container mx-auto px-6 py-12 text-white flex flex-col">
       <h1 class="text-3xl font-bold mx-auto hero-title text-white">Biến Chuyến Đi Thành Hiện Thực Theo Cách Của Bạn</h1>
       <div class="bg-transparent rounded-lg mt-6 p-6 text-white box-border">
-        <div class="flex items-center justify-between space-x-4 border-b-2 border-solid pb-8 box-border text-gray-300">
-
-          @for (item of menuItems; track $index) {
-
-            <button class="rounded-3xl text-black flex flex-col justify-center items-center gap-2 plr16 plb8 h-full mh-80"
-            [ngClass]="{
-              'bg-white': item.isActive,
-              'text-black': item.isActive,
-              'hover:border' : !item.isActive,
-              'hover:border-solid' : !item.isActive,
-            }">
-              <span class="icon">
-                <img [src]="item.path" [alt]="item.label">
-              </span>
-              <span class="font-bold " [ngClass]="item.isActive ? 'text-black' : 'text-gray-300' ">
-                {{ item.label }}
-              </span>
-            </button>
-
-          }
-
-          <!-- <button class="py-2 px-4 rounded-3xl hover:border hover:border-solid flex flex-col justify-center gap-2">
-            <span class="icon">
-              <img src="icon/train.png" alt="">
-            </span>
-            <span class="font-bold">
-              Tiket Kereta Api
-            </span>
-          </button> -->
-
-
-
-        </div>
-
         <div class="flex flex-row justify-between items-center pt-8">
           <div class="flex gap-4 font-bold">
             <button class="bg-blue-500 text-white px-4 py-2 rounded-md">Một Chiều / Khứ Hồi</button>

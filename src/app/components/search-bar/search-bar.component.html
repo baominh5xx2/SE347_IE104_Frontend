@@ -32,9 +32,12 @@
       </div>
     </div>
   } @else {
-    <div class="grid grid-cols-1 md:grid-cols-3 flex-auto wrapper-form">
+    <div class="grid grid-cols-1 md:grid-cols-4 flex-auto wrapper-form">
       <div>
-        <input type="text" [(ngModel)]="tourSearchObj.destination" placeholder="Điểm đến" class="w-full p-2 border input-1 bg-white" />
+        <input type="text" [(ngModel)]="queryText" placeholder="Tìm kiếm tour (ví dụ: Tôi muốn đi Đà Lạt)" class="w-full p-2 border input-1 bg-white" />
+      </div>
+      <div>
+        <input type="text" [(ngModel)]="tourSearchObj.destination" placeholder="Điểm đến" class="w-full p-2 border input-2 bg-white" />
       </div>
       <div>
         <input type="text" [(ngModel)]="tourSearchObj.departure_location" placeholder="Nơi khởi hành" class="w-full p-2 border input-2 bg-white" />

@@ -6,8 +6,11 @@ import { BookingPagesComponent } from './pages/booking-pages/booking-pages.compo
 import { PaymentComponent } from './pages/payment/payment.component';
 import { LoginComponent } from './pages/auth/login/login.component';
 import { RegisterComponent } from './pages/auth/register/register.component';
+import { GoogleCallbackComponent } from './pages/auth/google-callback/google-callback.component';
 import { ToursComponent } from './pages/tours/tours.component';
-import { AiChatbotComponent } from './components/ai-chatbot/ai-chatbot.component';
+import { ProfileComponent } from './pages/profile/profile.component';
+import { authGuard } from './guards/auth.guard';
+import { guestGuard } from './guards/guest.guard';
 
 export const routes: Routes = [
   {
@@ -33,18 +36,21 @@ export const routes: Routes = [
     path: 'tour-details/:id', component: ProducDetailsComponent
   },
   {
-    path: 'booking/:id', component: BookingPagesComponent
+    path: 'booking/:id', component: BookingPagesComponent, canActivate: [authGuard]
   },
   {
-    path: 'payment', component: PaymentComponent
+    path: 'payment', component: PaymentComponent, canActivate: [authGuard]
   },
   {
-    path: 'login', component: LoginComponent
+    path: 'login', component: LoginComponent, canActivate: [guestGuard]
   },
   {
-    path: 'register', component: RegisterComponent
+    path: 'register', component: RegisterComponent, canActivate: [guestGuard]
   },
   {
-    path: 'chat', component: AiChatbotComponent
+    path: 'auth/google/callback', component: GoogleCallbackComponent
+  },
+  {
+    path: 'profile', component: ProfileComponent, canActivate: [authGuard]
   },
 ];

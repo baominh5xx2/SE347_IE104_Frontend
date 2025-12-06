@@ -29,7 +29,7 @@ $shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.08);
   display: grid;
   grid-template-columns: $content-width 1fr;
   overflow: hidden;
-  position: relative;
+  z-index: 9999;
 }
 
 .agent-sidebar {

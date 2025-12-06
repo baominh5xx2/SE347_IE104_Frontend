@@ -45,15 +45,32 @@ export class RegisterComponent {
 
       if (this.registerForm.fullName && this.registerForm.email && this.registerForm.phone && this.registerForm.password && this.registerForm.agreeTerms) {
         this.isLoading = true;
-        this.authService.registerWithEmail(this.registerForm).subscribe({
+        this.authService.registerWithEmail({
+          fullName: this.registerForm.fullName,
+          email: this.registerForm.email,
+          phone: this.registerForm.phone,
+          password: this.registerForm.password
+        }).subscribe({
           next: (response) => {
             console.log('Register success:', response);
             this.isLoading = false;
-            // this.router.navigate(['/login']);
+            if (response.EC === 0) {
+              alert(response.EM || 'Đăng ký thành công');
+              this.router.navigate(['/login']);
+            } else {
+              alert(response.EM || 'Đăng ký thất bại');
+            }
           },
           error: (error) => {
             console.error('Register error:', error);
             this.isLoading = false;
+            if (error.error && error.error.detail) {
+              const validationErrors = error.error.detail;
+              const errorMessages = validationErrors.map((err: any) => err.msg).join('\n');
+              alert('Lỗi xác thực:\n' + errorMessages);
+            } else {
+              alert('Đăng ký thất bại. Vui lòng thử lại.');
+            }
           }
         });
       }

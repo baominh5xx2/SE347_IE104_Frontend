@@ -26,7 +26,7 @@ export interface Tour {
   package_id: string;
   package_name: string;
   destination: string;
-  departure_location: string;
+  departure_location?: string;
   duration_days: number;
   price: number;
   original_price?: number;
@@ -37,7 +37,7 @@ export interface Tour {
   highlights?: string[];
   included_services?: string[];
   image_url?: string;
-  image_urls?: string; // Pipe-separated image URLs (e.g., "url1|url2|url3")
+  image_urls?: string;
   available_dates?: string[];
   max_participants?: number;
   category?: string;
@@ -48,6 +48,8 @@ export interface Tour {
   excludes?: string[];
   itinerary?: TourItinerary;
   is_active?: boolean;
+  cuisine?: string;
+  suitable_for?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -83,5 +85,45 @@ export interface TourRecommendation {
   tours: Tour[];
   reason?: string;
   context?: string;
+}
+
+export interface TourPackageListResponse {
+  EC: number;
+  EM: string;
+  total: number;
+  packages: Tour[];
+}
+
+export interface TourPackageParams {
+  is_active?: boolean | null;
+  destination?: string | null;
+  limit?: number | null;
+  offset?: number | null;
+}
+
+export interface TourPackageDetailResponse {
+  EC: number;
+  EM: string;
+  package: Tour;
+}
+
+export interface TourPackageRecommendRequest {
+  user_id: string;
+  k: number;
+}
+
+export interface TourPackageSearchRequest {
+  q?: string;
+  max_price?: number;
+  duration?: number;
+  destination?: string;
+  limit?: number;
+}
+
+export interface TourPackageSearchResponse {
+  EC: number;
+  EM: string;
+  found: number;
+  packages: Tour[];
 }
 

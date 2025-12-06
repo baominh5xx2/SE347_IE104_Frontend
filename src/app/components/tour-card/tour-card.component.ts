@@ -64,6 +64,35 @@ export class TourCardComponent {
     }
   }
 
+  getShortDescription(): string {
+    if (!this.tour.description) return '';
+    const maxLength = 120;
+    if (this.tour.description.length <= maxLength) {
+      return this.tour.description;
+    }
+    return this.tour.description.substring(0, maxLength) + '...';
+  }
+
+  isNewTour(): boolean {
+    if (!this.tour.created_at) return false;
+    const createdDate = new Date(this.tour.created_at);
+    const now = new Date();
+    const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff <= 30;
+  }
+
+  getCategoryName(category: string): string {
+    const categoryMap: { [key: string]: string } = {
+      'beach': 'Biển',
+      'mountain': 'Núi',
+      'city': 'Thành phố',
+      'cultural': 'Văn hóa',
+      'adventure': 'Phiêu lưu',
+      'relax': 'Nghỉ dưỡng'
+    };
+    return categoryMap[category] || category;
+  }
+
   openImage(url: string): void {
     window.open(url, '_blank');
   }

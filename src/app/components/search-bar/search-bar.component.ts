@@ -32,15 +32,24 @@ export class SearchBarComponent {
     date_to: ''
   };
 
+  queryText: string = '';
+
   constructor(private router: Router) {}
 
   bindSearch() {
     if (this.searchType === 'hotel') {
       this.onSearch.emit(this.hotelSearchObj);
     } else {
-      this.onSearch.emit(this.tourSearchObj);
+      const searchData = {
+        ...this.tourSearchObj,
+        queryText: this.queryText
+      };
+      this.onSearch.emit(searchData);
       this.router.navigate(['/tours'], { 
-        queryParams: this.tourSearchObj 
+        queryParams: {
+          ...this.tourSearchObj,
+          q: this.queryText
+        }
       });
     }
   }
