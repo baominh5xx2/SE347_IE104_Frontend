@@ -9,11 +9,22 @@ export class ChatService {
   constructor() { }
 
   async sendMessage(message: string, conversationId: string | null, userId: string | null, maxRecommendations: number = 5): Promise<ReadableStreamDefaultReader<Uint8Array>> {
+    // Get token from localStorage
+    const token = localStorage.getItem('access_token');
+    
+    // Build headers
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Add Authorization header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const response = await fetch(this.apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify({
         message: message,
         conversation_id: conversationId,
