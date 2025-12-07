@@ -10,8 +10,6 @@ import { AuthStateService } from '../../services/auth-state.service';
 import { TourCardComponent } from '../tour-card/tour-card.component';
 import { Tour } from '../../shared/models/tour.model';
 
-const STORAGE_KEY = 'ai.chatbot.conversations';
-
 interface TourSelection {
   name: string;
   price: number;
@@ -32,6 +30,7 @@ interface Message {
   tourPackages?: Tour[];
   mcpUiResource?: McpUiResource;
   mcpUiHtml?: string;
+  showTourCards?: boolean;
 }
 
 interface Conversation {
@@ -41,7 +40,6 @@ interface Conversation {
   updatedAt: number;
   remoteConversationId: string | null;
   userId: string | null;
-  messages: Message[];
 }
 
 @Component({
@@ -83,9 +81,31 @@ export class AiChatbotComponent implements OnInit {
       return;
     }
 
-    // Load conversations list và tạo conversation local mới (chưa có room)
-    this.loadConversationsList();
-    this.startNewConversation();
+    // Clear any old localStorage cache (if exists)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('ai.chatbot.conversations');
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+
+    // Clear conversations và load từ API
+    this.conversations = [];
+    this.messages = [];
+    
+    // Load conversations list trước, sau đó mới quyết định tạo mới hay load conversation cũ
+    this.loadConversationsList(() => {
+      // Sau khi load conversations xong, kiểm tra có conversation nào không
+      if (this.conversations.length > 0) {
+        // Có conversations → tự động select conversation đầu tiên (mới nhất) để load messages
+        const firstConversation = this.conversations[0];
+        this.selectConversation(firstConversation.id);
+      } else {
+        // Không có conversations → tạo conversation mới
+        this.startNewConversation();
+      }
+    });
   }
 
   onClose(): void {
@@ -109,17 +129,15 @@ export class AiChatbotComponent implements OnInit {
       await this.createRoomForConversation(conversation);
     }
 
-    // Thêm user message vào UI và cache
+    // Thêm user message vào UI
     const userMessageObj: Message = { content: message, isUser: true };
     this.messages.push(userMessageObj);
-    conversation.messages = [...this.messages]; // Update cache
     this.userMessage = '';
 
     this.touchConversation(conversation);
-    if (!conversation.messages.some(m => !m.isUser)) {
+    if (!this.messages.some(m => !m.isUser)) {
       conversation.title = this.generateConversationTitle(message);
     }
-    this.persistConversations();
     
     if (this.messageInputRef && this.messageInputRef.nativeElement) {
       this.messageInputRef.nativeElement.style.height = 'auto';
@@ -161,7 +179,6 @@ export class AiChatbotComponent implements OnInit {
                   conversation.userId = event.user_id;
                   this.touchConversation(conversation);
                   console.log('Conversation started:', this.conversationId);
-                  this.persistConversations();
                   break;
                   
                 case 'token':
@@ -169,8 +186,6 @@ export class AiChatbotComponent implements OnInit {
                     this.isTyping = false;
                     assistantMessage = { content: '', isUser: false };
                     this.messages.push(assistantMessage);
-                    // Update cache ngay lập tức
-                    conversation.messages = [...this.messages];
                     this.currentStreamContent = '';
                     isFirstToken = false;
                   }
@@ -182,12 +197,8 @@ export class AiChatbotComponent implements OnInit {
                     if (tourSelections.length > 0) {
                       assistantMessage.tourSelections = tourSelections;
                     }
-                    
-                    // Update cache mỗi lần update message
-                    conversation.messages = [...this.messages];
                   }
                   this.touchConversation(conversation, false);
-                  this.persistConversations();
                   setTimeout(() => this.scrollToBottom(), 0);
                   break;
                   
@@ -196,16 +207,14 @@ export class AiChatbotComponent implements OnInit {
                   if (assistantMessage && event.data) {
                     assistantMessage.tourPackages = event.data;
                     assistantMessage.tours = event.data;
+                    assistantMessage.showTourCards = true;
                     console.log('Tours assigned to message:', assistantMessage.tourPackages);
                     if (assistantMessage.tourPackages && assistantMessage.tourPackages.length > 0) {
                       console.log('First tour data:', JSON.stringify(assistantMessage.tourPackages[0], null, 2));
                       console.log('Tour fields:', Object.keys(assistantMessage.tourPackages[0]));
                     }
-                    // Update cache
-                    conversation.messages = [...this.messages];
                     this.cdr.detectChanges();
                     this.touchConversation(conversation, false);
-                    this.persistConversations();
                   }
                   setTimeout(() => this.scrollToBottom(), 100);
                   break;
@@ -213,7 +222,6 @@ export class AiChatbotComponent implements OnInit {
                 case 'complete':
                   console.log('Complete:', event.full_response);
                   this.touchConversation(conversation);
-                  this.persistConversations();
                   break;
                   
                 case 'error':
@@ -228,11 +236,8 @@ export class AiChatbotComponent implements OnInit {
                     this.currentStreamContent += '\n\n[ERROR]: ' + event.content;
                     assistantMessage.content = this.currentStreamContent;
                     assistantMessage.isError = true;
-                    // Update cache
-                    conversation.messages = [...this.messages];
                   }
                   this.touchConversation(conversation);
-                  this.persistConversations();
                   break;
               }
             } catch (e) {
@@ -244,7 +249,6 @@ export class AiChatbotComponent implements OnInit {
 
       this.headerStatus = 'Online';
       this.touchConversation(conversation);
-      this.persistConversations();
     } catch (error: any) {
       this.isTyping = false;
       let errorMessage = 'Unknown error occurred';
@@ -265,9 +269,7 @@ export class AiChatbotComponent implements OnInit {
       };
       this.messages.push(errorMsg);
       const conversation = this.ensureActiveConversation();
-      conversation.messages = [...this.messages]; // Update cache
       this.touchConversation(conversation);
-      this.persistConversations();
       this.headerStatus = 'Error';
       console.error('Chat error:', error);
     } finally {
@@ -312,13 +314,11 @@ export class AiChatbotComponent implements OnInit {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       remoteConversationId: null,
-      userId: null,
-      messages: []
+      userId: null
     };
 
     this.conversations = [conversation, ...this.conversations];
     this.selectConversation(conversation.id);
-    this.persistConversations();
   }
 
   selectConversation(conversationId: string): void {
@@ -334,27 +334,13 @@ export class AiChatbotComponent implements OnInit {
     this.isStreaming = false;
     this.currentStreamContent = '';
     
-    // Hiển thị messages từ cache ngay lập tức
-    if (conversation.messages && conversation.messages.length > 0) {
-      // Có cache → dùng cache
-      this.messages = conversation.messages;
-      this.cdr.detectChanges();
-      setTimeout(() => this.scrollToBottom(), 50);
-    } else {
-      // Không có cache → clear và load từ API
-      this.messages = [];
-      this.cdr.detectChanges();
-    }
+    // Clear messages và load từ API
+    this.messages = [];
+    this.cdr.detectChanges();
     
-    // Chỉ load từ API nếu:
-    // 1. Có remoteConversationId (đã có room)
-    // 2. Chưa có messages trong cache (chưa load lần nào)
-    // 3. Không đang streaming
-    if (conversation.remoteConversationId && (!conversation.messages || conversation.messages.length === 0)) {
-      // Load messages từ API trong background (không block UI)
-      setTimeout(() => {
-        this.loadMessagesFromAPI(conversation.remoteConversationId!);
-      }, 100);
+    // Load messages từ API nếu có remoteConversationId
+    if (conversation.remoteConversationId) {
+      this.loadMessagesFromAPI(conversation.remoteConversationId);
     }
   }
   
@@ -379,8 +365,6 @@ export class AiChatbotComponent implements OnInit {
             this.conversationId = room.room_id;
             this.userId = room.user_id;
             
-            // Persist changes
-            this.persistConversations();
             resolve();
           } else {
             console.error('Failed to create room:', response.EM);
@@ -397,63 +381,47 @@ export class AiChatbotComponent implements OnInit {
   
   /**
    * Load danh sách conversations từ API để hiển thị sidebar
+   * @param callback Function được gọi sau khi load xong conversations
    */
-  loadConversationsList(): void {
+  loadConversationsList(callback?: () => void): void {
+    // Clear conversations trước khi load
+    this.conversations = [];
+    
     this.chatRoomService.getRooms(false, 50, 0).subscribe({
       next: (response) => {
         if (response.EC === 0 && response.data) {
           // Convert API rooms to local conversation format
-          // Giữ nguyên messages cache nếu đã có
-          const existingConversationsMap = new Map(
-            this.conversations.map(c => [c.id, c])
-          );
+          const apiConversations = response.data.map(room => ({
+            id: room.room_id,
+            title: room.title,
+            createdAt: new Date(room.created_at).getTime(),
+            updatedAt: new Date(room.updated_at).getTime(),
+            remoteConversationId: room.room_id,
+            userId: room.user_id
+          }));
           
-          const apiConversations = response.data.map(room => {
-            const existingConv = existingConversationsMap.get(room.room_id);
-            return {
-              id: room.room_id,
-              title: room.title,
-              createdAt: new Date(room.created_at).getTime(),
-              updatedAt: new Date(room.updated_at).getTime(),
-              remoteConversationId: room.room_id,
-              userId: room.user_id,
-              // Giữ nguyên messages cache nếu đã có, không thì để rỗng
-              messages: existingConv?.messages || []
-            };
-          });
-          
-          // Merge với conversations hiện tại (giữ cache)
-          const existingIds = new Set(this.conversations.map(c => c.id));
-          const newConversations = apiConversations.filter(c => !existingIds.has(c.id));
-          
-          // Update existing conversations với data mới từ API (nhưng giữ messages cache)
-          for (const apiConv of apiConversations) {
-            const existingIndex = this.conversations.findIndex(c => c.id === apiConv.id);
-            if (existingIndex !== -1) {
-              // Update metadata nhưng giữ messages cache
-              this.conversations[existingIndex] = {
-                ...this.conversations[existingIndex],
-                title: apiConv.title,
-                updatedAt: apiConv.updatedAt,
-                createdAt: apiConv.createdAt
-              };
-            }
-          }
-          
-          // Thêm conversations mới vào đầu danh sách
-          this.conversations = [...newConversations, ...this.conversations];
+          // Replace conversations với data từ API
+          this.conversations = apiConversations;
           this.conversations.sort((a, b) => b.updatedAt - a.updatedAt);
-          
-          // Remove duplicates sau khi merge
-          const uniqueConversations = Array.from(
-            new Map(this.conversations.map(c => [c.id, c])).values()
-          );
-          this.conversations = uniqueConversations;
+        } else {
+          // Nếu API không trả về data, clear conversations
+          this.conversations = [];
+        }
+        
+        // Gọi callback sau khi load xong
+        if (callback) {
+          callback();
         }
       },
       error: (error) => {
         console.error('Error loading conversations list:', error);
-        // Silently fail, user can still use current conversation
+        // Clear conversations nếu có lỗi
+        this.conversations = [];
+        
+        // Vẫn gọi callback để không block UI
+        if (callback) {
+          callback();
+        }
       }
     });
   }
@@ -467,11 +435,6 @@ export class AiChatbotComponent implements OnInit {
       return;
     }
     
-    // Check cache: Nếu đã có messages trong cache, không load lại
-    if (this.activeConversation.messages && this.activeConversation.messages.length > 0) {
-      return;
-    }
-    
     this.chatRoomService.getRoomMessages(roomId, 100, 0).subscribe({
       next: (response) => {
         // Double check conversation vẫn active sau khi response về
@@ -479,30 +442,22 @@ export class AiChatbotComponent implements OnInit {
           return;
         }
         
-        // Double check cache: Nếu đã có messages trong cache (có thể load từ conversation khác), không update
-        if (this.activeConversation.messages && this.activeConversation.messages.length > 0) {
-          this.messages = this.activeConversation.messages;
-          return;
-        }
-        
         if (response.EC === 0 && response.data) {
           // Convert API messages to local message format
-          const loadedMessages = response.data.map(msg => ({
-            content: msg.content,
-            isUser: msg.role === 'user',
-            tourPackages: msg.entities?.tour_packages || [],
-            mcpUiResource: msg.entities?.mcp_ui_resource,
-            mcpUiHtml: msg.entities?.mcp_ui_html
-          }));
+          const loadedMessages = response.data.map(msg => {
+            const tourPackages = msg.entities?.tour_packages || [];
+            return {
+              content: msg.content,
+              isUser: msg.role === 'user',
+              tourPackages: tourPackages,
+              showTourCards: tourPackages.length > 0,
+              mcpUiResource: msg.entities?.mcp_ui_resource,
+              mcpUiHtml: msg.entities?.mcp_ui_html
+            };
+          });
           
-          // Update messages và cache
+          // Update messages
           this.messages = loadedMessages;
-          
-          // Update conversation messages in cache
-          if (this.activeConversation) {
-            this.activeConversation.messages = loadedMessages;
-            this.persistConversations();
-          }
           
           // Trigger change detection và scroll
           this.cdr.detectChanges();
@@ -511,10 +466,6 @@ export class AiChatbotComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading messages from API:', error);
-        // Fallback to local messages nếu có
-        if (this.activeConversation && this.activeConversation.messages) {
-          this.messages = this.activeConversation.messages;
-        }
       }
     });
   }
@@ -522,20 +473,47 @@ export class AiChatbotComponent implements OnInit {
   deleteConversation(conversationId: string): void {
     if (this.isStreaming) return;
 
-    const index = this.conversations.findIndex(conv => conv.id === conversationId);
-    if (index === -1) return;
+    const conversation = this.conversations.find(conv => conv.id === conversationId);
+    if (!conversation) return;
 
     const wasActive = this.activeConversation?.id === conversationId;
-    this.conversations.splice(index, 1);
+    const index = this.conversations.findIndex(conv => conv.id === conversationId);
 
-    if (!this.conversations.length) {
-      this.startNewConversation();
-    } else if (wasActive) {
-      const nextConversation = this.conversations[Math.min(index, this.conversations.length - 1)];
-      this.selectConversation(nextConversation.id);
+    // Gọi API delete room nếu có remoteConversationId
+    if (conversation.remoteConversationId) {
+      this.chatRoomService.deleteRoom(conversation.remoteConversationId).subscribe({
+        next: (response) => {
+          if (response.EC === 0) {
+            // Xóa khỏi local list
+            this.conversations.splice(index, 1);
+
+            if (!this.conversations.length) {
+              this.startNewConversation();
+            } else if (wasActive) {
+              const nextConversation = this.conversations[Math.min(index, this.conversations.length - 1)];
+              this.selectConversation(nextConversation.id);
+            }
+          } else {
+            console.error('Failed to delete room:', response.EM);
+            alert('Không thể xóa cuộc trò chuyện. Vui lòng thử lại.');
+          }
+        },
+        error: (error) => {
+          console.error('Error deleting room:', error);
+          alert('Có lỗi xảy ra khi xóa cuộc trò chuyện. Vui lòng thử lại.');
+        }
+      });
+    } else {
+      // Nếu chưa có room (chưa gửi message), chỉ xóa local
+      this.conversations.splice(index, 1);
+
+      if (!this.conversations.length) {
+        this.startNewConversation();
+      } else if (wasActive) {
+        const nextConversation = this.conversations[Math.min(index, this.conversations.length - 1)];
+        this.selectConversation(nextConversation.id);
+      }
     }
-
-    this.persistConversations();
   }
 
   formatTimestamp(timestamp: number): string {
@@ -554,15 +532,8 @@ export class AiChatbotComponent implements OnInit {
   }
 
   getConversationPreview(conversation: Conversation): string {
-    if (!conversation.messages.length) {
-      return 'Chưa có nội dung nào.';
-    }
-    const lastMessage = conversation.messages[conversation.messages.length - 1].content || '';
-    const cleaned = lastMessage.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-    if (!cleaned) {
-      return 'Đang chờ nội dung từ trợ lý.';
-    }
-    return cleaned.length > 70 ? cleaned.slice(0, 67) + '…' : cleaned;
+    // Không có cache messages nữa, chỉ hiển thị title
+    return conversation.title || 'Cuộc trò chuyện';
   }
 
   private parseMarkdown(text: string): string {
@@ -707,32 +678,6 @@ export class AiChatbotComponent implements OnInit {
     }
   }
 
-  private loadConversations(): void {
-    if (typeof window === 'undefined') return;
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return;
-
-      const parsed = JSON.parse(stored) as Conversation[];
-      this.conversations = parsed.map(conversation => ({
-        ...conversation,
-        messages: conversation.messages || []
-      }));
-    } catch (error) {
-      console.warn('Failed to load conversations:', error);
-      this.conversations = [];
-    }
-  }
-
-  private persistConversations(): void {
-    if (typeof window === 'undefined') return;
-    try {
-      const payload = JSON.stringify(this.conversations);
-      localStorage.setItem(STORAGE_KEY, payload);
-    } catch (error) {
-      console.warn('Failed to persist conversations:', error);
-    }
-  }
 
   private ensureActiveConversation(): Conversation {
     if (!this.activeConversation) {
