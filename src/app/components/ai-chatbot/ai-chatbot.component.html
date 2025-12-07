@@ -133,31 +133,13 @@
                 </div>
               }
 
-              @if (!message.isUser && (message.tourPackages || message.mcpUiResource || message.mcpUiHtml)) {
+              @if (!message.isUser && message.showTourCards && message.tourPackages && message.tourPackages.length > 0) {
                 <div class="mcp-ui-container">
-                  <!-- Render Tour Packages using TourCardComponent (Preferred - New Approach) -->
-                  @if (message.tourPackages && message.tourPackages.length > 0) {
-                    <div class="mcp-ui-content tour-packages-grid" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
-                      @for (tour of message.tourPackages; track tour.package_id) {
-                        <app-tour-card [tour]="tour" [showDetails]="true"></app-tour-card>
-                      }
-                    </div>
-                  }
-                  <!-- Fallback: Render HTML content directly (Backward Compatibility) -->
-                  @else if (message.mcpUiHtml || (message.mcpUiResource && message.mcpUiResource.text)) {
-                    <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiHtml || message.mcpUiResource?.text || '')"></div>
-                  }
-                  
-                  <!-- Web Component (Hidden for now due to process is not defined error, but kept for reference) -->
-                  <!-- 
-                  @if (message.mcpUiResource && false) {
-                    <ui-resource-renderer 
-                      [id]="'mcp-ui-' + $index"
-                      [attr.resource]="getUiResourceJson(message.mcpUiResource)"
-                      (onUIAction)="handleMcpUIAction($event)">
-                    </ui-resource-renderer>
-                  } 
-                  -->
+                  <div class="mcp-ui-content tour-packages-grid" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+                    @for (tour of message.tourPackages; track tour.package_id) {
+                      <app-tour-card [tour]="tour" [showDetails]="true"></app-tour-card>
+                    }
+                  </div>
                 </div>
               }
             </div>
