@@ -1,7 +1,7 @@
-import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit, SecurityContext } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit, OnDestroy, SecurityContext, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ChatService } from '../../services/chat.service';
 import { ChatRoomService } from '../../services/chat-room.service';
@@ -48,7 +48,7 @@ interface Conversation {
   templateUrl: './ai-chatbot.component.html',
   styleUrl: './ai-chatbot.component.scss'
 })
-export class AiChatbotComponent implements OnInit {
+export class AiChatbotComponent implements OnInit, OnDestroy {
   @Output() close = new EventEmitter<void>();
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('messageInput') messageInputRef!: ElementRef;
@@ -63,53 +63,90 @@ export class AiChatbotComponent implements OnInit {
   currentStreamContent = '';
   conversations: Conversation[] = [];
   activeConversation: Conversation | null = null;
+  // Cache and loading states
+  private messagesCache = new Map<string, Message[]>();
+  private readonly conversationsCacheKey = 'ai.chatbot.conversations.cache';
+  private readonly conversationsCacheTTL = 5 * 60 * 1000; // 5 phút
+  isDeletingConversation: string | null = null;
+  isLoadingConversations = false;
+  isLoadingMessages = false;
 
   constructor(
     private chatService: ChatService,
     private chatRoomService: ChatRoomService,
     private cdr: ChangeDetectorRef,
     private router: Router,
+    private route: ActivatedRoute,
     private tourService: TourService,
     private authStateService: AuthStateService,
     private sanitizer: DomSanitizer
   ) {}
 
+  private paymentButtonClickHandler = (event: MessageEvent) => {
+    if (event.data && event.data.type === 'mcp_ui_payment') {
+      const paymentUrl = event.data.payment_url;
+      const bookingId = event.data.booking_id;
+      console.log('Payment button clicked:', { paymentUrl, bookingId });
+      
+      if (paymentUrl) {
+        window.location.href = paymentUrl;
+      }
+    }
+  };
+
   ngOnInit(): void {
+    // Listen for payment button clicks from dynamically rendered HTML
+    window.addEventListener('message', this.paymentButtonClickHandler);
+    
+    // Also listen for custom events
+    window.addEventListener('mcpPayment', ((event: CustomEvent) => {
+      const paymentUrl = event.detail?.payment_url;
+      if (paymentUrl) {
+        window.location.href = paymentUrl;
+      }
+    }) as EventListener);
     if (!this.authStateService.getIsAuthenticated()) {
       this.onClose();
       this.router.navigate(['/login']);
       return;
     }
 
-    // Clear any old localStorage cache (if exists)
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('ai.chatbot.conversations');
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-
     // Clear conversations và load từ API
     this.conversations = [];
     this.messages = [];
     
+    const urlRoomId = this.route.snapshot.paramMap.get('roomId');
+    
     // Load conversations list trước, sau đó mới quyết định tạo mới hay load conversation cũ
-    this.loadConversationsList(() => {
-      // Sau khi load conversations xong, kiểm tra có conversation nào không
+    this.loadConversationsList(async () => {
+      if (urlRoomId) {
+        await this.loadRoomFromUrl(urlRoomId);
+        return;
+      }
+
+      // Fallback: chọn conversation đầu tiên hoặc tạo mới
       if (this.conversations.length > 0) {
-        // Có conversations → tự động select conversation đầu tiên (mới nhất) để load messages
         const firstConversation = this.conversations[0];
         this.selectConversation(firstConversation.id);
       } else {
-        // Không có conversations → tạo conversation mới
         this.startNewConversation();
       }
     });
   }
 
   onClose(): void {
+    // Nếu đang ở route /chat-room/:roomId, navigate về trang trước hoặc home
+    const currentUrl = this.router.url;
+    if (currentUrl.startsWith('/chat-room/')) {
+      // Navigate về trang trước hoặc home
+      this.router.navigate(['/home']).catch(() => {
+        // Fallback nếu navigate fail
+        window.history.back();
+      });
+    } else {
+      // Nếu không phải route riêng (embed trong header), emit event
     this.close.emit();
+    }
   }
 
   async sendMessage(): Promise<void> {
@@ -127,6 +164,10 @@ export class AiChatbotComponent implements OnInit {
     // Nếu conversation chưa có room (chưa gửi message nào), tạo room trước
     if (!conversation.remoteConversationId) {
       await this.createRoomForConversation(conversation);
+    }
+
+    if (conversation.remoteConversationId) {
+      this.messagesCache.delete(conversation.remoteConversationId);
     }
 
     // Thêm user message vào UI
@@ -179,6 +220,9 @@ export class AiChatbotComponent implements OnInit {
                   conversation.userId = event.user_id;
                   this.touchConversation(conversation);
                   console.log('Conversation started:', this.conversationId);
+                  if (this.conversationId) {
+                    this.router.navigate(['/chat-room', this.conversationId], { replaceUrl: true });
+                  }
                   break;
                   
                 case 'token':
@@ -215,6 +259,30 @@ export class AiChatbotComponent implements OnInit {
                     }
                     this.cdr.detectChanges();
                     this.touchConversation(conversation, false);
+                  }
+                  setTimeout(() => this.scrollToBottom(), 100);
+                  break;
+                  
+                case 'mcp_ui':
+                  console.log('MCP UI received:', event);
+                  if (assistantMessage) {
+                    if (event.ui_resource) {
+                      assistantMessage.mcpUiResource = event.ui_resource;
+                    }
+                    if (event.html) {
+                      assistantMessage.mcpUiHtml = event.html;
+                    }
+                    if (event.tourPackages) {
+                      assistantMessage.tourPackages = event.tourPackages;
+                      assistantMessage.showTourCards = true;
+                    }
+                    this.cdr.detectChanges();
+                    this.touchConversation(conversation, false);
+                    
+                    // Attach payment button click handlers after HTML is rendered
+                    setTimeout(() => {
+                      this.attachPaymentButtonHandlers();
+                    }, 100);
                   }
                   setTimeout(() => this.scrollToBottom(), 100);
                   break;
@@ -274,6 +342,10 @@ export class AiChatbotComponent implements OnInit {
       console.error('Chat error:', error);
     } finally {
       this.isStreaming = false;
+      const activeRoomId = this.activeConversation?.remoteConversationId;
+      if (activeRoomId) {
+        this.messagesCache.set(activeRoomId, [...this.messages]);
+      }
     }
   }
 
@@ -333,9 +405,18 @@ export class AiChatbotComponent implements OnInit {
     this.isTyping = false;
     this.isStreaming = false;
     this.currentStreamContent = '';
+
+    // Navigate to the chat room URL
+    this.router.navigate(['/chat-room', conversation.remoteConversationId || conversation.id]);
     
     // Clear messages và load từ API
+    const roomId = conversation.remoteConversationId || conversation.id;
+    const cachedMessages = roomId ? this.messagesCache.get(roomId) : null;
+    if (cachedMessages) {
+      this.messages = [...cachedMessages];
+    } else {
     this.messages = [];
+    }
     this.cdr.detectChanges();
     
     // Load messages từ API nếu có remoteConversationId
@@ -384,13 +465,23 @@ export class AiChatbotComponent implements OnInit {
    * @param callback Function được gọi sau khi load xong conversations
    */
   loadConversationsList(callback?: () => void): void {
-    // Clear conversations trước khi load
-    this.conversations = [];
+    let callbackCalled = false;
+
+    // Load từ cache để hiển thị ngay
+    const cached = this.loadConversationsFromCache();
+    if (cached && cached.length > 0) {
+      this.conversations = cached.sort((a, b) => b.updatedAt - a.updatedAt);
+      if (callback) {
+        callback();
+        callbackCalled = true;
+      }
+    }
+
+    this.isLoadingConversations = true;
     
     this.chatRoomService.getRooms(false, 50, 0).subscribe({
       next: (response) => {
         if (response.EC === 0 && response.data) {
-          // Convert API rooms to local conversation format
           const apiConversations = response.data.map(room => ({
             id: room.room_id,
             title: room.title,
@@ -400,30 +491,64 @@ export class AiChatbotComponent implements OnInit {
             userId: room.user_id
           }));
           
-          // Replace conversations với data từ API
-          this.conversations = apiConversations;
-          this.conversations.sort((a, b) => b.updatedAt - a.updatedAt);
+          this.conversations = apiConversations.sort((a, b) => b.updatedAt - a.updatedAt);
+          this.saveConversationsToCache(this.conversations);
         } else {
-          // Nếu API không trả về data, clear conversations
           this.conversations = [];
         }
         
-        // Gọi callback sau khi load xong
-        if (callback) {
+        if (!callbackCalled && callback) {
           callback();
         }
       },
       error: (error) => {
         console.error('Error loading conversations list:', error);
-        // Clear conversations nếu có lỗi
+        // Keep cache if available; only clear if none
+        if (!cached || cached.length === 0) {
         this.conversations = [];
+        }
         
-        // Vẫn gọi callback để không block UI
-        if (callback) {
+        if (!callbackCalled && callback) {
           callback();
         }
+        this.isLoadingConversations = false;
+      },
+      complete: () => {
+        this.isLoadingConversations = false;
       }
     });
+  }
+
+  /**
+   * Load room theo roomId trong URL (nếu tồn tại), select và load messages
+   */
+  private async loadRoomFromUrl(roomId: string): Promise<void> {
+    const existing = this.conversations.find(c => c.id === roomId || c.remoteConversationId === roomId);
+    if (existing) {
+      this.selectConversation(existing.id);
+      return;
+    }
+    try {
+      const roomResp = await this.chatRoomService.getRoom(roomId).toPromise();
+      if (roomResp && roomResp.EC === 0 && roomResp.data) {
+        const room = roomResp.data;
+        const conv: Conversation = {
+          id: room.room_id,
+          title: room.title,
+          createdAt: new Date(room.created_at).getTime(),
+          updatedAt: new Date(room.updated_at).getTime(),
+          remoteConversationId: room.room_id,
+          userId: room.user_id
+        };
+        this.conversations.unshift(conv);
+        this.selectConversation(conv.id);
+        return;
+      }
+    } catch (e) {
+      console.warn('Could not load room from URL, fallback to default conversation', e);
+    }
+    // fallback
+    this.startNewConversation();
   }
   
   /**
@@ -434,6 +559,7 @@ export class AiChatbotComponent implements OnInit {
     if (this.activeConversation?.remoteConversationId !== roomId) {
       return;
     }
+    this.isLoadingMessages = true;
     
     this.chatRoomService.getRoomMessages(roomId, 100, 0).subscribe({
       next: (response) => {
@@ -458,6 +584,7 @@ export class AiChatbotComponent implements OnInit {
           
           // Update messages
           this.messages = loadedMessages;
+          this.messagesCache.set(roomId, [...loadedMessages]);
           
           // Trigger change detection và scroll
           this.cdr.detectChanges();
@@ -466,12 +593,16 @@ export class AiChatbotComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading messages from API:', error);
+        this.isLoadingMessages = false;
+      },
+      complete: () => {
+        this.isLoadingMessages = false;
       }
     });
   }
 
   deleteConversation(conversationId: string): void {
-    if (this.isStreaming) return;
+    if (this.isStreaming || this.isDeletingConversation) return;
 
     const conversation = this.conversations.find(conv => conv.id === conversationId);
     if (!conversation) return;
@@ -479,13 +610,13 @@ export class AiChatbotComponent implements OnInit {
     const wasActive = this.activeConversation?.id === conversationId;
     const index = this.conversations.findIndex(conv => conv.id === conversationId);
 
-    // Gọi API delete room nếu có remoteConversationId
-    if (conversation.remoteConversationId) {
-      this.chatRoomService.deleteRoom(conversation.remoteConversationId).subscribe({
-        next: (response) => {
-          if (response.EC === 0) {
-            // Xóa khỏi local list
-            this.conversations.splice(index, 1);
+    // Optimistic remove
+    this.isDeletingConversation = conversationId;
+    const deletedConversation = this.conversations.splice(index, 1)[0];
+    // Invalidate cache for this room
+    if (deletedConversation.remoteConversationId) {
+      this.messagesCache.delete(deletedConversation.remoteConversationId);
+    }
 
             if (!this.conversations.length) {
               this.startNewConversation();
@@ -493,26 +624,35 @@ export class AiChatbotComponent implements OnInit {
               const nextConversation = this.conversations[Math.min(index, this.conversations.length - 1)];
               this.selectConversation(nextConversation.id);
             }
-          } else {
+
+    const finalize = () => {
+      this.saveConversationsToCache(this.conversations);
+      this.isDeletingConversation = null;
+    };
+
+    // Gọi API delete room nếu có remoteConversationId
+    if (deletedConversation.remoteConversationId) {
+      this.chatRoomService.deleteRoom(deletedConversation.remoteConversationId).subscribe({
+        next: (response) => {
+          if (response.EC !== 0) {
             console.error('Failed to delete room:', response.EM);
+            // Rollback
+            this.conversations.splice(index, 0, deletedConversation);
+            this.conversations.sort((a, b) => b.updatedAt - a.updatedAt);
             alert('Không thể xóa cuộc trò chuyện. Vui lòng thử lại.');
           }
         },
         error: (error) => {
           console.error('Error deleting room:', error);
+          // Rollback
+          this.conversations.splice(index, 0, deletedConversation);
+          this.conversations.sort((a, b) => b.updatedAt - a.updatedAt);
           alert('Có lỗi xảy ra khi xóa cuộc trò chuyện. Vui lòng thử lại.');
-        }
+        },
+        complete: finalize
       });
     } else {
-      // Nếu chưa có room (chưa gửi message), chỉ xóa local
-      this.conversations.splice(index, 1);
-
-      if (!this.conversations.length) {
-        this.startNewConversation();
-      } else if (wasActive) {
-        const nextConversation = this.conversations[Math.min(index, this.conversations.length - 1)];
-        this.selectConversation(nextConversation.id);
-      }
+      finalize();
     }
   }
 
@@ -705,6 +845,47 @@ export class AiChatbotComponent implements OnInit {
     return Math.random().toString(36).slice(2, 11);
   }
 
+  private getCurrentUserId(): string | null {
+    const user = this.authStateService.getCurrentUser();
+    if (user && user.user_id) return user.user_id;
+    if (this.userId) return this.userId;
+    return null;
+  }
+
+  private loadConversationsFromCache(): Conversation[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.conversationsCacheKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      const userId = this.getCurrentUserId();
+      if (!userId || parsed.userId !== userId) return [];
+      const timestamp = parsed.timestamp || 0;
+      if (Date.now() - timestamp > this.conversationsCacheTTL) return [];
+      const conversations = parsed.conversations as Conversation[] || [];
+      return conversations;
+    } catch (e) {
+      console.warn('Failed to load conversations cache', e);
+      return [];
+    }
+  }
+
+  private saveConversationsToCache(conversations: Conversation[]): void {
+    if (typeof window === 'undefined') return;
+    const userId = this.getCurrentUserId();
+    if (!userId) return;
+    try {
+      const payload = {
+        conversations,
+        timestamp: Date.now(),
+        userId
+      };
+      localStorage.setItem(this.conversationsCacheKey, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('Failed to save conversations cache', e);
+    }
+  }
+
   private touchConversation(conversation: Conversation, bump: boolean = true): void {
     conversation.updatedAt = Date.now();
     if (!bump) {
@@ -727,7 +908,82 @@ export class AiChatbotComponent implements OnInit {
 
   sanitizeHtml(html: string): SafeHtml {
     if (!html) return '';
-    const sanitized = this.sanitizer.sanitize(SecurityContext.HTML, html);
-    return this.sanitizer.bypassSecurityTrustHtml(sanitized || '');
+    // Bypass security for payment button HTML to allow onclick handlers
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  ngOnDestroy(): void {
+    // Clean up event listeners
+    window.removeEventListener('message', this.paymentButtonClickHandler);
+  }
+
+  // Handle payment button clicks from dynamically rendered HTML
+  handlePaymentClick(paymentUrl: string, bookingId: string): void {
+    console.log('Payment button clicked:', { paymentUrl, bookingId });
+    if (paymentUrl) {
+      window.location.href = paymentUrl;
+    }
+  }
+
+  // Handle clicks on payment button HTML (delegation)
+  handlePaymentClickFromHtml(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    
+    // Check if clicked element is payment button or inside it
+    const button = target.closest('.mcp-payment-button') || target.closest('button[data-payment-url]');
+    
+    if (button) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Try data attributes first (preferred method)
+      const paymentUrl = button.getAttribute('data-payment-url') || 
+                        (button as HTMLElement).dataset['paymentUrl'];
+      if (paymentUrl) {
+        console.log('Extracted payment URL from data attribute:', paymentUrl);
+        window.location.href = paymentUrl;
+        return;
+      }
+      
+      // Fallback: try onclick attribute
+      const onclickAttr = button.getAttribute('onclick');
+      if (onclickAttr) {
+        // Extract payment URL from onclick="handlePayment('url', 'id')"
+        const urlMatch = onclickAttr.match(/handlePayment\(['"]([^'"]+)['"]/);
+        if (urlMatch && urlMatch[1]) {
+          const paymentUrl = urlMatch[1];
+          console.log('Extracted payment URL from onclick:', paymentUrl);
+          window.location.href = paymentUrl;
+          return;
+        }
+      }
+      
+      console.warn('Could not extract payment URL from button');
+    }
+  }
+
+  // Attach click handlers to payment buttons after HTML is rendered
+  private attachPaymentButtonHandlers(): void {
+    const paymentButtons = document.querySelectorAll('.mcp-payment-button');
+    paymentButtons.forEach((button) => {
+      // Remove existing listeners to avoid duplicates
+      const newButton = button.cloneNode(true) as HTMLElement;
+      button.parentNode?.replaceChild(newButton, button);
+      
+      // Attach click handler
+      newButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const paymentUrl = newButton.getAttribute('data-payment-url') || 
+                          (newButton as HTMLElement).dataset['paymentUrl'];
+        if (paymentUrl) {
+          console.log('Payment button clicked, redirecting to:', paymentUrl);
+          window.location.href = paymentUrl;
+        } else {
+          console.warn('Payment URL not found in button');
+        }
+      });
+    });
   }
 }

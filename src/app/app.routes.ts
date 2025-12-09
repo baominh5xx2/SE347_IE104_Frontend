@@ -64,6 +64,11 @@ export const routes: Routes = [
     path: 'my-payments', component: MyPaymentsComponent, canActivate: [authGuard]
   },
   {
+    path: 'chat-room/:roomId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./components/ai-chatbot/ai-chatbot.component').then(m => m.AiChatbotComponent)
+  },
+  {
     path: 'payment/vnpay/callback', component: VnpayCallbackComponent
   },
 ];
