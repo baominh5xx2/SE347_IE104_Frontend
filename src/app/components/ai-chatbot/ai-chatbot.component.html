@@ -24,6 +24,12 @@
 
       <div class="sidebar-section-label">Lịch sử trò chuyện</div>
       <div class="conversation-list" role="list">
+        @if (isLoadingConversations) {
+          <div class="conversation-empty">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Đang tải cuộc trò chuyện...</p>
+          </div>
+        } @else {
         @if (!conversations.length) {
           <div class="conversation-empty">
             <i class="fas fa-comments"></i>
@@ -49,11 +55,16 @@
                 class="conversation-delete"
                 title="Xóa cuộc trò chuyện"
                 (click)="$event.stopPropagation(); deleteConversation(conversation.id)"
-                [disabled]="isStreaming"
+                [disabled]="isStreaming || isDeletingConversation === conversation.id"
               >
+                @if (isDeletingConversation === conversation.id) {
+                  <i class="fas fa-spinner fa-spin"></i>
+                } @else {
                 <i class="fas fa-trash"></i>
+                }
               </button>
             </div>
+          }
           }
         }
       </div>
@@ -80,7 +91,16 @@
 
       <div class="stage-body">
         <div class="messages-container" #messagesContainer>
-          @if (!messages.length && !isTyping) {
+          @if (isLoadingMessages) {
+            <div class="stage-empty">
+              <div class="empty-illustration">
+                <i class="fas fa-spinner fa-spin"></i>
+              </div>
+              <h2>Đang tải cuộc trò chuyện...</h2>
+            </div>
+          }
+
+          @if (!messages.length && !isTyping && !isLoadingMessages) {
             <div class="stage-empty">
               <div class="empty-illustration">
                 <i class="fas fa-map-marked-alt"></i>
@@ -141,6 +161,20 @@
                     }
                   </div>
                 </div>
+              }
+
+              @if (!message.isUser && (message.mcpUiResource || message.mcpUiHtml)) {
+                @if (message.mcpUiResource && message.mcpUiResource['type'] === 'payment_button') {
+                  <!-- Render payment button from mcpUiResource -->
+                  <div class="mcp-ui-container">
+                    <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiResource['html'] || message.mcpUiHtml || '')" (click)="handlePaymentClickFromHtml($event)"></div>
+                  </div>
+                } @else if (message.mcpUiHtml && (!message.mcpUiResource || message.mcpUiResource['type'] !== 'payment_button')) {
+                  <!-- Render other UI from mcpUiHtml (tour cards, etc.) -->
+                  <div class="mcp-ui-container">
+                    <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiHtml)" (click)="handlePaymentClickFromHtml($event)"></div>
+                  </div>
+                }
               }
             </div>
           }
