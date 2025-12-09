@@ -323,9 +323,9 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
       
       if (error.message.includes('Failed to fetch')) {
         errorMessage = 'Cannot connect to backend API. Please check:<br><br>' +
-                      '1. Backend is running at http://localhost:8000<br>' +
+                      '1. Backend is running<br>' +
                       '2. Backend has configured CORS<br>' +
-                      '3. API URL is in correct format';
+                      '3. API URL is configured correctly in config.json';
       } else {
         errorMessage = `Error: ${error.message}`;
       }

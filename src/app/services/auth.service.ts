@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
+import { ConfigService } from './config.service';
 
 interface LoginRequest {
   email: string;
@@ -74,9 +75,14 @@ interface GoogleCallbackResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiBaseUrl = 'http://localhost:8000/api/v1';
+  constructor(
+    private http: HttpClient,
+    private configService: ConfigService
+  ) { }
 
-  constructor(private http: HttpClient) { }
+  private get apiBaseUrl(): string {
+    return this.configService.getApiUrl();
+  }
 
   loginWithEmail(email: string, password: string): Observable<LoginResponse> {
     const requestData: LoginRequest = {

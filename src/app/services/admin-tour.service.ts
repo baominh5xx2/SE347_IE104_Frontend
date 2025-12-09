@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { ConfigService } from './config.service';
 
 export interface TourPackage {
   package_id?: string;
@@ -65,9 +66,11 @@ export interface TourPackageUpdateRequest {
   providedIn: 'root'
 })
 export class AdminTourService {
-  private apiBaseUrl = 'http://localhost:8000/api/v1/tour-packages/';
+  constructor(private configService: ConfigService) { }
 
-  constructor() { }
+  private get apiBaseUrl(): string {
+    return `${this.configService.getApiUrl()}/tour-packages/`;
+  }
 
   async getTourPackages(
     is_active?: boolean,

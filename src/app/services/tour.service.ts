@@ -1,16 +1,20 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Tour, TourSearchParams, ChatMessage, StreamEvent, TourPackageListResponse, TourPackageParams, TourPackageDetailResponse, TourPackageRecommendRequest, TourPackageSearchRequest, TourPackageSearchResponse } from '../shared/models/tour.model';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TourService {
-  private apiBaseUrl = 'http://localhost:8000/api/v1';
   private toursSubject = new BehaviorSubject<Tour[]>([]);
   public tours$ = this.toursSubject.asObservable();
 
-  constructor() { }
+  constructor(private configService: ConfigService) { }
+
+  private get apiBaseUrl(): string {
+    return this.configService.getApiUrl();
+  }
 
   async getTourPackages(params?: TourPackageParams): Promise<TourPackageListResponse> {
     const queryParams = new URLSearchParams();
@@ -493,9 +497,5 @@ export class TourService {
       }
       throw error;
     }
-  }
-
-  setApiBaseUrl(url: string): void {
-    this.apiBaseUrl = url;
   }
 }

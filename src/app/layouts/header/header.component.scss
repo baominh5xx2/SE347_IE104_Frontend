@@ -1,44 +1,232 @@
 header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  width: 100%;
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
-  // position: relative;
-  // .header-top,.header-bottom {
-  //  &::after {
-  //   height: 1px;
-  //   background: rgba(255, 255, 255, .25);
-  //   width: 100%;
-  //   content: "";
-  //   position: absolute;
-  //   left: 0;
-  //  }
-  // }
+  // Transparent state on hero - completely transparent like Traveloka
+  &.header-transparent {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
 
-  // .header-top{
-  //   &::after {
-  //     bottom: 45px;
-  //   }
-  // }
+  // Scrolled state - elegant glass effect
+  &.header-scrolled {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  }
 
-  // .header-bottom {
-  //   &::after {
-  //     bottom: 1px;
-  //   }
-  // }
+  // Non-home pages
+  &.header-solid {
+    background: #ffffff;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  }
 
-  .header-bottom {
-    // position: relative;
-    padding-bottom: 1rem;
-    padding-top: 1rem;
+  .header-wrapper {
+    width: 100%;
+    position: relative;
+  }
+
+  .header-top {
+    padding: 20px 0;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+  }
+
+  .header-border {
+    display: none;
   }
 
   .line {
-    content: "";
-    display: flex;
-    height: 45px;
-    left: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, .25);
-    border-top: 1px solid rgba(255, 255, 255, .25);
-    bottom: 20px;
-    z-index: -1;
+    display: none;
   }
 
+  // Logo
+  .logo {
+    .logo-link {
+      text-decoration: none;
+      display: inline-block;
+      transition: opacity 0.3s ease;
+      
+      &:hover {
+        opacity: 0.85;
+      }
+    }
+
+    // Logo text
+    .logo-text {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      display: inline-block;
+      position: relative;
+      transition: all 0.3s ease;
+
+      // White on transparent
+      &.text-white {
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        -webkit-text-fill-color: #ffffff;
+        background: none;
+      }
+
+      // Blue gradient on scrolled - Beautiful effect
+      &.text-gradient-blue {
+        background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: none;
+      }
+    }
+  }
+
+  // Navigation
+  nav {
+    .menu-item {
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      letter-spacing: 0.3px;
+      padding: 8px 0;
+      margin: 0 16px;
+      position: relative;
+      border: none;
+      background: transparent;
+      transition: all 0.3s ease;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 4px;
+        left: 0;
+        width: 0;
+        height: 1.5px;
+        background: currentColor;
+        transition: width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      &:hover {
+        &::after {
+          width: 100%;
+        }
+      }
+    }
+
+    // White menu items
+    &.nav-white {
+      .menu-item {
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+        &:hover {
+          color: #ffffff;
+        }
+      }
+    }
+
+    // Dark menu items
+    &.nav-dark {
+      .menu-item {
+        color: #4a4a5a;
+
+        &:hover {
+          color: #2563eb; // Blue hover
+        }
+      }
+    }
+  }
+
+  // Action buttons
+  .action-btn {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 24px;
+    border-radius: 6px;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.3px;
+    
+    &.btn-outline-white {
+      color: #ffffff;
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      background: transparent;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: #ffffff;
+      }
+    }
+    
+    // New Blue Outline Button
+    &.btn-outline-blue {
+      color: #2563eb;
+      border: 1.5px solid #2563eb;
+      background: transparent;
+      
+      &:hover {
+        background: rgba(37, 99, 235, 0.05);
+        border-color: #1d4ed8;
+        color: #1d4ed8;
+      }
+    }
+
+    // Deprecated but kept for compatibility
+    &.btn-outline-dark {
+      color: #1a1a2e;
+      border: 1.5px solid #e0e0e5;
+      background: transparent;
+      
+      &:hover {
+        border-color: #1a1a2e;
+        background: rgba(26, 26, 46, 0.03);
+      }
+    }
+    
+    // Updated Primary Button to Blue Theme
+    &.btn-primary {
+      color: #ffffff;
+      background: #2563eb;
+      border: 1.5px solid #2563eb;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+      
+      &:hover {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+        box-shadow: 0 4px 12px -1px rgba(37, 99, 235, 0.3);
+        transform: translateY(-1px);
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  header {
+    .logo .logo-text {
+      font-size: 24px;
+    }
+    
+    .header-top {
+      padding: 16px 0;
+    }
+
+    nav .menu-item {
+      margin: 0 10px;
+      font-size: 13px;
+    }
+  }
 }

@@ -12,6 +12,7 @@ import { ProfileComponent } from './pages/profile/profile.component';
 import { MyBookingsComponent } from './pages/my-bookings/my-bookings.component';
 import { MyPaymentsComponent } from './pages/my-payments/my-payments.component';
 import { VnpayCallbackComponent } from './pages/payment/vnpay-callback.component';
+import { PromotionsComponent } from './pages/promotions/promotions.component';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 
@@ -70,5 +71,8 @@ export const routes: Routes = [
   },
   {
     path: 'payment/vnpay/callback', component: VnpayCallbackComponent
+  },
+  {
+    path: 'promotions', component: PromotionsComponent
   },
 ];

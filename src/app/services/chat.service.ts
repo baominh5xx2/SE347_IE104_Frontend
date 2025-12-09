@@ -1,12 +1,15 @@
 import { Injectable } from '@angular/core';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ChatService {
-  private apiUrl = 'http://localhost:8000/api/v1/chat/stream';
+  constructor(private configService: ConfigService) { }
 
-  constructor() { }
+  private get apiUrl(): string {
+    return `${this.configService.getApiUrl()}/chat/stream`;
+  }
 
   async sendMessage(message: string, conversationId: string | null, userId: string | null, maxRecommendations: number = 5): Promise<ReadableStreamDefaultReader<Uint8Array>> {
     // Get token from localStorage
@@ -42,9 +45,5 @@ export class ChatService {
     }
 
     return response.body.getReader();
-  }
-
-  setApiUrl(url: string): void {
-    this.apiUrl = url;
   }
 }

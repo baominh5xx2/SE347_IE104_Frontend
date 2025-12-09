@@ -5,8 +5,39 @@
   min-height: 600px;
 
   .hero-title {
-    font-size: 32px;
-    line-height: 56px;
+    font-size: 42px; // Tăng kích thước chút cho ấn tượng
+    line-height: 1.4;
+    font-weight: 800;
+    text-align: center;
+    
+    // Gradient text effect
+    background: linear-gradient(
+      110deg,
+      #ffffff 0%,
+      #8fd3f4 25%,
+      #ffffff 50%,
+      #8fd3f4 75%,
+      #ffffff 100%
+    );
+    
+    background-size: 200% auto;
+    color: #fff; // Fallback
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    
+    animation: shine 4s linear infinite;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+    
+    @media (max-width: 768px) {
+      font-size: 28px;
+    }
+  }
+
+  @keyframes shine {
+    to {
+      background-position: 200% center;
+    }
   }
 
   .icon {

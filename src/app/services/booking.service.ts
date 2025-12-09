@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ConfigService } from './config.service';
 
 export interface MyBooking {
   booking_id: string;
@@ -145,9 +146,14 @@ export interface BookingDeleteResponse {
   providedIn: 'root'
 })
 export class BookingService {
-  private apiBaseUrl = 'http://localhost:8000/api/v1';
+  constructor(
+    private http: HttpClient,
+    private configService: ConfigService
+  ) {}
 
-  constructor(private http: HttpClient) {}
+  private get apiBaseUrl(): string {
+    return this.configService.getApiUrl();
+  }
 
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('access_token');

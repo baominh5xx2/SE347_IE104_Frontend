@@ -1,93 +1,77 @@
 <header
-  [class.bg-white]="isScrolled && isHomePage"
-  [class.bg-transparent]="!isScrolled && isHomePage"
-  [class.shadow-md]="isScrolled && isHomePage"
-  [ngClass]="classHeader"
-  class="fixed top-0 left-0 w-full transition-all duration-300 z-50"
+  [class.header-transparent]="!isScrolled && isHomePage"
+  [class.header-scrolled]="isScrolled && isHomePage"
+  [class.header-solid]="!isHomePage"
+  class="fixed top-0 left-0 w-full z-50"
 >
-  <div class="container mx-auto flex flex-col px-6 py-4">
+  <div class="header-wrapper">
+    <div class="container mx-auto flex flex-col px-8">
+      <div class="flex items-center justify-between header-top">
+        
+        <div class="logo">
+          <a routerLink="/home" class="logo-link">
+            <h2
+              [class.text-white]="!isScrolled && isHomePage"
+              [class.text-gradient-blue]="isScrolled || !isHomePage"
+              class="logo-text">
+              UITravel
+            </h2>
+          </a>
+        </div>
 
-    <div class="flex items-center justify-between mb-4 header-top">
-      <div class="logo">
-         <h2
-         [class.text-white]="!isScrolled && isHomePage"
-          [class.text-gray-700]="isScrolled && isHomePage"
-          [ngClass]="textClass"
-          class="text-2xl cursor-pointer">
-          UITravel
+        <div class="flex items-center gap-10">
+          <nav
+            [class.nav-white]="!isScrolled && isHomePage"
+            [class.nav-dark]="isScrolled || !isHomePage"
+            class="hidden lg:flex items-center"
+            aria-label="Main navigation">
+            @for (item of topMenu; track $index) {
+              <a 
+                [routerLink]="item.url" 
+                class="menu-item">
+                {{ item.label }}
+              </a>
+            }
+          </nav>
 
-          <!-- @if (isHomePage) {
-            Traveloka
-          } -->
-         </h2>
-      </div>
-
-      <div class="flex items-center gap-4">
-        <nav
-          [class.text-white]="!isScrolled && isHomePage"
-          [class.text-gray-700]="isScrolled && isHomePage"
-          [ngClass]="textClass"
-          class="hidden md:flex space-x-6 text-sm" aria-label="Menu chính">
-          @for (item of topMenu; track $index) {
-            <a [routerLink]="item.url" class="font-bold hover:bg-black hover:bg-opacity-50 py-2 px-2 rounded">{{ item.label }}</a>
-          }
-        </nav>
-
-
-        <div class="flex items-center space-x-4">
-          <ng-container *ngIf="isAuthenticated">
-            <button
+          <div class="flex items-center gap-3">
+            <ng-container *ngIf="isAuthenticated">
+              <button
                 (click)="openChatbot()"
-                [class.text-white]="!isScrolled && isHomePage"
-                [class.text-gray-700]="isScrolled"
-                [ngClass]="textClass"
-                class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 hover:bg-opacity-10 hover:bg-black transition-all">
-              <i class="fas fa-robot mr-2"></i>AI Agent
-            </button>
-          </ng-container>
-          
-          <ng-container *ngIf="!isAuthenticated">
-            <a
+                [class.btn-outline-white]="!isScrolled && isHomePage"
+                [class.btn-outline-dark]="isScrolled || !isHomePage"
+                class="action-btn">
+                AI Agent
+              </button>
+            </ng-container>
+            
+            <ng-container *ngIf="!isAuthenticated">
+              <a
                 routerLink="/login"
-                [class.text-white]="!isScrolled && isHomePage"
-                [class.text-gray-700]="isScrolled"
-                [ngClass]="textClass"
-                class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 no-underline">Đăng nhập</a>
-            <a routerLink="/register" class="bg-blue-500 text-white px-4 py-2 rounded no-underline">Đăng ký</a>
-          </ng-container>
+                [class.btn-outline-white]="!isScrolled && isHomePage"
+                [class.btn-outline-blue]="isScrolled || !isHomePage"
+                class="action-btn">
+                Đăng nhập
+              </a>
+              <a 
+                routerLink="/register" 
+                class="action-btn btn-primary">
+                Đăng ký
+              </a>
+            </ng-container>
 
-          <ng-container *ngIf="isAuthenticated && currentUser">
-            <a
+            <ng-container *ngIf="isAuthenticated && currentUser">
+              <a
                 routerLink="/profile"
-                [class.text-white]="!isScrolled && isHomePage"
-                [class.text-gray-700]="isScrolled"
-                [ngClass]="textClass"
-                class="text-sm border border-solid border-neutral-300 rounded px-4 py-2 hover:bg-opacity-10 hover:bg-black transition-all no-underline cursor-pointer">
-              {{ currentUser.full_name }}
-            </a>
-          </ng-container>
+                [class.btn-outline-white]="!isScrolled && isHomePage"
+                [class.btn-outline-dark]="isScrolled || !isHomePage"
+                class="action-btn">
+                {{ currentUser.full_name }}
+              </a>
+            </ng-container>
+          </div>
         </div>
       </div>
-    </div>
-
-
-
-    <div class="space-x-4 header-bottom">
-      <div class="absolute w-full line"></div>
-      <nav
-
-        class="hidden md:flex space-x-6 text-sm flex items-center"
-        aria-label="Menu sản phẩm">
-        @for (item of bottomMenu; track $index) {
-          <span class="flex-auto">
-            <a [routerLink]="item.url || null" [attr.href]="item.url ? null : '#'" class="py-2 px-2 font-bold hover:bg-black hover:bg-opacity-50 rounded"
-            [class.text-white]="!isScrolled && isHomePage"
-            [class.text-gray-800]="isScrolled && isHomePage"
-            [ngClass]="textClass"
-            >{{ item.label }}</a>
-          </span>
-        }
-      </nav>
     </div>
   </div>
 </header>

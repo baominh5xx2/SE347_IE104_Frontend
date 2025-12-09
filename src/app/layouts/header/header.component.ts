@@ -1,4 +1,4 @@
-import { NgClass, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
@@ -8,7 +8,7 @@ import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-header',
-  imports: [NgClass, RouterLink, CommonModule, AiChatbotComponent],
+  imports: [RouterLink, CommonModule, AiChatbotComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
@@ -20,13 +20,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
   currentUser: any = null;
   private chatbotSubscription?: Subscription;
 
-  classHeader: string = '';
-  textClass: string = ''
-
 
   topMenuPublic: Menu[] = [
     { label: 'Trang chủ', url: '/home' },
-    { label: 'Khuyến mãi', url: '' },
+    { label: 'Tour du lịch', url: '/tours' },
+    { label: 'Khuyến mãi', url: '/promotions' },
     { label: 'Trợ giúp', url: '' },
     { label: 'Trở thành đối tác', url: '' },
     { label: 'Cho doanh nghiệp', url: '' },
@@ -41,17 +39,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
     return this.topMenuPublic;
   }
-
-  bottomMenu: Menu[] = [
-    { label: 'Tour du lịch', url: '/tours' },
-    { label: 'Khách sạn', url: '' },
-    { label: 'Vé máy bay', url: '' },
-    { label: 'Vé tàu hỏa', url: '' },
-    { label: 'Đưa đón sân bay', url: '' },
-    { label: 'Thuê xe', url: '' },
-    { label: 'Giải trí và hoạt động', url: '' },
-    { label: 'Sản phẩm khác', url: '' },
-  ]
 
   constructor(
     private router: Router,
@@ -99,14 +86,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   checkIfHomePage(): void {
-    this.isHomePage = this.router.url == '/' || this.router.url == '/home';
-    if (!this.isHomePage) {
-      this.classHeader = `shadow-md bg-white relative`
-      this.textClass = `text-gray-700`
-    } else {
-      this.classHeader = '';
-      this.textClass = '';
-      this.isScrolled = false;
+    const url = this.router.url;
+    this.isHomePage = url === '/' || url.startsWith('/home');
+    
+    if (this.isHomePage) {
+      const offset = window.pageYOffset || document.documentElement.scrollTop;
+      this.isScrolled = offset > 50;
     }
   }
 
