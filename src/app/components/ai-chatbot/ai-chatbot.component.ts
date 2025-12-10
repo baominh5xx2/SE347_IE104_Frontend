@@ -371,10 +371,29 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
 
   formatMessageContent(content: string): string {
     if (!content) return '';
+    const normalized = content.replace(/[—–]/g, ' - ');
     
-    let html = this.parseMarkdown(content);
+    let html = this.parseMarkdown(normalized);
+    // Convert URLs to clickable square buttons inside the bubble
+    html = html.replace(/(https?:\/\/[^\s<]+)/gim, (url) => {
+      return `<a class="source-button" href="${url}" target="_blank" rel="noopener noreferrer" title="${url}"><span>Nguồn</span></a>`;
+    });
     
     return html;
+  }
+  
+  private truncateUrl(url: string, maxLength: number): string {
+    if (url.length <= maxLength) return url;
+    return url.substring(0, maxLength) + '...';
+  }
+  
+  private getDomainFromUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname.replace(/^www\./, '');
+    } catch {
+      return 'Nguồn';
+    }
   }
 
   startNewConversation(): void {
@@ -678,16 +697,48 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
 
   private parseMarkdown(text: string): string {
     if (!text) return '';
-    
-    let html = text
+
+    // Remove heading markers (##, ###) to avoid cluttering UI
+    const stripped = text.replace(/^#{1,3}\s*/gm, '');
+
+    // Replace long dashes with short dash for cleaner UI
+    const dashCleaned = stripped.replace(/[—–]/g, '-');
+
+    // Escape basic HTML
+    const escaped = dashCleaned
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^(\d+)\.\s+(.+)$/gm, '<div class="list-item"><span class="list-number">$1.</span> $2</div>')
-      .replace(/\r\n|\r|\n/g, '<br>');
-    
-    return html;
+      .replace(/>/g, '&gt;');
+
+    // Bold
+    const bolded = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Split by paragraph (double newline)
+    const paragraphs = bolded.split(/\n\n+/);
+
+    const htmlSegments = paragraphs.map((segment) => {
+      const lines = segment.split(/\n/).map((l) => l.trim()).filter(Boolean);
+      if (!lines.length) return '';
+
+      // Bullet list
+      const isDashList = lines.every((l) => /^- /.test(l));
+      const isNumList = lines.every((l) => /^\d+\.\s+/.test(l));
+
+      if (isDashList) {
+        const items = lines.map((l) => l.replace(/^- /, '')).map((item) => `<li>${item}</li>`).join('');
+        return `<ul>${items}</ul>`;
+      }
+
+      if (isNumList) {
+        const items = lines.map((l) => l.replace(/^\d+\.\s+/, '')).map((item) => `<li>${item}</li>`).join('');
+        return `<ol>${items}</ol>`;
+      }
+
+      // Default paragraph with line breaks
+      return lines.join('<br>');
+    }).filter(Boolean);
+
+    return htmlSegments.join('<br><br>');
   }
 
   extractTourSelections(content: string): TourSelection[] {
