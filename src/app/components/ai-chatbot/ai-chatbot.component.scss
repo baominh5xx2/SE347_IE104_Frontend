@@ -720,6 +720,104 @@ $shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.08);
   }
 }
 
+.message-links {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: none;
+  border: 1px solid #dbeafe;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+
+  i {
+    font-size: 12px;
+  }
+
+  &:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+.link-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: none;
+  border: 1px solid #dbeafe;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+.message-bubble ::ng-deep .source-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 10px;
+  padding: 4px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #c7d2fe;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.15);
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+  overflow: hidden;
+  text-align: center;
+  box-sizing: border-box;
+  vertical-align: middle;
+  margin-left: 6px;
+  line-height: 1.1;
+
+  span {
+    display: block;
+    width: 100%;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    background: linear-gradient(135deg, #e0e7ff, #dbeafe);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
 .message-row.user .message-bubble {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.92) 0%, rgba(37, 99, 235, 0.92) 100%);
   color: #f8fafc;
