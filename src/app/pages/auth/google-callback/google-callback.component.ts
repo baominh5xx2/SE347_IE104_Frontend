@@ -87,7 +87,7 @@ export class GoogleCallbackComponent implements OnInit {
           if (user.role === 'admin') {
             this.router.navigate(['/admin']);
           } else {
-            this.router.navigate(['/home']);
+          this.router.navigate(['/home']);
           }
         } else {
           this.router.navigate(['/login']);
@@ -112,7 +112,7 @@ export class GoogleCallbackComponent implements OnInit {
             if (response.user.role === 'admin') {
               this.router.navigate(['/admin']);
             } else {
-              this.router.navigate(['/home']);
+          this.router.navigate(['/home']);
             }
           } else {
             this.router.navigate(['/home']);
@@ -141,7 +141,7 @@ export class GoogleCallbackComponent implements OnInit {
             if (response.user.role === 'admin') {
               this.router.navigate(['/admin']);
             } else {
-              this.router.navigate(['/home']);
+          this.router.navigate(['/home']);
             }
           } else {
             this.router.navigate(['/home']);

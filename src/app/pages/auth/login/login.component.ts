@@ -51,7 +51,7 @@ export class LoginComponent {
                 // Redirect admin to /admin, regular users to /home
                 if (response.user.role === 'admin') {
                   this.router.navigate(['/admin']);
-                } else {
+            } else {
                   this.router.navigate(['/home']);
                 }
               } else {
