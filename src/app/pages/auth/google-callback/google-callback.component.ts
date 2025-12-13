@@ -42,7 +42,6 @@ export class GoogleCallbackComponent implements OnInit {
       const error = params['error'];
 
       if (error) {
-        alert('Đăng nhập Google thất bại: ' + error);
         this.router.navigate(['/login']);
         return;
       }
@@ -63,7 +62,6 @@ export class GoogleCallbackComponent implements OnInit {
         } else if (hashCode) {
           this.handleCodeWithApi(hashCode, hashState || undefined);
         } else {
-          alert('Không tìm thấy token hoặc code từ Google');
           this.router.navigate(['/login']);
         }
       }
@@ -85,12 +83,10 @@ export class GoogleCallbackComponent implements OnInit {
           this.authStateService.login(token, user);
           this.router.navigate(['/home']);
         } else {
-          alert('Token không hợp lệ');
           this.router.navigate(['/login']);
         }
       },
       error: () => {
-        alert('Lỗi xác thực token');
         this.router.navigate(['/login']);
       }
     });
@@ -107,13 +103,11 @@ export class GoogleCallbackComponent implements OnInit {
           }
           this.router.navigate(['/home']);
         } else {
-          alert(response.EM || 'Đăng nhập thất bại');
           this.router.navigate(['/login']);
         }
       },
       error: (error) => {
         console.error('Google login error:', error);
-        alert('Đăng nhập Google thất bại');
         this.router.navigate(['/login']);
       }
     });
@@ -130,19 +124,11 @@ export class GoogleCallbackComponent implements OnInit {
           }
           this.router.navigate(['/home']);
         } else {
-          alert(response.EM || 'Đăng nhập thất bại');
           this.router.navigate(['/login']);
         }
       },
       error: (error) => {
         console.error('Google callback error:', error);
-        if (error.error && error.error.detail) {
-          const validationErrors = error.error.detail;
-          const errorMessages = validationErrors.map((err: any) => err.msg).join('\n');
-          alert('Lỗi xác thực:\n' + errorMessages);
-        } else {
-          alert('Đăng nhập Google thất bại');
-        }
         this.router.navigate(['/login']);
       }
     });

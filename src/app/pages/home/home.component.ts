@@ -3,8 +3,6 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HeroComponent } from '../../components/hero/hero.component';
 import { CouponListComponent } from '../../components/coupon-list/coupon-list.component';
-import { DestinationCardsComponent } from '../../components/destination-cards/destination-cards.component';
-import { TravelOptionsComponent } from '../../components/travel-options/travel-options.component';
 import { TourCardComponent } from '../../components/tour-card/tour-card.component';
 import { TourService } from '../../services/tour.service';
 import { Tour } from '../../shared/models/tour.model';
@@ -17,8 +15,6 @@ import { AuthStateService } from '../../services/auth-state.service';
     RouterLink,
     HeroComponent, 
     CouponListComponent, 
-    DestinationCardsComponent,
-    TravelOptionsComponent,
     TourCardComponent
   ],
   templateUrl: './home.component.html',
