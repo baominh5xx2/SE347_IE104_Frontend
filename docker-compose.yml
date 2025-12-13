@@ -21,15 +21,10 @@ services:
       context: ./Backend
       dockerfile: Dockerfile
     container_name: ai-assistant-backend
-    # Backend không expose port ra ngoài, chỉ accessible qua frontend nginx
     expose:
       - "8000"
     env_file:
       - ./Backend/.env
-    environment:
-      # Ưu tiên lấy key từ biến môi trường đã export trên host (không bake vào image)
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_API_KEY_EXPORT: ${OPENAI_API_KEY_EXPORT:-}
     restart: unless-stopped
     depends_on:
       redis:
@@ -41,7 +36,6 @@ services:
       retries: 3
       start_period: 40s
     volumes:
-      # Optional: Mount logs directory if needed
       - ./Backend/logs:/app/logs
     networks:
       - app-network
