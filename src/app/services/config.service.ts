@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface AppConfig {
   apiUrl: string;
@@ -28,9 +29,9 @@ export class ConfigService {
       this.configLoaded = true;
       return config;
     } catch (error) {
-      console.warn('Failed to load config.json, using default config');
+      console.warn('Failed to load config.json, using environment config');
       this.config = {
-        apiUrl: 'http://localhost:8000/api/v1'
+        apiUrl: environment.apiUrl
       };
       this.configLoaded = true;
       return this.config;
@@ -39,7 +40,7 @@ export class ConfigService {
 
   getApiUrl(): string {
     if (!this.config) {
-      return 'http://localhost:8000/api/v1';
+      return environment.apiUrl;
     }
     return this.config.apiUrl;
   }
