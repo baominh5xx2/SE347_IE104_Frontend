@@ -39,7 +39,6 @@ export class RegisterComponent {
   onRegister() {
     if (this.registerMethod === 'email') {
       if (this.registerForm.password !== this.registerForm.confirmPassword) {
-        alert('Mật khẩu xác nhận không khớp');
         return;
       }
 
@@ -55,22 +54,13 @@ export class RegisterComponent {
             console.log('Register success:', response);
             this.isLoading = false;
             if (response.EC === 0) {
-              alert(response.EM || 'Đăng ký thành công');
               this.router.navigate(['/login']);
-            } else {
-              alert(response.EM || 'Đăng ký thất bại');
             }
           },
           error: (error) => {
             console.error('Register error:', error);
             this.isLoading = false;
-            if (error.error && error.error.detail) {
-              const validationErrors = error.error.detail;
-              const errorMessages = validationErrors.map((err: any) => err.msg).join('\n');
-              alert('Lỗi xác thực:\n' + errorMessages);
-            } else {
-              alert('Đăng ký thất bại. Vui lòng thử lại.');
-            }
+            // Error handling - removed alert
           }
         });
       }

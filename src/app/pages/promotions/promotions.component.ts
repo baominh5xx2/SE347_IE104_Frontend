@@ -103,9 +103,9 @@ export class PromotionsComponent implements OnInit {
 
   copyToClipboard(code: string) {
     navigator.clipboard.writeText(code).then(() => {
-      alert('Mã khuyến mãi đã được sao chép: ' + code);
+      // Code copied successfully
     }).catch(() => {
-      alert('Không thể sao chép mã khuyến mãi');
+      // Failed to copy
     });
   }
 

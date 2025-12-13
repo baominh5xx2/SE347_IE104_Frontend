@@ -100,6 +100,7 @@ header {
       border: none;
       background: transparent;
       transition: all 0.3s ease;
+      white-space: nowrap;
 
       &::after {
         content: '';
@@ -155,6 +156,7 @@ header {
     align-items: center;
     gap: 8px;
     letter-spacing: 0.3px;
+    white-space: nowrap;
     
     &.btn-outline-white {
       color: #ffffff;

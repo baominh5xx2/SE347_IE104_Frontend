@@ -658,7 +658,6 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
             // Rollback
             this.conversations.splice(index, 0, deletedConversation);
             this.conversations.sort((a, b) => b.updatedAt - a.updatedAt);
-            alert('Không thể xóa cuộc trò chuyện. Vui lòng thử lại.');
           }
         },
         error: (error) => {
@@ -666,7 +665,6 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
           // Rollback
           this.conversations.splice(index, 0, deletedConversation);
           this.conversations.sort((a, b) => b.updatedAt - a.updatedAt);
-          alert('Có lỗi xảy ra khi xóa cuộc trò chuyện. Vui lòng thử lại.');
         },
         complete: finalize
       });
@@ -834,13 +832,11 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
         this.router.navigate(['/tour-details', foundTour.package_id]);
       } else {
         console.warn('Tour not found, redirecting to tours list');
-        alert('Không tìm thấy tour này. Đang chuyển đến danh sách tour...');
         this.onClose();
         this.router.navigate(['/tours']);
       }
     } catch (error) {
       console.error('Error finding tour:', error);
-      alert('Có lỗi xảy ra khi tìm tour. Đang chuyển đến danh sách tour...');
       this.onClose();
       this.router.navigate(['/tours']);
     }
@@ -853,7 +849,6 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     
     if (!tourId) {
       console.error('Tour ID is undefined or null');
-      alert('Không thể mở chi tiết tour. ID không hợp lệ.');
       return;
     }
     

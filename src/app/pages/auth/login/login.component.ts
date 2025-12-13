@@ -48,22 +48,13 @@ export class LoginComponent {
                 localStorage.setItem('user', JSON.stringify(response.user));
                 this.authStateService.login(response.access_token, response.user);
               }
-              alert(response.EM || 'Đăng nhập thành công');
               this.router.navigate(['/home']);
-            } else {
-              alert(response.EM || 'Đăng nhập thất bại');
             }
           },
           error: (error) => {
             console.error('Login error:', error);
             this.isLoading = false;
-            if (error.error && error.error.detail) {
-              const validationErrors = error.error.detail;
-              const errorMessages = validationErrors.map((err: any) => err.msg).join('\n');
-              alert('Lỗi xác thực:\n' + errorMessages);
-            } else {
-              alert('Đăng nhập thất bại. Vui lòng thử lại.');
-            }
+            // Error handling - removed alert
           }
         });
       }
@@ -122,33 +113,17 @@ export class LoginComponent {
           
           if (!response.auth_url.includes('client_id')) {
             console.error('URL không chứa client_id:', response.auth_url);
-            alert('Lỗi cấu hình: URL OAuth không hợp lệ. Vui lòng kiểm tra cấu hình backend.');
             return;
           }
           
           window.location.href = response.auth_url;
-        } else {
-          console.error('Response error:', response);
-          alert(response.EM || 'Không thể lấy Google OAuth URL');
         }
       },
       error: (error) => {
         console.error('Error getting Google auth URL:', error);
         this.isLoading = false;
         
-        if (error.error) {
-          console.error('Error details:', error.error);
-          if (error.error.detail) {
-            const errorMessages = Array.isArray(error.error.detail) 
-              ? error.error.detail.map((err: any) => err.msg || err).join('\n')
-              : error.error.detail;
-            alert('Lỗi từ server:\n' + errorMessages);
-          } else {
-            alert('Không thể kết nối với server. Vui lòng kiểm tra:\n1. Backend đang chạy\n2. API endpoint đúng\n3. CORS đã được cấu hình');
-          }
-        } else {
-          alert('Không thể kết nối với server. Vui lòng thử lại.');
-        }
+        // Error handling - removed alert
       }
     });
   }

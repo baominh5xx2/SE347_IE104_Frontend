@@ -111,7 +111,7 @@ export class CouponListComponent implements OnInit {
 
   copyToClipboard(code: string) {
     navigator.clipboard.writeText(code).then(() => {
-      alert('Mã giảm giá đã được sao chép: ' + code);
+      // Code copied successfully
     });
   }
 }
