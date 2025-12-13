@@ -16,6 +16,7 @@ interface LoginResponse {
     email: string;
     full_name: string;
     user_id: string;
+    role?: 'admin' | 'user';
   };
 }
 
@@ -30,6 +31,8 @@ interface VerifyTokenResponse {
     email: string;
     exp: number;
     full_name: string;
+    user_id?: string;
+    role?: 'admin' | 'user';
   };
 }
 
@@ -68,6 +71,7 @@ interface GoogleCallbackResponse {
     email: string;
     full_name: string;
     user_id: string;
+    role?: 'admin' | 'user';
   };
 }
 
