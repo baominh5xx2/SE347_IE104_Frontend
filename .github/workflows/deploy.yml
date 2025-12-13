@@ -23,19 +23,30 @@ jobs:
           script: |
             # Define project variables
             PROJECT_DIR="$HOME/doan"
+            FRONTEND_DIR="$PROJECT_DIR/SE347_IE104_Frontend"
             REPO_URL="https://github.com/${{ github.repository }}.git"
             
             echo "=== Starting Frontend deployment ==="
             
-            # Check if project directory exists
-            if [ ! -d "$PROJECT_DIR" ]; then
-              echo "Project directory not found. Cloning repository..."
-              git clone "$REPO_URL" "$PROJECT_DIR"
-              cd "$PROJECT_DIR"
+            # Ensure project root directory exists
+            mkdir -p "$PROJECT_DIR"
+            cd "$PROJECT_DIR"
+            
+            # Clone or update Frontend repository into SE347_IE104_Frontend/ subfolder
+            if [ ! -d "$FRONTEND_DIR" ]; then
+              echo "Frontend directory not found. Cloning Frontend repository..."
+              git clone "$REPO_URL" "$FRONTEND_DIR"
             else
-              echo "Project directory exists. Updating code..."
-              cd "$PROJECT_DIR"
+              echo "Frontend directory exists. Updating code..."
+              cd "$FRONTEND_DIR"
               git pull origin main
+              cd "$PROJECT_DIR"
+            fi
+            
+            # Copy docker-compose.yml from Frontend repo to project root (if exists)
+            if [ -f "$FRONTEND_DIR/docker-compose.yml" ]; then
+              echo "Copying docker-compose.yml to project root..."
+              cp "$FRONTEND_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.yml"
             fi
             
             echo "=== Stopping existing containers ==="
