@@ -2,8 +2,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ai-assistant-redis
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -25,6 +25,10 @@ services:
       - "8000"
     env_file:
       - ./Backend/.env
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped
     depends_on:
       redis:
@@ -47,6 +51,14 @@ services:
     container_name: uitravel-frontend
     ports:
       - "80:80"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
     restart: unless-stopped
     depends_on:
       - backend
