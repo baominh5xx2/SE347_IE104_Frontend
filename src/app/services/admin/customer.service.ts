@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ConfigService } from '../config.service';
 
 export interface Customer {
   user_id: string;
@@ -40,9 +41,14 @@ export interface ConversationHistory {
   providedIn: 'root'
 })
 export class CustomerService {
-  private apiUrl = 'http://localhost:8000/api/v1';
+  private get apiUrl(): string {
+    return this.configService.getApiUrl();
+  }
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private configService: ConfigService
+  ) {}
 
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('access_token');
