@@ -27,8 +27,6 @@ services:
       - ./Backend/.env
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     restart: unless-stopped
     depends_on:
       redis:
@@ -53,12 +51,6 @@ services:
       - "80:80"
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /var/cache/nginx
-      - /var/run
     restart: unless-stopped
     depends_on:
       - backend
