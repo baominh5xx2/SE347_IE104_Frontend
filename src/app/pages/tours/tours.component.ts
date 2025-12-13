@@ -105,13 +105,9 @@ export class ToursComponent implements OnInit {
   }
 
   onSearch(params: any) {
-    this.searchParams = {
-      destination: params.destination,
-      departure_location: params.departure_location,
-      date_from: params.date_from,
-      date_to: params.date_to
-    };
+    // Chỉ dùng queryText để search
     this.queryText = params.queryText || params.q || '';
+    this.searchParams = {}; // Clear các params riêng lẻ
     this.loadTours();
   }
 
