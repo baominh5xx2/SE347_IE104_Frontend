@@ -17,6 +17,17 @@ export const authGuard: CanActivateFn = async (route, state) => {
   try {
     const response = await firstValueFrom(authService.verifyToken(token));
     if (response && response.EC === 0) {
+      // Check if accessing admin routes
+      if (state.url.startsWith('/admin')) {
+        const userRole = response.data?.role || 'user';
+        
+        // Only allow admin role to access /admin routes
+        if (userRole !== 'admin') {
+          router.navigate(['/home']);
+          return false;
+        }
+      }
+      
       return true;
     } else {
       authService.logout();

@@ -77,11 +77,18 @@ export class GoogleCallbackComponent implements OnInit {
           const user = {
             email: response.data.email,
             full_name: response.data.full_name,
-            user_id: response.data.email
+            user_id: response.data.user_id || response.data.email,
+            role: response.data.role || 'user'
           };
           localStorage.setItem('user', JSON.stringify(user));
           this.authStateService.login(token, user);
-          this.router.navigate(['/home']);
+          
+          // Redirect admin to /admin, regular users to /home
+          if (user.role === 'admin') {
+            this.router.navigate(['/admin']);
+          } else {
+            this.router.navigate(['/home']);
+          }
         } else {
           this.router.navigate(['/login']);
         }
@@ -100,8 +107,16 @@ export class GoogleCallbackComponent implements OnInit {
           if (response.user) {
             localStorage.setItem('user', JSON.stringify(response.user));
             this.authStateService.login(response.access_token, response.user);
+            
+            // Redirect admin to /admin, regular users to /home
+            if (response.user.role === 'admin') {
+              this.router.navigate(['/admin']);
+            } else {
+              this.router.navigate(['/home']);
+            }
+          } else {
+            this.router.navigate(['/home']);
           }
-          this.router.navigate(['/home']);
         } else {
           this.router.navigate(['/login']);
         }
@@ -121,8 +136,16 @@ export class GoogleCallbackComponent implements OnInit {
           if (response.user) {
             localStorage.setItem('user', JSON.stringify(response.user));
             this.authStateService.login(response.access_token, response.user);
+            
+            // Redirect admin to /admin, regular users to /home
+            if (response.user.role === 'admin') {
+              this.router.navigate(['/admin']);
+            } else {
+              this.router.navigate(['/home']);
+            }
+          } else {
+            this.router.navigate(['/home']);
           }
-          this.router.navigate(['/home']);
         } else {
           this.router.navigate(['/login']);
         }

@@ -47,8 +47,16 @@ export class LoginComponent {
               if (response.user) {
                 localStorage.setItem('user', JSON.stringify(response.user));
                 this.authStateService.login(response.access_token, response.user);
+                
+                // Redirect admin to /admin, regular users to /home
+                if (response.user.role === 'admin') {
+                  this.router.navigate(['/admin']);
+                } else {
+                  this.router.navigate(['/home']);
+                }
+              } else {
+                this.router.navigate(['/home']);
               }
-              this.router.navigate(['/home']);
             }
           },
           error: (error) => {
