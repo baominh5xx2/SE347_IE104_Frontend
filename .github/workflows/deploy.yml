@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'SE347_IE104_Frontend/**'
-      - 'docker-compose.yml'
 
 jobs:
   deploy:
