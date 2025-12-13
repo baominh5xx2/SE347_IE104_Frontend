@@ -36,18 +36,22 @@ export class SearchBarComponent {
 
   constructor(private router: Router) {}
 
+  openAIChatbot(): void {
+    // Navigate to chat room để mở chatbot AI
+    this.router.navigate(['/chat-room', 'new']);
+  }
+
   bindSearch() {
     if (this.searchType === 'hotel') {
       this.onSearch.emit(this.hotelSearchObj);
     } else {
+      // Chỉ dùng queryText để search, không cần các fields riêng lẻ nữa
       const searchData = {
-        ...this.tourSearchObj,
         queryText: this.queryText
       };
       this.onSearch.emit(searchData);
       this.router.navigate(['/tours'], { 
         queryParams: {
-          ...this.tourSearchObj,
           q: this.queryText
         }
       });
