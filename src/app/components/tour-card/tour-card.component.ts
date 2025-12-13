@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Tour } from '../../shared/models/tour.model';
@@ -12,6 +12,7 @@ import { Tour } from '../../shared/models/tour.model';
 export class TourCardComponent {
   @Input() tour!: Tour;
   @Input() showDetails: boolean = true;
+  @Output() viewDetails = new EventEmitter<string>();
 
   // Parse image_urls (pipe-separated) into array
   getImageUrls(): string[] {
@@ -95,5 +96,14 @@ export class TourCardComponent {
 
   openImage(url: string): void {
     window.open(url, '_blank');
+  }
+
+  onViewDetailsClick(event: Event): void {
+    // Emit event để parent component (chatbot) xử lý navigate và đóng chatbot
+    if (this.viewDetails.observers.length > 0) {
+      event.preventDefault();
+      this.viewDetails.emit(this.tour.package_id);
+    }
+    // Nếu không có listener, để RouterLink hoạt động bình thường
   }
 }

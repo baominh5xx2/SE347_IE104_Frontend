@@ -70,6 +70,8 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
   isDeletingConversation: string | null = null;
   isLoadingConversations = false;
   isLoadingMessages = false;
+  userHasScrolledUp: boolean = false;
+  isProcessingPayment: boolean = false;
 
   constructor(
     private chatService: ChatService,
@@ -95,6 +97,19 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit(): void {
+    // Check nếu có payment_return_url trong sessionStorage (sau khi thanh toán xong)
+    const returnUrl = sessionStorage.getItem('payment_return_url');
+    if (returnUrl && returnUrl.includes('/chat-room/')) {
+      // Clear sessionStorage và redirect về chat room
+      sessionStorage.removeItem('payment_return_url');
+      // Đảm bảo đang ở đúng chat room
+      const currentUrl = window.location.href;
+      if (!currentUrl.includes('/chat-room/')) {
+        this.router.navigateByUrl(returnUrl);
+        return;
+      }
+    }
+    
     // Listen for payment button clicks from dynamically rendered HTML
     window.addEventListener('message', this.paymentButtonClickHandler);
     
@@ -102,6 +117,10 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     window.addEventListener('mcpPayment', ((event: CustomEvent) => {
       const paymentUrl = event.detail?.payment_url;
       if (paymentUrl) {
+        // Lưu chat room URL vào sessionStorage để redirect về sau khi thanh toán
+        const currentUrl = window.location.href;
+        sessionStorage.setItem('payment_return_url', currentUrl);
+        // KHÔNG modify payment URL - giữ nguyên như backend generate
         window.location.href = paymentUrl;
       }
     }) as EventListener);
@@ -117,10 +136,25 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     
     const urlRoomId = this.route.snapshot.paramMap.get('roomId');
     
+    // Check query param payment_success để hiển thị message chúc mừng
+    const paymentSuccess = this.route.snapshot.queryParamMap.get('payment_success');
+    
     // Load conversations list trước, sau đó mới quyết định tạo mới hay load conversation cũ
     this.loadConversationsList(async () => {
       if (urlRoomId) {
         await this.loadRoomFromUrl(urlRoomId);
+        // Sau khi load room, check payment_success và thêm message chúc mừng
+        if (paymentSuccess === 'true') {
+          setTimeout(() => {
+            this.addPaymentSuccessMessage();
+            // Remove query param để không hiển thị lại khi refresh
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: {},
+              replaceUrl: true
+            });
+          }, 500);
+        }
         return;
       }
 
@@ -128,25 +162,38 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
       if (this.conversations.length > 0) {
         const firstConversation = this.conversations[0];
         this.selectConversation(firstConversation.id);
+        // Sau khi select conversation, check payment_success và thêm message chúc mừng
+        if (paymentSuccess === 'true') {
+          setTimeout(() => {
+            this.addPaymentSuccessMessage();
+            // Remove query param để không hiển thị lại khi refresh
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: {},
+              replaceUrl: true
+            });
+          }, 500);
+        }
       } else {
         this.startNewConversation();
+        // Sau khi tạo conversation mới, check payment_success và thêm message chúc mừng
+        if (paymentSuccess === 'true') {
+          setTimeout(() => {
+            this.addPaymentSuccessMessage();
+            // Remove query param để không hiển thị lại khi refresh
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: {},
+              replaceUrl: true
+            });
+          }, 500);
+        }
       }
     });
   }
 
   onClose(): void {
-    // Nếu đang ở route /chat-room/:roomId, navigate về trang trước hoặc home
-    const currentUrl = this.router.url;
-    if (currentUrl.startsWith('/chat-room/')) {
-      // Navigate về trang trước hoặc home
-      this.router.navigate(['/home']).catch(() => {
-        // Fallback nếu navigate fail
-        window.history.back();
-      });
-    } else {
-      // Nếu không phải route riêng (embed trong header), emit event
-    this.close.emit();
-    }
+    this.router.navigate(['/home']);
   }
 
   async sendMessage(): Promise<void> {
@@ -174,6 +221,7 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     const userMessageObj: Message = { content: message, isUser: true };
     this.messages.push(userMessageObj);
     this.userMessage = '';
+    this.userHasScrolledUp = false; // Reset scroll state khi user gửi message mới
 
     this.touchConversation(conversation);
     if (!this.messages.some(m => !m.isUser)) {
@@ -279,10 +327,16 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
                     this.cdr.detectChanges();
                     this.touchConversation(conversation, false);
                     
-                    // Attach payment button click handlers after HTML is rendered
+                    // Attach payment button click handlers after HTML is rendered (gọi nhiều lần để đảm bảo attach được)
                     setTimeout(() => {
                       this.attachPaymentButtonHandlers();
-                    }, 100);
+                    }, 50);
+                    setTimeout(() => {
+                      this.attachPaymentButtonHandlers();
+                    }, 200);
+                    setTimeout(() => {
+                      this.attachPaymentButtonHandlers();
+                    }, 500);
                   }
                   setTimeout(() => this.scrollToBottom(), 100);
                   break;
@@ -424,6 +478,7 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     this.isTyping = false;
     this.isStreaming = false;
     this.currentStreamContent = '';
+    this.userHasScrolledUp = false; // Reset scroll state khi chuyển conversation
 
     // Navigate to the chat room URL
     this.router.navigate(['/chat-room', conversation.remoteConversationId || conversation.id]);
@@ -858,10 +913,19 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
 
 
   private scrollToBottom(): void {
+    if (this.userHasScrolledUp) return; // Không scroll nếu user đã kéo lên
     if (this.messagesContainer) {
       const element = this.messagesContainer.nativeElement;
       element.scrollTop = element.scrollHeight;
     }
+  }
+
+  onMessagesScroll(): void {
+    const el = this.messagesContainer?.nativeElement;
+    if (!el) return;
+    // User ở gần cuối (trong 100px) thì cho auto-scroll
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    this.userHasScrolledUp = !isNearBottom;
   }
 
 
@@ -963,10 +1027,41 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     window.removeEventListener('message', this.paymentButtonClickHandler);
   }
 
+  /**
+   * Thêm message chúc mừng thanh toán thành công vào chat
+   */
+  private addPaymentSuccessMessage(): void {
+    const successMessage: Message = {
+      content: `🎉 **Chúc mừng bạn đã thanh toán thành công!**
+
+Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ của chúng tôi. Đơn hàng của bạn đã được xác nhận và đang được xử lý.
+
+**Những điều bạn cần biết:**
+- Đơn hàng sẽ được xử lý trong vòng 24 giờ
+- Bạn sẽ nhận được email xác nhận đơn hàng trong thời gian sớm nhất
+- Bạn có thể xem chi tiết đơn hàng trong mục "Đơn hàng của tôi"
+
+Nếu bạn có bất kỳ câu hỏi nào về đơn hàng hoặc cần hỗ trợ thêm, đừng ngần ngại hỏi tôi nhé! 😊`,
+      isUser: false
+    };
+    
+    this.messages.push(successMessage);
+    this.cdr.detectChanges();
+    
+    // Scroll xuống để hiển thị message mới
+    setTimeout(() => {
+      this.scrollToBottom();
+    }, 100);
+  }
+
   // Handle payment button clicks from dynamically rendered HTML
   handlePaymentClick(paymentUrl: string, bookingId: string): void {
     console.log('Payment button clicked:', { paymentUrl, bookingId });
     if (paymentUrl) {
+      // Lưu chat room URL vào sessionStorage để redirect về sau khi thanh toán
+      const currentUrl = window.location.href;
+      sessionStorage.setItem('payment_return_url', currentUrl);
+      // KHÔNG modify payment URL - giữ nguyên như backend generate
       window.location.href = paymentUrl;
     }
   }
@@ -982,11 +1077,25 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
       event.preventDefault();
       event.stopPropagation();
       
+      // Prevent multiple clicks
+      if (this.isProcessingPayment || button.hasAttribute('disabled')) {
+        return;
+      }
+      
+      // Đánh dấu loading
+      this.isProcessingPayment = true;
+      button.setAttribute('disabled', 'true');
+      button.classList.add('loading');
+      
       // Try data attributes first (preferred method)
       const paymentUrl = button.getAttribute('data-payment-url') || 
                         (button as HTMLElement).dataset['paymentUrl'];
       if (paymentUrl) {
         console.log('Extracted payment URL from data attribute:', paymentUrl);
+        // Lưu chat room URL vào sessionStorage để redirect về sau khi thanh toán
+        const currentUrl = window.location.href;
+        sessionStorage.setItem('payment_return_url', currentUrl);
+        // KHÔNG modify payment URL - giữ nguyên như backend generate
         window.location.href = paymentUrl;
         return;
       }
@@ -999,11 +1108,19 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
         if (urlMatch && urlMatch[1]) {
           const paymentUrl = urlMatch[1];
           console.log('Extracted payment URL from onclick:', paymentUrl);
+          // Lưu chat room URL vào sessionStorage để redirect về sau khi thanh toán
+          const currentUrl = window.location.href;
+          sessionStorage.setItem('payment_return_url', currentUrl);
+          // KHÔNG modify payment URL - giữ nguyên như backend generate
           window.location.href = paymentUrl;
           return;
         }
       }
       
+      // Reset loading state nếu không tìm thấy URL
+      this.isProcessingPayment = false;
+      button.removeAttribute('disabled');
+      button.classList.remove('loading');
       console.warn('Could not extract payment URL from button');
     }
   }
@@ -1012,21 +1129,43 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
   private attachPaymentButtonHandlers(): void {
     const paymentButtons = document.querySelectorAll('.mcp-payment-button');
     paymentButtons.forEach((button) => {
-      // Remove existing listeners to avoid duplicates
-      const newButton = button.cloneNode(true) as HTMLElement;
-      button.parentNode?.replaceChild(newButton, button);
+      // Skip if already has handler (check for data attribute)
+      if ((button as HTMLElement).dataset['handlerAttached'] === 'true') {
+        return;
+      }
+      
+      // Mark as handler attached
+      (button as HTMLElement).dataset['handlerAttached'] = 'true';
       
       // Attach click handler
-      newButton.addEventListener('click', (event) => {
+      button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
         
-        const paymentUrl = newButton.getAttribute('data-payment-url') || 
-                          (newButton as HTMLElement).dataset['paymentUrl'];
+        // Prevent multiple clicks
+        if (this.isProcessingPayment || button.hasAttribute('disabled')) {
+          return;
+        }
+        
+        // Đánh dấu loading
+        this.isProcessingPayment = true;
+        button.setAttribute('disabled', 'true');
+        button.classList.add('loading');
+        
+        const paymentUrl = button.getAttribute('data-payment-url') || 
+                          (button as HTMLElement).dataset['paymentUrl'];
         if (paymentUrl) {
           console.log('Payment button clicked, redirecting to:', paymentUrl);
+          // Lưu chat room URL vào sessionStorage để redirect về sau khi thanh toán
+          const currentUrl = window.location.href;
+          sessionStorage.setItem('payment_return_url', currentUrl);
+          // KHÔNG modify payment URL - giữ nguyên như backend generate
           window.location.href = paymentUrl;
         } else {
+          // Reset loading state nếu không tìm thấy URL
+          this.isProcessingPayment = false;
+          button.removeAttribute('disabled');
+          button.classList.remove('loading');
           console.warn('Payment URL not found in button');
         }
       });

@@ -39,11 +39,40 @@ export class AppComponent implements OnInit {
     this.authStateService.checkAuthState();
     this.checkRoute();
     
+    // Check payment return URL sau khi thanh toán
+    this.checkPaymentReturn();
+    
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
         this.checkRoute();
+        // Check payment return URL mỗi khi route change
+        this.checkPaymentReturn();
       });
+  }
+
+  private checkPaymentReturn(): void {
+    const returnUrl = sessionStorage.getItem('payment_return_url');
+    if (returnUrl && returnUrl.includes('/chat-room/')) {
+      // Clear sessionStorage
+      sessionStorage.removeItem('payment_return_url');
+      // Redirect về chat room
+      const currentUrl = this.router.url;
+      // Chỉ redirect nếu không đang ở chat room
+      if (!currentUrl.includes('/chat-room/')) {
+        // Extract path từ full URL
+        try {
+          const url = new URL(returnUrl);
+          this.router.navigateByUrl(url.pathname + url.search);
+        } catch {
+          // Fallback: extract path manually
+          const pathMatch = returnUrl.match(/\/chat-room\/[^?#]+/);
+          if (pathMatch) {
+            this.router.navigateByUrl(pathMatch[0]);
+          }
+        }
+      }
+    }
   }
 
   private checkRoute(): void {

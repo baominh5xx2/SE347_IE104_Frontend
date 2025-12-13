@@ -73,6 +73,12 @@ export const routes: Routes = [
     path: 'payment/vnpay/callback', component: VnpayCallbackComponent
   },
   {
+    path: 'payment/success', component: VnpayCallbackComponent
+  },
+  {
+    path: 'payment/failed', component: VnpayCallbackComponent
+  },
+  {
     path: 'promotions', component: PromotionsComponent
   },
 ];
