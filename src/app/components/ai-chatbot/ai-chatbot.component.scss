@@ -1374,3 +1374,27 @@ $shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.08);
     padding-bottom: 4px;
   }
 }
+
+// Payment button loading spinner
+::ng-deep .mcp-payment-button.loading {
+  pointer-events: none;
+  opacity: 0.7;
+  cursor: not-allowed;
+  
+  &::after {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

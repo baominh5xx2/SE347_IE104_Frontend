@@ -90,7 +90,7 @@
       </header>
 
       <div class="stage-body">
-        <div class="messages-container" #messagesContainer>
+        <div class="messages-container" #messagesContainer (scroll)="onMessagesScroll()">
           @if (isLoadingMessages) {
             <div class="stage-empty">
               <div class="empty-illustration">
@@ -157,7 +157,7 @@
                 <div class="mcp-ui-container">
                   <div class="mcp-ui-content tour-packages-grid" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
                     @for (tour of message.tourPackages; track tour.package_id) {
-                      <app-tour-card [tour]="tour" [showDetails]="true"></app-tour-card>
+                      <app-tour-card [tour]="tour" [showDetails]="true" (viewDetails)="navigateToTourDetail($event)"></app-tour-card>
                     }
                   </div>
                 </div>

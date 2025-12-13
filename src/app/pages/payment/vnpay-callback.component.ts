@@ -233,6 +233,28 @@ export class VnpayCallbackComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Check payment return URL và redirect về chat room nếu có
+    const returnUrl = sessionStorage.getItem('payment_return_url');
+    if (returnUrl && returnUrl.includes('/chat-room/')) {
+      sessionStorage.removeItem('payment_return_url');
+      // Extract path từ full URL
+      try {
+        const url = new URL(returnUrl);
+        // Redirect về chat room sau 2 giây (để user thấy kết quả thanh toán)
+        setTimeout(() => {
+          this.router.navigateByUrl(url.pathname + url.search);
+        }, 2000);
+      } catch {
+        // Fallback: extract path manually
+        const pathMatch = returnUrl.match(/\/chat-room\/[^?#]+/);
+        if (pathMatch) {
+          setTimeout(() => {
+            this.router.navigateByUrl(pathMatch[0]);
+          }, 2000);
+        }
+      }
+    }
+    
     this.route.queryParams.subscribe(params => {
       this.processCallback(params);
     });
@@ -282,9 +304,35 @@ export class VnpayCallbackComponent implements OnInit {
         this.errorMessage = '';
       }
 
-      setTimeout(() => {
-        this.goToBookings();
-      }, 5000);
+      // Check nếu có return URL từ chat room thì redirect về đó với payment_success param, không thì về bookings
+      const returnUrl = sessionStorage.getItem('payment_return_url');
+      if (returnUrl && returnUrl.includes('/chat-room/')) {
+        sessionStorage.removeItem('payment_return_url');
+        try {
+          const url = new URL(returnUrl);
+          // Thêm query param payment_success để chatbot hiển thị message chúc mừng
+          const separator = url.search ? '&' : '?';
+          const redirectUrl = `${url.pathname}${url.search}${separator}payment_success=true`;
+          setTimeout(() => {
+            this.router.navigateByUrl(redirectUrl);
+          }, 2000);
+        } catch {
+          const pathMatch = returnUrl.match(/\/chat-room\/[^?#]+/);
+          if (pathMatch) {
+            setTimeout(() => {
+              this.router.navigateByUrl(`${pathMatch[0]}?payment_success=true`);
+            }, 2000);
+          } else {
+            setTimeout(() => {
+              this.goToBookings();
+            }, 2000);
+          }
+        }
+      } else {
+        setTimeout(() => {
+          this.goToBookings();
+        }, 2000);
+      }
     } else {
       this.isSuccess = false;
       this.errorMessage = message || 'Thanh toán không thành công. Vui lòng thử lại.';
@@ -300,9 +348,35 @@ export class VnpayCallbackComponent implements OnInit {
         bankCode: bankCode || undefined
       };
 
-      setTimeout(() => {
-        this.goToBookings();
-      }, 5000);
+      // Check nếu có return URL từ chat room thì redirect về đó với payment_success param, không thì về bookings
+      const returnUrl = sessionStorage.getItem('payment_return_url');
+      if (returnUrl && returnUrl.includes('/chat-room/')) {
+        sessionStorage.removeItem('payment_return_url');
+        try {
+          const url = new URL(returnUrl);
+          // Thêm query param payment_success để chatbot hiển thị message chúc mừng
+          const separator = url.search ? '&' : '?';
+          const redirectUrl = `${url.pathname}${url.search}${separator}payment_success=true`;
+          setTimeout(() => {
+            this.router.navigateByUrl(redirectUrl);
+          }, 2000);
+        } catch {
+          const pathMatch = returnUrl.match(/\/chat-room\/[^?#]+/);
+          if (pathMatch) {
+            setTimeout(() => {
+              this.router.navigateByUrl(`${pathMatch[0]}?payment_success=true`);
+            }, 2000);
+          } else {
+            setTimeout(() => {
+              this.goToBookings();
+            }, 2000);
+          }
+        }
+      } else {
+        setTimeout(() => {
+          this.goToBookings();
+        }, 2000);
+      }
     } else {
       this.isSuccess = false;
       this.errorMessage = this.getErrorMessage(responseCode);
