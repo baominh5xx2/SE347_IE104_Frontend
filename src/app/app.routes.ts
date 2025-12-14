@@ -81,4 +81,8 @@ export const routes: Routes = [
   {
     path: 'promotions', component: PromotionsComponent
   },
+  {
+    path: 'travel-news',
+    loadComponent: () => import('./pages/travel-news/travel-news.component').then(m => m.TravelNewsComponent)
+  },
 ];

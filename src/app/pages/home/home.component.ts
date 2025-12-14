@@ -4,8 +4,11 @@ import { RouterLink } from '@angular/router';
 import { HeroComponent } from '../../components/hero/hero.component';
 import { CouponListComponent } from '../../components/coupon-list/coupon-list.component';
 import { TourCardComponent } from '../../components/tour-card/tour-card.component';
+import { TravelNewsCardComponent } from '../../components/travel-news-card/travel-news-card.component';
 import { TourService } from '../../services/tour.service';
+import { TravelNewsService } from '../../services/travel-news.service';
 import { Tour } from '../../shared/models/tour.model';
+import { TravelNews } from '../../shared/models/travel-news.model';
 import { AuthStateService } from '../../services/auth-state.service';
 
 @Component({
@@ -15,7 +18,8 @@ import { AuthStateService } from '../../services/auth-state.service';
     RouterLink,
     HeroComponent, 
     CouponListComponent, 
-    TourCardComponent
+    TourCardComponent,
+    TravelNewsCardComponent
   ],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
@@ -24,17 +28,21 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   featuredTours: Tour[] = [];
   recommendedTours: Tour[] = [];
   latestTours: Tour[] = [];
+  travelNews: TravelNews[] = [];
   isLoadingFeaturedTours = false;
   isLoadingTours = false;
   isLoadingLatestTours = false;
+  isLoadingTravelNews = false;
   errorMessageFeatured: string | null = null;
   errorMessageRecommended: string | null = null;
   errorMessageLatest: string | null = null;
+  errorMessageTravelNews: string | null = null;
 
   private observer?: IntersectionObserver;
 
   constructor(
     private tourService: TourService,
+    private travelNewsService: TravelNewsService,
     private authStateService: AuthStateService,
     private elementRef: ElementRef
   ) {}
@@ -43,7 +51,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     await Promise.all([
       this.loadFeaturedTours(),
       this.loadRecommendedTours(),
-      this.loadLatestTours()
+      this.loadLatestTours(),
+      this.loadTravelNews()
     ]);
   }
 
@@ -244,5 +253,34 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getDisplayedLatestTours(): Tour[] {
     return this.latestTours.slice(0, 6);
+  }
+
+  async loadTravelNews() {
+    this.isLoadingTravelNews = true;
+    this.errorMessageTravelNews = null;
+    try {
+      const response = await this.travelNewsService.getTravelNews(6);
+      
+      if (!response || !response.data || !Array.isArray(response.data)) {
+        console.warn('Invalid travel news response format:', response);
+        this.travelNews = [];
+        this.errorMessageTravelNews = 'Định dạng dữ liệu không hợp lệ.';
+        return;
+      }
+      
+      if (response.data.length === 0) {
+        this.travelNews = [];
+        return;
+      }
+      
+      this.travelNews = response.data;
+      console.log('Travel news loaded:', this.travelNews.length);
+    } catch (error: any) {
+      console.error('Error loading travel news:', error);
+      this.travelNews = [];
+      this.errorMessageTravelNews = error?.message || 'Lỗi khi tải tin tức du lịch.';
+    } finally {
+      this.isLoadingTravelNews = false;
+    }
   }
 }
