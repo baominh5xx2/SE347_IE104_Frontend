@@ -26,6 +26,14 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./promotions/promotion-list.component').then(m => m.PromotionListComponent)
       },
       {
+        path: 'reports',
+        loadComponent: () => import('./reports/reports.component').then(m => m.ReportsComponent)
+      },
+      {
+        path: 'profile',
+        loadComponent: () => import('./admin-profile/admin-profile.component').then(m => m.AdminProfileComponent)
+      },
+      {
         path: '',
         redirectTo: 'dashboard',
         pathMatch: 'full'

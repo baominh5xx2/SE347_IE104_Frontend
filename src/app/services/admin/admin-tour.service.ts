@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ConfigService } from '../config.service';
+import { ConfigService } from './../config.service';
 
 export interface TourPackage {
   package_id?: string;
@@ -41,8 +41,9 @@ export interface TourPackageCreateRequest {
   available_slots: number;
   start_date: string;
   end_date: string;
-  cuisine?: string;
-  suitable_for?: string;
+  image_urls: string;
+  cuisine: string;
+  suitable_for: string;
   is_active: boolean;
 }
 
@@ -61,15 +62,36 @@ export interface TourPackageUpdateRequest {
   is_active?: boolean;
 }
 
+export interface ManageImagesResponse {
+  EC: number;
+  EM: string;
+  image_urls: string[];
+  total_images: number;
+}
+
+export interface BulkCreateResponse {
+  EC: number;
+  EM: string;
+  total_processed: number;
+  successful: number;
+  failed: number;
+  created_packages: TourPackage[];
+  errors: Array<{
+    row: number;
+    error: string;
+  }>;
+  parsing_errors: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AdminTourService {
+  constructor(private configService: ConfigService) { }
+
   private get apiBaseUrl(): string {
     return `${this.configService.getApiUrl()}/tour-packages`;
   }
-
-  constructor(private configService: ConfigService) { }
 
   async getTourPackages(
     is_active?: boolean,
@@ -108,63 +130,9 @@ export class AdminTourService {
     }
   }
 
-  async createTourPackage(
-    packageData: TourPackageCreateRequest,
-    images?: File[]
-  ): Promise<TourPackageDetailResponse> {
+  async createTourPackage(packageData: TourPackageCreateRequest): Promise<TourPackageDetailResponse> {
     try {
-      console.log('Creating tour package with data:', packageData);
-      console.log('Images count:', images?.length || 0);
-      
-      // If images provided, use multipart/form-data
-      if (images && images.length > 0) {
-        const formData = new FormData();
-        
-        // Add all fields
-        formData.append('package_name', packageData.package_name);
-        formData.append('destination', packageData.destination);
-        formData.append('description', packageData.description);
-        formData.append('duration_days', packageData.duration_days.toString());
-        formData.append('price', packageData.price.toString());
-        formData.append('available_slots', packageData.available_slots.toString());
-        formData.append('start_date', packageData.start_date);
-        formData.append('end_date', packageData.end_date);
-        formData.append('is_active', packageData.is_active.toString());
-        
-        // Optional fields
-        if (packageData.cuisine) formData.append('cuisine', packageData.cuisine);
-        if (packageData.suitable_for) formData.append('suitable_for', packageData.suitable_for);
-        
-        // Add images
-        images.forEach(file => {
-          formData.append('images', file);
-        });
-
-        console.log('POST URL:', `${this.apiBaseUrl}/`);
-        console.log('Sending FormData with', images.length, 'images');
-
-        const response = await fetch(`${this.apiBaseUrl}/`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        console.log('Create response status:', response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Create error response:', errorText);
-          try {
-            const error = JSON.parse(errorText);
-            throw new Error(error.detail || error.EM || `Failed to create: ${response.status}`);
-          } catch {
-            throw new Error(`Failed to create tour package: ${response.status} - ${errorText}`);
-          }
-        }
-        return await response.json();
-      }
-
-      // Fallback to JSON if no images
-      const response = await fetch(`${this.apiBaseUrl}/`, {
+      const response = await fetch(this.apiBaseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,12 +157,7 @@ export class AdminTourService {
     packageData: TourPackageUpdateRequest
   ): Promise<TourPackageDetailResponse> {
     try {
-      const url = `${this.apiBaseUrl}/${packageId}`;
-      console.log('Updating tour package:', url);
-      console.log('Data:', packageData);
-      
-      // Update tour package data (JSON only)
-      const response = await fetch(url, {
+      const response = await fetch(`${this.apiBaseUrl}/${packageId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -202,62 +165,14 @@ export class AdminTourService {
         body: JSON.stringify(packageData),
       });
       
-      console.log('Update response status:', response.status);
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Update error response:', errorText);
-        try {
-          const error = JSON.parse(errorText);
-          throw new Error(error.detail || error.EM || `Failed to update: ${response.status}`);
-        } catch {
-          throw new Error(`Failed to update tour package: ${response.status} - ${errorText}`);
-        }
+        const error = await response.json();
+        throw new Error(error.detail || `Failed to update tour package: ${response.status}`);
       }
       
       return await response.json();
     } catch (error) {
       console.error('Error updating tour package:', error);
-      throw error;
-    }
-  }
-
-  async updateTourImages(
-    packageId: string,
-    images: File[],
-    replaceExisting: boolean = false
-  ): Promise<string> {
-    try {
-      const formData = new FormData();
-      images.forEach(file => {
-        formData.append('images', file);
-      });
-
-      console.log(`Uploading ${images.length} images for tour ${packageId}, replace_existing=${replaceExisting}`);
-
-      const response = await fetch(`${this.apiBaseUrl}/${packageId}/images?replace_existing=${replaceExisting}`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      console.log('Upload images response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Upload images error:', errorText);
-        try {
-          const error = JSON.parse(errorText);
-          throw new Error(error.detail || `Failed to update images: ${response.status}`);
-        } catch {
-          throw new Error(`Failed to upload images: ${response.status} - ${errorText}`);
-        }
-      }
-
-      const imageUrls = await response.json(); // Returns pipe-separated string
-      console.log('Uploaded images URLs:', imageUrls);
-      return imageUrls;
-    } catch (error) {
-      console.error('Error updating tour images:', error);
       throw error;
     }
   }
@@ -275,6 +190,93 @@ export class AdminTourService {
       return await response.json();
     } catch (error) {
       console.error('Error deleting tour package:', error);
+      throw error;
+    }
+  }
+
+  async createTourPackageWithImages(
+    packageData: Omit<TourPackageCreateRequest, 'image_urls'>,
+    images: File[]
+  ): Promise<TourPackageDetailResponse> {
+    try {
+      const formData = new FormData();
+      
+      // Append package data
+      Object.entries(packageData).forEach(([key, value]) => {
+        formData.append(key, value.toString());
+      });
+      
+      // Append images
+      images.forEach((file) => {
+        formData.append('images', file);
+      });
+      
+      const response = await fetch(`${this.apiBaseUrl}/`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || `Failed to create tour package: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating tour package with images:', error);
+      throw error;
+    }
+  }
+
+  async manageImages(
+    packageId: string,
+    images: File[],
+    replaceExisting: boolean = false
+  ): Promise<ManageImagesResponse> {
+    try {
+      const formData = new FormData();
+      images.forEach((file) => {
+        formData.append('images', file);
+      });
+      
+      const response = await fetch(
+        `${this.apiBaseUrl}/${packageId}/images?replace_existing=${replaceExisting}`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || `Failed to manage images: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error managing images:', error);
+      throw error;
+    }
+  }
+
+  async createTourPackagesFromCSV(file: File): Promise<BulkCreateResponse> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(`${this.apiBaseUrl}/bulk/csv`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || `Failed to upload CSV: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading CSV:', error);
       throw error;
     }
   }

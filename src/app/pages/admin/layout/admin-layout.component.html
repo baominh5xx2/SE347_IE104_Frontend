@@ -47,7 +47,7 @@
         <svg class="w-5 h-5 mr-3 stroke-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
         </svg>
-        Quản lý Khách hàng
+        Quản lý Users
       </a>
       
       <a routerLink="/admin/promotions" 
@@ -58,8 +58,20 @@
         <svg class="w-5 h-5 mr-3 stroke-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
-        Quản lý Mã Khuyến Mãi
+        Quản lý Khuyến Mãi
       </a>
+      
+      <a routerLink="/admin/reports" 
+         routerLinkActive="bg-blue-500 text-white [&>svg]:stroke-white"
+         [routerLinkActiveOptions]="{exact: false}"
+         class="flex items-center px-6 py-3 mx-3 mb-2 rounded-lg text-gray-700 hover:bg-blue-100 transition-colors"
+         style="cursor: pointer;">
+        <svg class="w-5 h-5 mr-3 stroke-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        Báo cáo & Thống kê
+      </a>
+
     </nav>
   </aside>
 
@@ -70,8 +82,24 @@
       <div class="flex items-center justify-between px-8 py-4">
         <h2 class="text-xl font-semibold text-gray-700">Admin Panel</h2>
         <div class="flex items-center space-x-4">
-          <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-            A
+          <div class="relative">
+            <button (click)="toggleDropdown()" class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+              A
+            </button>
+            <div *ngIf="showDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+              <a routerLink="/admin/profile" (click)="closeDropdown()" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                Chi tiết profile
+              </a>
+              <button (click)="logout()" class="w-full flex items-center px-4 py-2 text-red-600 hover:bg-red-50 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+                Đăng xuất
+              </button>
+            </div>
           </div>
         </div>
       </div>
