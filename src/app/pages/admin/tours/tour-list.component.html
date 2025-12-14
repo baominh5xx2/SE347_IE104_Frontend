@@ -12,9 +12,34 @@
     </button>
   </div>
 
+  <!-- Success Message -->
+  <div *ngIf="successMessage" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      {{ successMessage }}
+    </div>
+    <button (click)="successMessage = ''" class="text-green-700 hover:text-green-900">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
   <!-- Error Message -->
-  <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-    {{ errorMessage }}
+  <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      {{ errorMessage }}
+    </div>
+    <button (click)="errorMessage = ''" class="text-red-700 hover:text-red-900">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Filters -->
@@ -75,7 +100,7 @@
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
-        <tr *ngFor="let tour of filteredTours" class="hover:bg-gray-50">
+        <tr *ngFor="let tour of paginatedTours" class="hover:bg-gray-50">
           <td class="px-6 py-4">
             <div class="flex items-center">
               <img [src]="getImageUrl(tour.image_urls)" alt="{{ tour.package_name }}" class="w-16 h-16 rounded-lg object-cover mr-4">
@@ -118,7 +143,7 @@
             </div>
           </td>
         </tr>
-        <tr *ngIf="filteredTours.length === 0">
+        <tr *ngIf="paginatedTours.length === 0">
           <td colspan="7" class="px-6 py-8 text-center text-gray-500">
             Không tìm thấy tour nào
           </td>
@@ -126,11 +151,71 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Pagination -->
+  <div *ngIf="!isLoading && filteredTours.length > 0" class="bg-white rounded-lg shadow mt-4 px-6 py-4">
+    <div class="flex items-center justify-between">
+      <div class="text-sm text-gray-600">
+        Hiển thị <span class="font-semibold">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> - 
+        <span class="font-semibold">{{ Math.min(currentPage * itemsPerPage, filteredTours.length) }}</span> 
+        trong tổng số <span class="font-semibold">{{ filteredTours.length }}</span> tours
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <!-- Previous Button -->
+        <button 
+          (click)="previousPage()" 
+          [disabled]="currentPage === 1"
+          [class.opacity-50]="currentPage === 1"
+          [class.cursor-not-allowed]="currentPage === 1"
+          class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:hover:bg-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        
+        <!-- Page Numbers -->
+        <ng-container *ngFor="let page of getPageNumbers()">
+          <!-- Regular Page Number -->
+          <button 
+            *ngIf="page !== '...'"
+            (click)="goToPage(+page)"
+            [class.bg-blue-600]="page === currentPage"
+            [class.text-white]="page === currentPage"
+            [class.border-blue-600]="page === currentPage"
+            [class.bg-white]="page !== currentPage"
+            [class.text-gray-700]="page !== currentPage"
+            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-blue-50 transition-colors font-medium">
+            {{ page }}
+          </button>
+          
+          <!-- Ellipsis -->
+          <span 
+            *ngIf="page === '...'"
+            class="px-3 py-2 text-gray-500 font-medium">
+            ...
+          </span>
+        </ng-container>
+        
+        <!-- Next Button -->
+        <button 
+          (click)="nextPage()" 
+          [disabled]="currentPage === totalPages"
+          [class.opacity-50]="currentPage === totalPages"
+          [class.cursor-not-allowed]="currentPage === totalPages"
+          class="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:hover:bg-white">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Add/Edit Modal -->
-<div *ngIf="showAddModal || showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" (click)="showAddModal ? closeAddModal() : closeEditModal()">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden" (click)="$event.stopPropagation()">
+<div *ngIf="showAddModal || showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto" (click)="showAddModal ? closeAddModal() : closeEditModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl my-8" (click)="$event.stopPropagation()">
     <!-- Header with gradient -->
     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 sticky top-0 z-10">
       <div class="flex items-center justify-between">
@@ -159,7 +244,8 @@
     </div>
     
     <!-- Form Content with scroll -->
-    <div class="overflow-y-auto max-h-[calc(90vh-180px)] px-8 py-6">
+    <div class="overflow-y-auto" style="max-height: calc(90vh - 200px);">
+      <div class="px-8 py-6">
       <form>
         <!-- Basic Information Section -->
         <div class="mb-8">
@@ -243,7 +329,7 @@
             <h4 class="text-lg font-semibold text-gray-800">Giá & Khả Dụng</h4>
           </div>
           
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Giá Tour <span class="text-red-500">*</span>
@@ -254,6 +340,7 @@
                   [(ngModel)]="currentTour.price" 
                   name="price"
                   required
+                  min="1"
                   placeholder="5000000"
                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
                 <span class="absolute right-4 top-3 text-gray-500 font-medium">VNĐ</span>
@@ -273,7 +360,9 @@
                 placeholder="20"
                 class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
             </div>
+          </div>
 
+          <div class="grid grid-cols-1 gap-6 mt-6">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Trạng Thái
@@ -373,24 +462,117 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
               </svg>
             </div>
-            <h4 class="text-lg font-semibold text-gray-800">Hình Ảnh</h4>
+            <h4 class="text-lg font-semibold text-gray-800">Hình Ảnh <span class="text-red-500">*</span></h4>
           </div>
           
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              URL Hình Ảnh
+            <label class="block text-sm font-semibold text-gray-700 mb-3">
+              Chọn Hình Ảnh (Tối đa 10 ảnh)
             </label>
-            <textarea 
-              [(ngModel)]="currentTour.image_urls" 
-              name="image_urls"
-              rows="3"
-              placeholder="https://example.com/image1.jpg|https://example.com/image2.jpg|https://example.com/image3.jpg"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 resize-none">
-            </textarea>
-            <p class="text-xs text-gray-500 mt-2">💡 Phân cách các URL bằng dấu | (pipe)</p>
+            
+            <!-- File Input -->
+            <div class="mb-4">
+              <label [class]="isMaxImagesReached() ? 'flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-not-allowed opacity-60 bg-gray-50' : 'flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all'">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg class="w-10 h-10 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                  </svg>
+                  <p class="mb-1 text-sm text-gray-600 font-semibold">
+                    <span *ngIf="previewUrls.length === 0">Nhấp để chọn file hoặc kéo thả vào đây</span>
+                    <span *ngIf="previewUrls.length > 0 && !isMaxImagesReached()">Nhấp để thêm ảnh ({{ previewUrls.length }}/10)</span>
+                    <span *ngIf="isMaxImagesReached()" class="text-orange-600">Đã đạt giới hạn tối đa 10 ảnh</span>
+                  </p>
+                  <p class="text-xs text-gray-500">JPEG, JPG, PNG, WebP (Tối đa 10 ảnh)</p>
+                </div>
+                <input 
+                  type="file" 
+                  class="hidden" 
+                  multiple 
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  [disabled]="isMaxImagesReached()"
+                  (change)="onFileSelect($event)"
+                />
+              </label>
+            </div>
+
+            <!-- Preview Grid -->
+            <div *ngIf="previewUrls.length > 0" class="mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-semibold text-gray-700">
+                  <span *ngIf="existingImageUrls.length > 0">
+                    {{ existingImageUrls.length }} ảnh cũ, {{ previewUrls.length - existingImageUrls.length }} ảnh mới
+                  </span>
+                  <span *ngIf="existingImageUrls.length === 0">
+                    Đã chọn {{ previewUrls.length }} ảnh
+                  </span>
+                </p>
+                <p class="text-xs text-blue-600">
+                  <i class="fas fa-arrows-alt mr-1"></i>
+                  Kéo thả để sắp xếp thứ tự
+                </p>
+              </div>
+              <div class="grid grid-cols-3 md:grid-cols-5 gap-3">
+                <div 
+                  *ngFor="let url of previewUrls; let i = index" 
+                  class="relative group cursor-move"
+                  draggable="true"
+                  (dragstart)="onDragStart(i)"
+                  (dragover)="onDragOver($event)"
+                  (drop)="onDrop($event, i)"
+                  (dragend)="onDragEnd()"
+                  [class.opacity-50]="draggedIndex === i">
+                  <!-- Order Badge -->
+                  <div class="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold z-10 shadow-lg">
+                    {{ i + 1 }}
+                  </div>
+                  
+                  <!-- Image Preview -->
+                  <img 
+                    [src]="url" 
+                    alt="Preview {{ i + 1 }}"
+                    class="w-full h-24 object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-400 transition-all"
+                  />
+                  
+                  <!-- Main Image Badge -->
+                  <div *ngIf="i === 0" class="absolute top-1 left-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded">
+                    Ảnh chính
+                  </div>
+                  
+                  <!-- Remove Button -->
+                  <button
+                    type="button"
+                    (click)="removeFile(i)"
+                    class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600 shadow-lg z-10"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                  
+                  <!-- Drag Handle -->
+                  <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20 rounded-lg">
+                    <i class="fas fa-grip-vertical text-white text-2xl"></i>
+                  </div>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">
+                💡 Ảnh đầu tiên sẽ là ảnh đại diện chính của tour
+              </p>
+            </div>
+
+            <!-- Upload Status -->
+            <div *ngIf="isUploading" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex items-center">
+                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
+                <span class="text-sm text-blue-700 font-medium">Đang upload hình ảnh...</span>
+              </div>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-2">💡 Hình ảnh sẽ được upload lên Cloudinary khi lưu tour</p>
           </div>
         </div>
       </form>
+      </div>
     </div>
     
     <!-- Footer Actions -->
@@ -408,12 +590,24 @@
           </button>
           <button 
             type="button"
-            (click)="showAddModal ? saveTour() : updateTour()"
-            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2">
+            (click)="openPreview()"
+            class="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            <span>Xem trước</span>
+          </button>
+          <button 
+            type="button"
+            (click)="showAddModal ? saveTour() : updateTour()"
+            [disabled]="isLoading || isUploading"
+            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg *ngIf="!isLoading && !isUploading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
             </svg>
-            <span>{{ showAddModal ? 'Tạo tour' : 'Lưu Thay Đổi' }}</span>
+            <div *ngIf="isLoading || isUploading" class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            <span>{{ isLoading || isUploading ? 'Đang xử lý...' : (showAddModal ? 'Tạo tour' : 'Lưu Thay Đổi') }}</span>
           </button>
         </div>
       </div>
@@ -464,6 +658,160 @@
           Xóa Tour
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div *ngIf="showPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto" (click)="closePreview()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-y-auto preview-modal-container" (click)="$event.stopPropagation()">
+    <!-- Preview Header -->
+    <div class="sticky top-0 bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-6 flex justify-between items-center z-10">
+      <div>
+        <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+          </svg>
+          Xem trước Tour
+        </h2>
+        <p class="text-purple-100 text-sm mt-1">Đây là cách tour sẽ hiển thị cho khách hàng</p>
+      </div>
+      <button (click)="closePreview()" class="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Preview Content - Match User Tour Details -->
+    <div class="container mx-auto px-6 py-6">
+      <!-- Tour Images -->
+      <div class="tour-images-section fade-in-up" *ngIf="getPreviewImageUrls().length > 0">
+        <div class="main-image-wrapper">
+          <img [src]="getPreviewMainImage()" [alt]="previewTour.package_name" class="main-image">
+          <div class="image-overlay"></div>
+        </div>
+        <div class="gallery-grid" *ngIf="getPreviewGalleryImages().length > 0">
+          <div class="gallery-item" *ngFor="let img of getPreviewGalleryImages(); let i = index" [style.animation-delay]="(i + 1) * 0.1 + 's'">
+            <img [src]="img" [alt]="previewTour.package_name" class="gallery-image">
+            <div class="gallery-overlay"></div>
+          </div>
+        </div>
+      </div>
+      <div class="empty-images fade-in" *ngIf="getPreviewImageUrls().length === 0">
+        <div class="empty-image-placeholder">
+          <p class="empty-text">Không có hình ảnh</p>
+        </div>
+      </div>
+
+      <!-- Tour Header -->
+      <div class="tour-header-section fade-in-up delay-1">
+        <div class="tour-title-section">
+          <h1 class="tour-title">{{ previewTour.package_name }}</h1>
+          <div class="tour-meta-info">
+            <div class="meta-item">
+              <i class="fas fa-map-marker-alt"></i>
+              <span>{{ previewTour.destination }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tour-price-section">
+          <div class="price-wrapper">
+            <p class="price-label">Giá bắt đầu từ</p>
+            <div class="price-display">
+              <p class="current-price">{{ formatPrice(previewTour.price || 0) }}</p>
+            </div>
+            <p class="duration-text">cho {{ previewTour.duration_days }} ngày</p>
+          </div>
+          <button class="book-button">
+            <span>Đặt tour ngay</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tour Info Cards -->
+      <div class="info-cards-grid fade-in-up delay-2">
+        <div class="info-card" style="animation-delay: 0s;">
+          <div class="info-card-content">
+            <div class="info-icon-wrapper icon-duration">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="info-text">
+              <p class="info-label">Thời gian</p>
+              <p class="info-value">{{ previewTour.duration_days }} ngày</p>
+            </div>
+          </div>
+          <div class="info-card-hover-effect"></div>
+        </div>
+
+        <div class="info-card" style="animation-delay: 0.1s;">
+          <div class="info-card-content">
+            <div class="info-icon-wrapper icon-participants">
+              <i class="fas fa-users"></i>
+            </div>
+            <div class="info-text">
+              <p class="info-label">Số chỗ</p>
+              <p class="info-value">{{ previewTour.available_slots }} chỗ</p>
+            </div>
+          </div>
+          <div class="info-card-hover-effect"></div>
+        </div>
+
+        <div class="info-card" style="animation-delay: 0.2s;" *ngIf="previewTour.start_date">
+          <div class="info-card-content">
+            <div class="info-icon-wrapper icon-date">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="info-text">
+              <p class="info-label">Khởi hành</p>
+              <p class="info-value">{{ formatDate(previewTour.start_date) }}</p>
+            </div>
+          </div>
+          <div class="info-card-hover-effect"></div>
+        </div>
+      </div>
+
+      <!-- Tour Description -->
+      <div class="section-card mb-6" *ngIf="previewTour.description">
+        <h2 class="section-title">
+          <i class="fas fa-info-circle"></i>
+          Giới thiệu tour
+        </h2>
+        <div class="text-gray-700 leading-relaxed whitespace-pre-line">{{ previewTour.description }}</div>
+      </div>
+
+      <!-- Included Services (if cuisine or suitable_for exists) -->
+      <div class="fade-in-up delay-4 mb-6" *ngIf="previewTour.cuisine || previewTour.suitable_for">
+        <div class="section-card">
+          <h2 class="section-title">
+            <i class="fas fa-concierge-bell"></i>
+            Thông tin thêm
+          </h2>
+          <div class="services-grid">
+            <div class="service-item" *ngIf="previewTour.cuisine" style="animation-delay: 0s;">
+              <i class="fas fa-utensils"></i>
+              <span>{{ previewTour.cuisine }}</span>
+            </div>
+            <div class="service-item" *ngIf="previewTour.suitable_for" style="animation-delay: 0.05s;">
+              <i class="fas fa-user-check"></i>
+              <span>{{ previewTour.suitable_for }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Footer -->
+    <div class="sticky bottom-0 bg-gray-50 px-8 py-4 flex justify-end border-t">
+      <button 
+        type="button"
+        (click)="closePreview()"
+        class="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-xl transition-all">
+        Đóng xem trước
+      </button>
     </div>
   </div>
 </div>

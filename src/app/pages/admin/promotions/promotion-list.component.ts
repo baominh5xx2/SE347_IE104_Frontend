@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PromotionService, Promotion, PromotionCreateRequest } from '../../../services/promotion.service';
+import { PromotionService, Promotion, PromotionCreateRequest, PromotionUpdateRequest } from '../../../services/promotion.service';
 
 @Component({
   selector: 'app-promotion-list',
@@ -22,6 +22,8 @@ export class PromotionListComponent implements OnInit {
   showDeleteModal = false;
   
   currentPromotion: Partial<PromotionCreateRequest> = {};
+  editPromotion: Partial<PromotionUpdateRequest> = {};
+  editId = '';
   deleteId = '';
   
   isLoading = false;
@@ -97,6 +99,69 @@ export class PromotionListComponent implements OnInit {
     this.currentPromotion = {};
   }
 
+  openEditModal(promo: Promotion) {
+    this.editId = promo.promotion_id;
+    this.editPromotion = {
+      name: promo.name,
+      description: promo.description,
+      discount_type: promo.discount_type as 'PERCENTAGE' | 'FIXED',
+      discount_value: promo.discount_value,
+      start_date: promo.start_date.split('T')[0] + 'T' + promo.start_date.split('T')[1]?.substring(0, 5) || '00:00',
+      end_date: promo.end_date.split('T')[0] + 'T' + promo.end_date.split('T')[1]?.substring(0, 5) || '00:00',
+      quantity: promo.quantity,
+      is_active: promo.is_active,
+      code: promo.code
+    };
+    this.showEditModal = true;
+    this.errorMessage = '';
+  }
+
+  closeEditModal() {
+    this.showEditModal = false;
+    this.editPromotion = {};
+    this.editId = '';
+  }
+
+  updatePromotion() {
+    if (!this.validateEditPromotion()) {
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+    
+    const data: PromotionUpdateRequest = {
+      name: this.editPromotion.name,
+      description: this.editPromotion.description,
+      discount_type: this.editPromotion.discount_type,
+      discount_value: this.editPromotion.discount_value,
+      start_date: this.formatDateTime(this.editPromotion.start_date!),
+      end_date: this.formatDateTime(this.editPromotion.end_date!),
+      quantity: this.editPromotion.quantity,
+      is_active: this.editPromotion.is_active,
+      code: this.editPromotion.code
+    };
+    
+    this.promotionService.updatePromotion(this.editId, data).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.successMessage = 'Cập nhật mã khuyến mãi thành công';
+          this.loadPromotions();
+          this.closeEditModal();
+          setTimeout(() => this.successMessage = '', 3000);
+        } else {
+          this.errorMessage = response.EM || 'Không thể cập nhật mã khuyến mãi';
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi cập nhật mã khuyến mãi';
+        console.error('Update promotion error:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
   savePromotion() {
     if (!this.validatePromotion()) {
       return;
@@ -147,12 +212,50 @@ export class PromotionListComponent implements OnInit {
   }
 
   deletePromotion() {
-    this.errorMessage = 'Chức năng xóa chưa được triển khai';
-    this.closeDeleteModal();
+    this.isLoading = true;
+    this.errorMessage = '';
+    
+    this.promotionService.deletePromotion(this.deleteId).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.successMessage = 'Xóa mã khuyến mãi thành công';
+          this.loadPromotions();
+          this.closeDeleteModal();
+          setTimeout(() => this.successMessage = '', 3000);
+        } else {
+          this.errorMessage = response.EM || 'Không thể xóa mã khuyến mãi';
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi xóa mã khuyến mãi';
+        console.error('Delete promotion error:', error);
+        this.isLoading = false;
+        this.closeDeleteModal();
+      }
+    });
   }
 
   toggleStatus(promo: Promotion) {
-    this.errorMessage = 'Chức năng cập nhật trạng thái chưa được triển khai';
+    const data: PromotionUpdateRequest = {
+      is_active: !promo.is_active
+    };
+    
+    this.promotionService.updatePromotion(promo.promotion_id, data).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.successMessage = 'Cập nhật trạng thái thành công';
+          this.loadPromotions();
+          setTimeout(() => this.successMessage = '', 3000);
+        } else {
+          this.errorMessage = response.EM || 'Không thể cập nhật trạng thái';
+        }
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi cập nhật trạng thái';
+        console.error('Toggle status error:', error);
+      }
+    });
   }
 
   validatePromotion(): boolean {
@@ -185,6 +288,42 @@ export class PromotionListComponent implements OnInit {
       return false;
     }
     if (!this.currentPromotion.quantity || this.currentPromotion.quantity <= 0) {
+      this.errorMessage = 'Số lượng phải lớn hơn 0';
+      return false;
+    }
+    return true;
+  }
+
+  validateEditPromotion(): boolean {
+    if (!this.editPromotion.name?.trim()) {
+      this.errorMessage = 'Vui lòng nhập tên mã khuyến mãi';
+      return false;
+    }
+    if (!this.editPromotion.description?.trim()) {
+      this.errorMessage = 'Vui lòng nhập mô tả';
+      return false;
+    }
+    if (!this.editPromotion.discount_value || this.editPromotion.discount_value <= 0) {
+      this.errorMessage = 'Giá trị giảm giá phải lớn hơn 0';
+      return false;
+    }
+    if (this.editPromotion.discount_type === 'PERCENTAGE' && this.editPromotion.discount_value > 100) {
+      this.errorMessage = 'Giảm giá phần trăm không được vượt quá 100%';
+      return false;
+    }
+    if (!this.editPromotion.start_date) {
+      this.errorMessage = 'Vui lòng chọn ngày bắt đầu';
+      return false;
+    }
+    if (!this.editPromotion.end_date) {
+      this.errorMessage = 'Vui lòng chọn ngày kết thúc';
+      return false;
+    }
+    if (new Date(this.editPromotion.start_date) >= new Date(this.editPromotion.end_date)) {
+      this.errorMessage = 'Ngày kết thúc phải sau ngày bắt đầu';
+      return false;
+    }
+    if (!this.editPromotion.quantity || this.editPromotion.quantity <= 0) {
       this.errorMessage = 'Số lượng phải lớn hơn 0';
       return false;
     }

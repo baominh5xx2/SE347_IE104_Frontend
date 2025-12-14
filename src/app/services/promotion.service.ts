@@ -13,6 +13,18 @@ export interface PromotionCreateRequest {
   is_active: boolean;
 }
 
+export interface PromotionUpdateRequest {
+  name?: string;
+  description?: string;
+  discount_type?: 'PERCENTAGE' | 'FIXED';
+  discount_value?: number;
+  start_date?: string;
+  end_date?: string;
+  quantity?: number;
+  is_active?: boolean;
+  code?: string;
+}
+
 export interface Promotion {
   promotion_id: string;
   name: string;
@@ -24,6 +36,7 @@ export interface Promotion {
   quantity: number;
   used_count: number;
   is_active: boolean;
+  code: string;
 }
 
 export interface PromotionCreateResponse {
@@ -111,6 +124,34 @@ export class PromotionService {
   getPromotionById(promotionId: string): Observable<PromotionDetailResponse> {
     return this.http.get<PromotionDetailResponse>(
       `${this.apiBaseUrl}/promotions/${promotionId}`,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  updatePromotion(promotionId: string, data: PromotionUpdateRequest): Observable<PromotionDetailResponse> {
+    return this.http.put<PromotionDetailResponse>(
+      `${this.apiBaseUrl}/promotions/${promotionId}`,
+      data,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  deletePromotion(promotionId: string): Observable<{EC: number; EM: string}> {
+    return this.http.delete<{EC: number; EM: string}>(
+      `${this.apiBaseUrl}/promotions/${promotionId}`,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  getPromotionByCode(code: string): Observable<PromotionDetailResponse> {
+    return this.http.get<PromotionDetailResponse>(
+      `${this.apiBaseUrl}/promotions/code/${code}`,
       {
         headers: this.getHeaders()
       }

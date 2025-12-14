@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CustomerService, Customer, ChatMessage, ConversationHistory } from '../../../services/customer.service';
+import { CustomerService, Customer, ChatMessage, ConversationHistory } from '../../../services/admin/customer.service';
 
 @Component({
   selector: 'app-customer-list',
