@@ -50,7 +50,11 @@
                 </div>
                 <div class="flex px-4 pb-4 justify-between items-center mt-auto gap-4">
                   <span class="text-gray-500 font-semibold bg-gray-100 rounded p-1 pl-2 flex-auto">{{ coupon.code }}</span>
-                  <button (click)="copyToClipboard(coupon.code)" class="bg-blue-500 px-4 py-1 rounded-md custom-rounded">Sao chép</button>
+                  <button 
+                    (click)="copyToClipboard(coupon.code)" 
+                    [class]="copiedCode === coupon.code ? 'bg-green-500 px-4 py-1 rounded-md custom-rounded' : 'bg-blue-500 px-4 py-1 rounded-md custom-rounded'">
+                    {{ copiedCode === coupon.code ? '✓ Đã sao chép' : 'Sao chép' }}
+                  </button>
                 </div>
               </div>
 

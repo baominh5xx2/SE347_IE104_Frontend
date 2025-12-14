@@ -20,6 +20,7 @@ export class CouponListComponent implements OnInit {
   coupons: Coupon[] = [];
   isLoading = false;
   errorMessage = '';
+  copiedCode: string | null = null;
 
   constructor(private promotionService: PromotionService) {}
 
@@ -35,7 +36,7 @@ export class CouponListComponent implements OnInit {
       next: (response) => {
         if (response.EC === 0) {
           this.coupons = response.promotions.map(promo => ({
-            code: promo.promotion_id,
+            code: promo.code,
             description: promo.name,
             discount: this.formatDiscount(promo)
           }));
@@ -111,7 +112,29 @@ export class CouponListComponent implements OnInit {
 
   copyToClipboard(code: string) {
     navigator.clipboard.writeText(code).then(() => {
-      // Code copied successfully
+      this.copiedCode = code;
+      setTimeout(() => {
+        this.copiedCode = null;
+      }, 2000);
+    }).catch(err => {
+      console.error('Lỗi khi sao chép:', err);
+      // Fallback method
+      const textArea = document.createElement('textarea');
+      textArea.value = code;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        this.copiedCode = code;
+        setTimeout(() => {
+          this.copiedCode = null;
+        }, 2000);
+      } catch (err) {
+        console.error('Không thể sao chép');
+      }
+      document.body.removeChild(textArea);
     });
   }
 }

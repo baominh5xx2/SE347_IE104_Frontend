@@ -16,6 +16,7 @@ export interface PromotionCreateRequest {
 
 export interface Promotion {
   promotion_id: string;
+  code: string; // Add this field
   name: string;
   description: string;
   discount_type: string;
