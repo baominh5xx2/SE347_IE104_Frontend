@@ -229,7 +229,7 @@ export class TravelNewsService {
       queryParams.append('page', Math.floor(page).toString());
       queryParams.append('limit', Math.floor(limit).toString());
 
-      const url = `${this.apiBaseUrl}/travel-news/list${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      const url = `${this.apiBaseUrl}/travel-news/all${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       
       console.log('Fetching paginated travel news from URL:', url);
       
