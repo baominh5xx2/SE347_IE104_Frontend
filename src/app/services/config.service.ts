@@ -21,15 +21,27 @@ export class ConfigService {
       return this.config;
     }
 
+    // Development mode: always use environment config (localhost backend)
+    if (!environment.production) {
+      this.config = {
+        apiUrl: environment.apiUrl
+      };
+      this.configLoaded = true;
+      console.log('[ConfigService] Development mode - using environment config:', this.config.apiUrl);
+      return this.config;
+    }
+
+    // Production mode: load from config.json (served by Nginx, can be relative path)
     try {
       const config = await firstValueFrom(
         this.http.get<AppConfig>('/assets/config.json')
       );
       this.config = config;
       this.configLoaded = true;
+      console.log('[ConfigService] Production mode - loaded config.json:', this.config.apiUrl);
       return config;
     } catch (error) {
-      console.warn('Failed to load config.json, using environment config');
+      console.warn('Failed to load config.json, falling back to environment config');
       this.config = {
         apiUrl: environment.apiUrl
       };

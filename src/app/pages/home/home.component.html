@@ -148,6 +148,50 @@
     </div>
   </section>
 
+  <section class="travel-news section-animate">
+    <div class="section-background"></div>
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrapper">
+          <div class="title-bg-glow"></div>
+          <h2 class="section-title">
+            <span class="title-text">Tin tức & Cẩm nang du lịch</span>
+            <span class="title-shimmer"></span>
+          </h2>
+          <div class="title-underline">
+            <div class="underline-glow"></div>
+          </div>
+        </div>
+        <p class="section-subtitle">Cập nhật những thông tin mới nhất về du lịch và các cẩm nang hữu ích</p>
+        <a routerLink="/travel-news" class="view-all-btn">Xem tất cả</a>
+      </div>
+      
+      @if (isLoadingTravelNews) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Đang tải...</p>
+        </div>
+      } @else if (errorMessageTravelNews) {
+        <div class="error-state">
+          <p>{{ errorMessageTravelNews }}</p>
+          <button class="btn-retry" (click)="loadTravelNews()">
+            Thử lại
+          </button>
+        </div>
+      } @else if (travelNews.length > 0) {
+        <div class="news-grid">
+          @for (news of travelNews; track news.news_id) {
+            <app-travel-news-card [news]="news"></app-travel-news-card>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <p>Không có tin tức nào</p>
+        </div>
+      }
+    </div>
+  </section>
+
 
 
 
