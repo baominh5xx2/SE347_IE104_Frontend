@@ -1,7 +1,21 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CustomerService, Customer, ChatMessage, ConversationHistory } from '../../../services/customer.service';
+import { AdminUserService, UserProfile, ChatRoom } from '../../../services/admin/admin-user.service';
+
+interface UserData {
+  profile: UserProfile;
+  summary: {
+    total_bookings: number;
+    pending_bookings: number;
+    confirmed_bookings: number;
+    completed_tours: number;
+    cancelled_bookings: number;
+    total_paid_amount: number;
+  };
+  bookings: any[];
+  chatRooms: ChatRoom[];
+}
 
 @Component({
   selector: 'app-customer-list',
@@ -11,337 +25,178 @@ import { CustomerService, Customer, ChatMessage, ConversationHistory } from '../
   styleUrls: ['./customer-list.component.scss']
 })
 export class CustomerListComponent implements OnInit {
-  customers: Customer[] = [];
-  filteredCustomers: Customer[] = [];
+  // Search
+  searchUserId: string = '';
+  isLoading: boolean = false;
+  errorMessage: string = '';
   
-  // Filters
-  searchTerm: string = '';
-  statusFilter: string = '';
-  sortBy: string = 'created_at';
+  // User data
+  userData: UserData | null = null;
   
-  // Stats
-  stats = {
-    total_customers: 0,
-    active_customers: 0,
-    total_bookings: 0,
-    total_revenue: 0
-  };
-  
-  // Modal states
+  // Modal
   showDetailModal: boolean = false;
-  selectedCustomer: Customer | null = null;
   activeTab: 'info' | 'bookings' | 'chat' | 'timeline' = 'info';
-  customerConversations: ConversationHistory[] = [];
-  selectedConversationId: string = '';
-  conversationMessages: ChatMessage[] = [];
-  loadingConversation: boolean = false;
-  customerBookings: any[] = [];
+  
+  // Chat
+  selectedRoomId: string = '';
+  selectedRoom: ChatRoom | null = null;
+  
+  // Bookings pagination
+  bookingsPage: number = 1;
+  bookingsLimit: number = 10;
+  totalBookings: number = 0;
+  
+  // Timeline activities
   timelineActivities: any[] = [];
 
-  constructor(private customerService: CustomerService) {
-    console.log('CustomerListComponent constructor called');
-  }
+  constructor(private adminUserService: AdminUserService) {}
 
-  ngOnInit() {
-    console.log('CustomerListComponent ngOnInit called');
-    // TODO: Load customers from API
-    // this.loadCustomers();
-    this.calculateStats();
-    console.log('Loaded customers:', this.customers.length);
-  }
+  ngOnInit() {}
 
   /**
-   * Load customers from API
+   * Search user by user_id
    */
-  async loadCustomers() {
+  async searchUser() {
+    if (!this.searchUserId.trim()) {
+      this.errorMessage = 'Vui lòng nhập User ID';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.userData = null;
+
     try {
-      // TODO: Implement API call
-      // const response = await this.customerService.getCustomers();
-      // this.customers = response;
-      this.customers = [];
-      this.filteredCustomers = [...this.customers];
-    } catch (error) {
-      console.error('Error loading customers:', error);
-      this.customers = [];
-      this.filteredCustomers = [];
+      // Get user summary (includes profile + KPIs)
+      const summaryResponse = await this.adminUserService.getUserSummary(this.searchUserId).toPromise();
+      
+      if (summaryResponse?.EC !== 0 || !summaryResponse?.data) {
+        this.errorMessage = summaryResponse?.EM || 'Không tìm thấy user';
+        this.isLoading = false;
+        return;
+      }
+
+      const profile = summaryResponse.data.user;
+      const summary = summaryResponse.data.kpi || {
+        total_bookings: 0,
+        pending_bookings: 0,
+        confirmed_bookings: 0,
+        completed_tours: 0,
+        cancelled_bookings: 0,
+        total_paid_amount: 0
+      };
+
+      // Get bookings
+      const bookingsResponse = await this.adminUserService.getUserBookings(this.searchUserId, {
+        page: 1,
+        limit: 50,
+        sort: 'created_at_desc'
+      }).toPromise();
+      const bookings = bookingsResponse?.data?.items || [];
+
+      // Get chat history
+      const chatResponse = await this.adminUserService.getUserChatHistory(this.searchUserId).toPromise();
+      const chatRooms = chatResponse?.data?.rooms || [];
+
+      // Set user data
+      this.userData = {
+        profile,
+        summary,
+        bookings,
+        chatRooms
+      };
+
+      // Open detail modal
+      this.showDetailModal = true;
+      this.activeTab = 'info';
+      this.loadTimeline();
+
+    } catch (error: any) {
+      console.error('Error searching user:', error);
+      this.errorMessage = error?.error?.EM || 'Lỗi khi tìm kiếm user';
+    } finally {
+      this.isLoading = false;
     }
   }
 
   /**
-   * Calculate statistics
+   * Load timeline activities
    */
-  calculateStats() {
-    this.stats.total_customers = this.customers.length;
-    this.stats.active_customers = this.customers.filter(c => c.is_activate).length;
-    this.stats.total_bookings = this.customers.reduce((sum, c) => sum + (c.total_bookings || 0), 0);
-    this.stats.total_revenue = this.customers.reduce((sum, c) => sum + (c.total_spent || 0), 0);
-  }
+  loadTimeline() {
+    if (!this.userData) return;
 
-  /**
-   * Apply filters
-   */
-  onFilterChange() {
-    this.filteredCustomers = this.customers.filter(customer => {
-      const matchesSearch = !this.searchTerm || 
-        customer.full_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        customer.email.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        (customer.phone_number && customer.phone_number.includes(this.searchTerm));
-      
-      const matchesStatus = !this.statusFilter || 
-        (this.statusFilter === 'active' && customer.is_activate) ||
-        (this.statusFilter === 'inactive' && !customer.is_activate);
-      
-      return matchesSearch && matchesStatus;
-    });
-    
-    // Apply sorting
-    this.applySorting();
-  }
-
-  /**
-   * Apply sorting
-   */
-  applySorting() {
-    this.filteredCustomers.sort((a, b) => {
-      switch (this.sortBy) {
-        case 'name':
-          return a.full_name.localeCompare(b.full_name);
-        case 'bookings':
-          return (b.total_bookings || 0) - (a.total_bookings || 0);
-        case 'spent':
-          return (b.total_spent || 0) - (a.total_spent || 0);
-        case 'created_at':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    });
-  }
-
-  /**
-   * Open customer detail modal
-   */
-  async openDetailModal(customer: Customer) {
-    this.selectedCustomer = customer;
-    this.showDetailModal = true;
-    this.activeTab = 'info';
-    this.loadCustomerBookings(customer.user_id);
-    this.loadCustomerConversations(customer.user_id);
-    this.loadTimeline(customer.user_id);
-  }
-
-  /**
-   * Load customer bookings from API
-   */
-  async loadCustomerBookings(userId: string) {
-    try {
-      // TODO: Implement API call
-      // const response = await this.customerService.getCustomerBookings(userId);
-      // this.customerBookings = response;
-      this.customerBookings = [];
-    } catch (error) {
-      console.error('Error loading bookings:', error);
-      this.customerBookings = [];
-    }
-  }
-
-  /**
-   * Load customer conversations from API
-   */
-  loadCustomerConversations(userId: string) {
-    this.customerService.getUserConversations(userId).subscribe({
-      next: (response) => {
-        this.customerConversations = response || [];
-      },
-      error: (error) => {
-        console.error('Error loading conversations:', error);
-        this.customerConversations = [];
-      }
-    });
-  }
-
-  /**
-   * Load timeline activities (merged bookings and conversations)
-   */
-  loadTimeline(userId: string) {
     const activities: any[] = [];
-    
-    // Add bookings to timeline
-    this.customerBookings.forEach(booking => {
+
+    // Add bookings
+    this.userData.bookings.forEach(booking => {
       activities.push({
         type: 'booking',
         id: booking.booking_id,
-        title: booking.tour_name,
-        description: `Đặt tour đi ${booking.destination} - ${booking.number_of_people} người`,
-        date: booking.booking_date,
+        title: booking.package_name || 'Tour booking',
+        description: `${booking.number_of_people} người - ${this.formatPrice(booking.total_amount)}`,
+        date: booking.created_at,
         status: booking.status,
-        payment_status: booking.payment_status,
-        amount: booking.total_amount,
         icon: 'booking',
-        color: this.getTimelineColor('booking', booking.status)
+        color: this.getBookingColor(booking.status)
       });
     });
-    
-    // Add conversations to timeline
-    this.customerConversations.forEach((conv, index) => {
+
+    // Add chat rooms
+    this.userData.chatRooms.forEach((room, index) => {
       activities.push({
-        type: 'conversation',
-        id: conv.conversation_id,
-        title: `Hội thoại #${index + 1}`,
-        description: 'Tư vấn và trao đổi về dịch vụ du lịch',
-        date: conv.created_at,
+        type: 'chat',
+        id: room.room_id,
+        title: room.title || `Hội thoại #${index + 1}`,
+        description: `${room.message_count} tin nhắn`,
+        date: room.created_at,
         icon: 'chat',
         color: 'blue'
       });
     });
-    
-    // Sort by date (newest first)
+
+    // Sort by date
     this.timelineActivities = activities.sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }
 
   /**
-   * Get timeline color based on activity type and status
+   * View chat room messages
    */
-  getTimelineColor(type: string, status?: string): string {
-    if (type === 'booking') {
-      switch (status) {
-        case 'confirmed': return 'green';
-        case 'pending': return 'red';
-        case 'completed': return 'blue';
-        case 'cancelled': return 'yellow';
-        default: return 'gray';
-      }
-    }
-    return 'blue';
-  }
-
-  /**
-   * Get timeline icon class
-   */
-  getTimelineIcon(type: string): string {
-    return type === 'booking' ? 'booking' : 'chat';
-  }
-
-  /**
-   * View activity detail (open respective tab)
-   */
-  viewActivityDetail(activity: any) {
-    if (activity.type === 'booking') {
-      this.activeTab = 'bookings';
-    } else if (activity.type === 'conversation') {
+  viewChatRoom(roomId: string) {
+    const room = this.userData?.chatRooms.find(r => r.room_id === roomId);
+    if (room) {
+      this.selectedRoomId = roomId;
+      this.selectedRoom = room;
       this.activeTab = 'chat';
-      this.loadConversationMessages(activity.id);
     }
   }
 
   /**
-   * Load conversation messages from API
+   * Toggle user status
    */
-  loadConversationMessages(conversationId: string) {
-    this.selectedConversationId = conversationId;
-    this.loadingConversation = true;
-    this.conversationMessages = [];
-    
-    this.customerService.getConversationHistory(conversationId).subscribe({
-      next: (history) => {
-        this.conversationMessages = history.messages;
-        this.loadingConversation = false;
+  toggleUserStatus() {
+    if (!this.userData) return;
+
+    const currentStatus = this.userData.profile.is_active;
+    const newStatus = !currentStatus;
+    const reason = newStatus ? 'Activated by admin' : 'Deactivated by admin';
+
+    this.adminUserService.updateUserStatus(this.userData.profile.user_id, {
+      is_active: newStatus,
+      reason: reason
+    }).subscribe({
+      next: (response) => {
+        if (response.EC === 0 && this.userData) {
+          this.userData.profile.is_active = newStatus;
+          alert(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} user thành công`);
+        }
       },
       error: (error) => {
-        console.error('Error loading conversation:', error);
-        this.loadingConversation = false;
-        // Show mock messages if API fails
-        this.loadMockConversation(conversationId);
+        console.error('Error updating status:', error);
+        alert('Không thể cập nhật trạng thái user');
       }
     });
-  }
-
-  /**
-   * Load mock conversation for demo
-   */
-  loadMockConversation(conversationId: string) {
-    this.conversationMessages = [
-      {
-        message_id: 'msg_001',
-        conversation_id: conversationId,
-        user_id: this.selectedCustomer?.user_id || '',
-        role: 'user',
-        content: 'Tôi muốn tìm tour du lịch Đà Lạt cho gia đình 4 người',
-        created_at: '2024-11-28T10:00:00Z'
-      },
-      {
-        message_id: 'msg_002',
-        conversation_id: conversationId,
-        user_id: 'assistant',
-        role: 'assistant',
-        content: 'Xin chào! Tôi có thể giúp bạn tìm tour Đà Lạt cho 4 người. Bạn có ngân sách dự kiến và thời gian khởi hành mong muốn không?',
-        created_at: '2024-11-28T10:00:15Z'
-      },
-      {
-        message_id: 'msg_003',
-        conversation_id: conversationId,
-        user_id: this.selectedCustomer?.user_id || '',
-        role: 'user',
-        content: 'Khoảng 15 triệu, tháng 12 này',
-        created_at: '2024-11-28T10:02:00Z'
-      },
-      {
-        message_id: 'msg_004',
-        conversation_id: conversationId,
-        user_id: 'assistant',
-        role: 'assistant',
-        content: 'Tôi có một số gói tour phù hợp với ngân sách của bạn:\n\n1. Tour Đà Lạt 3N2Đ - 12,500,000 VNĐ\n2. Tour Đà Lạt Romantic 4N3Đ - 14,800,000 VNĐ\n\nCác tour đều bao gồm khách sạn 4 sao, ăn uống và tham quan các điểm nổi tiếng. Bạn quan tâm tour nào?',
-        created_at: '2024-11-28T10:02:30Z'
-      }
-    ];
-  }
-
-  /**
-   * Switch tab in modal
-   */
-  switchTab(tab: 'info' | 'bookings' | 'chat' | 'timeline') {
-    this.activeTab = tab;
-  }
-
-  /**
-   * Get booking status color
-   */
-  getBookingStatusColor(status: string): string {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-red-100 text-red-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
-      case 'cancelled': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  }
-
-  /**
-   * Get booking status text
-   */
-  getBookingStatusText(status: string): string {
-    switch (status) {
-      case 'confirmed': return 'Đã xác nhận';
-      case 'pending': return 'Chờ xử lý';
-      case 'completed': return 'Hoàn thành';
-      case 'cancelled': return 'Đã hủy';
-      default: return status;
-    }
-  }
-
-  /**
-   * Get payment status color
-   */
-  getPaymentStatusColor(status: string): string {
-    return status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800';
-  }
-
-  /**
-   * Get payment status text
-   */
-  getPaymentStatusText(status: string): string {
-    return status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán';
   }
 
   /**
@@ -349,42 +204,36 @@ export class CustomerListComponent implements OnInit {
    */
   closeDetailModal() {
     this.showDetailModal = false;
-    this.selectedCustomer = null;
+    this.userData = null;
     this.activeTab = 'info';
-    this.customerConversations = [];
-    this.conversationMessages = [];
-    this.selectedConversationId = '';
-    this.customerBookings = [];
+    this.selectedRoomId = '';
+    this.selectedRoom = null;
     this.timelineActivities = [];
   }
 
   /**
-   * Get status badge color
+   * Switch tab
    */
-  getStatusColor(isActive: boolean): string {
-    return isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+  switchTab(tab: 'info' | 'bookings' | 'chat' | 'timeline') {
+    this.activeTab = tab;
   }
 
   /**
-   * Get status text
+   * View activity detail
    */
-  getStatusText(isActive: boolean): string {
-    return isActive ? 'Hoạt động' : 'Không hoạt động';
+  viewActivity(activity: any) {
+    if (activity.type === 'booking') {
+      this.activeTab = 'bookings';
+    } else if (activity.type === 'chat') {
+      this.viewChatRoom(activity.id);
+    }
   }
 
-  /**
-   * Format price
-   */
+  // Utility methods
   formatPrice(price: number): string {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
+    return new Intl.NumberFormat('vi-VN').format(price) + ' VNĐ';
   }
 
-  /**
-   * Format date
-   */
   formatDate(date: string): string {
     return new Date(date).toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -395,48 +244,72 @@ export class CustomerListComponent implements OnInit {
     });
   }
 
-  /**
-   * Format date (short)
-   */
   formatDateShort(date: string): string {
-    return new Date(date).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
+    return new Date(date).toLocaleDateString('vi-VN');
   }
 
-  /**
-   * Get role display name
-   */
+  getStatusColor(isActive: boolean): string {
+    return isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+  }
+
+  getStatusText(isActive: boolean): string {
+    return isActive ? 'Hoạt động' : 'Không hoạt động';
+  }
+
+  getBookingColor(status: string): string {
+    const colors: { [key: string]: string } = {
+      'confirmed': 'green',
+      'pending': 'yellow',
+      'completed': 'blue',
+      'cancelled': 'red'
+    };
+    return colors[status] || 'gray';
+  }
+
+  getBookingStatusColor(status: string): string {
+    const colors: { [key: string]: string } = {
+      'confirmed': 'bg-green-100 text-green-800',
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'completed': 'bg-blue-100 text-blue-800',
+      'cancelled': 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  }
+
+  getBookingStatusText(status: string): string {
+    const texts: { [key: string]: string } = {
+      'confirmed': 'Đã xác nhận',
+      'pending': 'Chờ xử lý',
+      'completed': 'Hoàn thành',
+      'cancelled': 'Đã hủy'
+    };
+    return texts[status] || status;
+  }
+
+  getPaymentStatusColor(status: string): string {
+    return status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800';
+  }
+
+  getPaymentStatusText(status: string): string {
+    return status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán';
+  }
+
   getRoleDisplayName(roleId?: string): string {
-    if (!roleId) return 'Khách hàng';
     const roles: { [key: string]: string } = {
       'customer': 'Khách hàng',
-      'vip': 'Khách VIP',
-      'admin': 'Quản trị viên',
-      'agent': 'Đại lý'
+      'admin': 'Quản trị viên'
     };
-    return roles[roleId] || roleId;
+    return roles[roleId || ''] || 'Người dùng';
   }
 
-  /**
-   * Get role color class
-   */
   getRoleColorClass(roleId?: string): string {
-    if (!roleId) return 'bg-gray-100 text-gray-800';
     const colors: { [key: string]: string } = {
       'customer': 'bg-blue-100 text-blue-800',
-      'vip': 'bg-purple-100 text-purple-800',
-      'admin': 'bg-red-100 text-red-800',
-      'agent': 'bg-green-100 text-green-800'
+      'admin': 'bg-red-100 text-red-800'
     };
-    return colors[roleId] || 'bg-gray-100 text-gray-800';
+    return colors[roleId || ''] || 'bg-gray-100 text-gray-800';
   }
 
-  /**
-   * Get login type display name
-   */
   getLoginTypeDisplayName(loginType: string): string {
     const types: { [key: string]: string } = {
       'email': 'Email/Mật khẩu',
@@ -447,9 +320,6 @@ export class CustomerListComponent implements OnInit {
     return types[loginType] || loginType;
   }
 
-  /**
-   * Get login type icon
-   */
   getLoginTypeIcon(loginType: string): string {
     const icons: { [key: string]: string } = {
       'email': 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',

@@ -61,8 +61,16 @@
   <!-- Main Content -->
   <div class="bg-white rounded-xl shadow-lg">
     <!-- Header -->
-    <div class="border-b border-gray-200 px-6 py-4">
+    <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
       <h2 class="text-2xl font-bold text-gray-800">Quản lý Bookings</h2>
+      <button 
+        (click)="openAddModal()"
+        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Thêm booking mới
+      </button>
     </div>
 
     <!-- Filters -->
@@ -100,7 +108,7 @@
         <button 
           (click)="loadBookings(); calculateStats()" 
           class="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
           Tải lại
@@ -202,18 +210,18 @@
 
 <!-- Detail Modal -->
 <div *ngIf="showDetailModal && currentBooking" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" (click)="closeDetailModal()">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden" (click)="$event.stopPropagation()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden" (click)="$event.stopPropagation()">
     <!-- Modal Header -->
     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
           </div>
           <div>
-            <h3 class="text-2xl font-bold text-white">Chi Tiết Booking</h3>
+            <h3 class="text-2xl font-bold text-white">Chi tiết booking</h3>
             <p class="text-blue-100 text-sm mt-1">Mã: #{{ currentBooking.id }}</p>
           </div>
         </div>
@@ -227,8 +235,8 @@
     </div>
     
     <!-- Modal Content -->
-    <div class="overflow-y-auto max-h-[calc(90vh-180px)] px-8 py-6">
-      <div class="space-y-6">
+    <div class="overflow-y-auto max-h-[calc(95vh-180px)] px-8 py-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Customer Info Section -->
         <div>
           <div class="flex items-center mb-3">
@@ -574,6 +582,144 @@
           (click)="deleteBooking()"
           class="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg">
           Xóa Booking
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Booking Modal -->
+<div *ngIf="showAddModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" (click)="closeAddModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] overflow-hidden" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold text-white">Thêm booking mới</h3>
+            <p class="text-blue-100 text-sm mt-1">Tạo đặt tour cho khách hàng</p>
+          </div>
+        </div>
+        <button (click)="closeAddModal()" 
+          class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-all">
+          <svg class="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Modal Content -->
+    <div class="overflow-y-auto max-h-[calc(95vh-180px)] px-8 py-6">
+      <form class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              Tên khách hàng *
+            </label>
+            <input 
+              type="text" 
+              [(ngModel)]="newBooking.contact_name"
+              name="contact_name"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Nhập tên khách hàng">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              Số điện thoại *
+            </label>
+            <input 
+              type="tel" 
+              [(ngModel)]="newBooking.contact_phone"
+              name="contact_phone"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Nhập số điện thoại">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              Package ID (Tour) *
+            </label>
+            <input 
+              type="text" 
+              [(ngModel)]="newBooking.package_id"
+              name="package_id"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="UUID của tour package">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              User ID *
+            </label>
+            <input 
+              type="text" 
+              [(ngModel)]="newBooking.user_id"
+              name="user_id"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="UUID của user">
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              Số người *
+            </label>
+            <input 
+              type="number" 
+              [(ngModel)]="newBooking.number_of_people"
+              name="number_of_people"
+              min="1"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Nhập số người">
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Yêu cầu đặc biệt
+          </label>
+          <textarea 
+            [(ngModel)]="newBooking.special_requests"
+            name="special_requests"
+            rows="4"
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            placeholder="Nhập yêu cầu đặc biệt (nếu có)..."></textarea>
+        </div>
+        
+        <div *ngIf="errorMessage" class="p-4 bg-red-50 border border-red-200 rounded-xl">
+          <p class="text-sm text-red-600">{{ errorMessage }}</p>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Modal Footer -->
+    <div class="border-t border-gray-200 px-8 py-6 bg-gray-50">
+      <div class="flex gap-3">
+        <button 
+          (click)="closeAddModal()"
+          class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100 transition-all">
+          Hủy
+        </button>
+        <button 
+          (click)="saveNewBooking()"
+          [disabled]="isLoading"
+          class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
+          <svg *ngIf="isLoading" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Tạo Booking
         </button>
       </div>
     </div>
