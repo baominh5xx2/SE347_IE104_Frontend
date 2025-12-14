@@ -65,10 +65,10 @@
                 <div class="detail-item">
                   <span class="detail-label">Mã khuyến mãi:</span>
                   <div class="code-container">
-                    <span class="promotion-code">{{ promo.promotion_id }}</span>
+                    <span class="promotion-code">{{ promo.code }}</span>
                     <button 
                       class="btn-copy" 
-                      (click)="copyToClipboard(promo.promotion_id)"
+                      (click)="copyToClipboard(promo.code)"
                       [disabled]="isExpired(promo)">
                       Sao chép
                     </button>
