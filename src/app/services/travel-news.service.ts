@@ -121,8 +121,8 @@ export class TravelNewsService {
     try {
       const requestBody: any = {
         keywords: keywords.trim(),
-        page: page,
-        limit: limit
+        page: Math.floor(page),
+        limit: Math.floor(limit)
       };
 
       if (sourceType && sourceType !== 'all') {
@@ -226,8 +226,8 @@ export class TravelNewsService {
       if (sourceType && sourceType !== 'all') {
         queryParams.append('source_type', sourceType);
       }
-      queryParams.append('page', page.toString());
-      queryParams.append('limit', limit.toString());
+      queryParams.append('page', Math.floor(page).toString());
+      queryParams.append('limit', Math.floor(limit).toString());
 
       const url = `${this.apiBaseUrl}/travel-news/list${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       
