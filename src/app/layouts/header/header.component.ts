@@ -5,10 +5,11 @@ import { AuthStateService } from '../../services/auth-state.service';
 import { ChatbotService } from '../../services/chatbot.service';
 import { AiChatbotComponent } from '../../components/ai-chatbot/ai-chatbot.component';
 import { Subscription } from 'rxjs';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, CommonModule, AiChatbotComponent],
+  imports: [RouterLink, CommonModule, AiChatbotComponent, ClickOutsideDirective],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
@@ -18,6 +19,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   showChatbot = false;
   isAuthenticated = false;
   currentUser: any = null;
+  showDropdown = false;
   private chatbotSubscription?: Subscription;
 
 
@@ -116,6 +118,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   closeChatbot(): void {
     this.showChatbot = false;
+  }
+
+  toggleDropdown(): void {
+    this.showDropdown = !this.showDropdown;
+  }
+
+  closeDropdown(): void {
+    this.showDropdown = false;
   }
 }
 

@@ -1,6 +1,6 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { HeroComponent } from '../../components/hero/hero.component';
 import { CouponListComponent } from '../../components/coupon-list/coupon-list.component';
 import { TourCardComponent } from '../../components/tour-card/tour-card.component';
@@ -10,6 +10,8 @@ import { TravelNewsService } from '../../services/travel-news.service';
 import { Tour } from '../../shared/models/tour.model';
 import { TravelNews } from '../../shared/models/travel-news.model';
 import { AuthStateService } from '../../services/auth-state.service';
+import { AuthService } from '../../services/auth.service';
+import { take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-home',
@@ -44,16 +46,78 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     private tourService: TourService,
     private travelNewsService: TravelNewsService,
     private authStateService: AuthStateService,
+    private authService: AuthService,
+    private route: ActivatedRoute,
+    private router: Router,
     private elementRef: ElementRef
   ) {}
 
   async ngOnInit() {
+    // Check for Google OAuth token in query params - only process once
+    this.route.queryParams.pipe(take(1)).subscribe(params => {
+      const token = params['token'];
+      if (token) {
+        this.handleGoogleAuthToken(token);
+      }
+    });
+
     await Promise.all([
       this.loadFeaturedTours(),
       this.loadRecommendedTours(),
       this.loadLatestTours(),
       this.loadTravelNews()
     ]);
+  }
+
+  private handleGoogleAuthToken(token: string): void {
+    console.log('Processing Google auth token...');
+    
+    // Store token first
+    localStorage.setItem('access_token', token);
+    
+    // Remove token from URL immediately (before processing)
+    this.router.navigate(['/home'], { 
+      replaceUrl: true,
+      queryParams: {}
+    });
+    
+    // Verify token and login
+    this.authService.verifyToken(token).subscribe({
+      next: (response) => {
+        console.log('Token verification response:', response);
+        
+        if (response.EC === 0 && response.data) {
+          // Create user object from token data
+          const user = {
+            email: response.data.email || '',
+            full_name: response.data.full_name || '',
+            user_id: response.data.user_id || response.data.email || '',
+            role: response.data.role || 'user'
+          };
+          
+          console.log('User object created:', user);
+          
+          // Store user in localStorage
+          localStorage.setItem('user', JSON.stringify(user));
+          
+          // Update auth state service to trigger UI update
+          this.authStateService.login(token, user);
+          
+          console.log('User logged in successfully:', user.full_name);
+        } else {
+          console.error('Token verification failed:', response.EM);
+          // Clear invalid token if verification failed
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('user');
+        }
+      },
+      error: (error) => {
+        console.error('Token verification error:', error);
+        // Clear invalid token
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+      }
+    });
   }
 
   ngAfterViewInit() {
