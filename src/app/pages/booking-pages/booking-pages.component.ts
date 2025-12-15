@@ -6,6 +6,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { BookingService } from '../../services/booking.service';
 import { TourService } from '../../services/tour.service';
 import { AuthStateService } from '../../services/auth-state.service';
+import { PromotionService, Promotion } from '../../services/promotion.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -34,6 +35,21 @@ export class BookingPagesComponent implements OnInit {
 
   currentUser: any = null;
 
+  // OTP state
+  showOTPForm = false;
+  bookingIdForOTP: string = '';
+  otpCode: string = '';
+  isVerifyingOTP = false;
+  isResendingOTP = false;
+  otpErrorMessage = '';
+  otpSuccessMessage = '';
+
+  // Promotion state
+  availablePromotions: Promotion[] = [];
+  selectedPromotion: Promotion | null = null;
+  isLoadingPromotions = false;
+  discountAmount = 0;
+
   priceBreakdown: PriceBreakdown = {
     roomDescription: '',
     roomPrice: 0,
@@ -46,7 +62,8 @@ export class BookingPagesComponent implements OnInit {
     private route: ActivatedRoute,
     private bookingService: BookingService,
     private tourService: TourService,
-    private authStateService: AuthStateService
+    private authStateService: AuthStateService,
+    private promotionService: PromotionService
   ) {}
 
   ngOnInit(): void {
@@ -64,6 +81,9 @@ export class BookingPagesComponent implements OnInit {
         this.email = user.email || '';
       }
     });
+
+    // Load available promotions
+    this.loadAvailablePromotions();
   }
 
   async loadTourPackage(): Promise<void> {
@@ -89,13 +109,52 @@ export class BookingPagesComponent implements OnInit {
       const basePrice = this.tourPackage.price || 0;
       const totalPrice = basePrice * this.numberOfPeople;
       
+      // Calculate discount if promotion is applied
+      let finalPrice = totalPrice;
+      if (this.selectedPromotion) {
+        if (this.selectedPromotion.discount_type === 'PERCENTAGE') {
+          this.discountAmount = (totalPrice * this.selectedPromotion.discount_value) / 100;
+        } else if (this.selectedPromotion.discount_type === 'FIXED_AMOUNT') {
+          this.discountAmount = this.selectedPromotion.discount_value;
+        }
+        finalPrice = Math.max(0, totalPrice - this.discountAmount);
+      } else {
+        this.discountAmount = 0;
+      }
+      
       this.priceBreakdown = {
         roomDescription: `${this.tourPackage.package_name} - ${this.numberOfPeople} người`,
         roomPrice: totalPrice,
         taxAndFees: 0,
-        totalPrice: totalPrice,
+        totalPrice: finalPrice,
       };
     }
+  }
+
+  loadAvailablePromotions(): void {
+    this.isLoadingPromotions = true;
+    this.promotionService.getAvailablePromotions().subscribe({
+      next: (response) => {
+        if (response.EC === 0 && response.promotions) {
+          this.availablePromotions = response.promotions;
+        }
+        this.isLoadingPromotions = false;
+      },
+      error: (error) => {
+        console.error('Error loading promotions:', error);
+        this.isLoadingPromotions = false;
+      }
+    });
+  }
+
+  applyPromotion(promotion: Promotion): void {
+    this.selectedPromotion = promotion;
+    this.updatePriceBreakdown();
+  }
+
+  removePromotion(): void {
+    this.selectedPromotion = null;
+    this.updatePriceBreakdown();
   }
 
   onNumberOfPeopleChange(): void {
@@ -117,29 +176,56 @@ export class BookingPagesComponent implements OnInit {
       return;
     }
 
+    // Get email from user or form
+    const contactEmail = this.email || this.currentUser?.email || '';
+    
+    if (!contactEmail) {
+      this.errorMessage = 'Vui lòng nhập email để nhận mã OTP xác nhận.';
+      this.isLoading = false;
+      return;
+    }
+
     const bookingData = {
       package_id: this.packageId,
       number_of_people: this.numberOfPeople,
       contact_name: this.fullName,
       contact_phone: this.phoneNumber,
+      contact_email: contactEmail,
       user_id: this.currentUser.user_id,
-      special_requests: this.specialRequests || undefined
+      special_requests: this.specialRequests || undefined,
+      promotion_code: this.selectedPromotion?.code || undefined
     };
 
     this.bookingService.createBooking(bookingData).subscribe({
       next: (response) => {
-        if (response.EC === 0) {
-          this.successMessage = 'Đặt tour thành công! Đang chuyển đến trang đơn hàng của bạn...';
-          this.errorMessage = '';
-          this.isLoading = false;
+        if (response.EC === 0 && response.data) {
+          // Backend returns BookingOTPResponse with data as dict
+          // Handle both structured object and dict
+          const data = response.data as any;
+          const bookingId = data.booking_id || (typeof data === 'object' && 'booking_id' in data ? data.booking_id : null);
           
-          setTimeout(() => {
+          // Always show OTP form for create-with-otp endpoint
+          if (bookingId) {
+            this.bookingIdForOTP = bookingId;
+            this.showOTPForm = true;
+            this.successMessage = response.EM || 'Mã OTP đã được gửi đến email của bạn. Vui lòng nhập mã OTP để xác nhận đặt tour.';
+            this.errorMessage = '';
+            this.isLoading = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
-          }, 100);
-          
-          setTimeout(() => {
-            this.router.navigate(['/my-bookings']);
-          }, 3000);
+          } else {
+            // Fallback: No booking_id, try to redirect
+            this.successMessage = 'Đặt tour thành công! Đang chuyển đến trang đơn hàng của bạn...';
+            this.errorMessage = '';
+            this.isLoading = false;
+            
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+            
+            setTimeout(() => {
+              this.router.navigate(['/my-bookings']);
+            }, 3000);
+          }
         } else {
           this.errorMessage = response.EM || 'Không thể tạo đơn đặt tour';
           this.successMessage = '';
@@ -149,7 +235,7 @@ export class BookingPagesComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error creating booking:', error);
-        this.errorMessage = 'Có lỗi xảy ra khi tạo đơn đặt tour. Vui lòng thử lại sau.';
+        this.errorMessage = error.error?.detail || error.error?.EM || 'Có lỗi xảy ra khi tạo đơn đặt tour. Vui lòng thử lại sau.';
         this.successMessage = '';
         this.isLoading = false;
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -186,6 +272,100 @@ export class BookingPagesComponent implements OnInit {
       style: 'currency',
       currency: 'VND'
     }).format(price);
+  }
+
+  verifyOTP(): void {
+    if (!this.otpCode || this.otpCode.length !== 6) {
+      this.otpErrorMessage = 'Vui lòng nhập mã OTP 6 số.';
+      return;
+    }
+
+    if (!this.bookingIdForOTP) {
+      this.otpErrorMessage = 'Không tìm thấy thông tin booking.';
+      return;
+    }
+
+    this.isVerifyingOTP = true;
+    this.otpErrorMessage = '';
+    this.otpSuccessMessage = '';
+
+    this.bookingService.verifyOTP(this.bookingIdForOTP, this.otpCode).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.otpSuccessMessage = 'Xác nhận OTP thành công! Đặt tour của bạn đã được xác nhận.';
+          this.otpErrorMessage = '';
+          this.isVerifyingOTP = false;
+          
+          // Hide OTP form and show success
+          setTimeout(() => {
+            this.showOTPForm = false;
+            this.successMessage = 'Đặt tour thành công! Đang chuyển đến trang đơn hàng của bạn...';
+            setTimeout(() => {
+              this.router.navigate(['/my-bookings']);
+            }, 2000);
+          }, 2000);
+        } else {
+          this.otpErrorMessage = response.EM || 'Mã OTP không đúng. Vui lòng thử lại.';
+          this.otpSuccessMessage = '';
+          this.isVerifyingOTP = false;
+        }
+      },
+      error: (error) => {
+        console.error('Error verifying OTP:', error);
+        this.otpErrorMessage = error.error?.detail || error.error?.EM || 'Có lỗi xảy ra khi xác nhận OTP. Vui lòng thử lại.';
+        this.otpSuccessMessage = '';
+        this.isVerifyingOTP = false;
+      }
+    });
+  }
+
+  resendOTP(): void {
+    if (!this.bookingIdForOTP) {
+      this.otpErrorMessage = 'Không tìm thấy thông tin booking.';
+      return;
+    }
+
+    this.isResendingOTP = true;
+    this.otpErrorMessage = '';
+    this.otpSuccessMessage = '';
+
+    this.bookingService.resendOTP(this.bookingIdForOTP).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.otpSuccessMessage = 'Mã OTP mới đã được gửi đến email của bạn.';
+          this.otpErrorMessage = '';
+          this.otpCode = ''; // Clear old OTP
+          this.isResendingOTP = false;
+        } else {
+          this.otpErrorMessage = response.EM || 'Không thể gửi lại mã OTP. Vui lòng thử lại.';
+          this.otpSuccessMessage = '';
+          this.isResendingOTP = false;
+        }
+      },
+      error: (error) => {
+        console.error('Error resending OTP:', error);
+        this.otpErrorMessage = error.error?.detail || error.error?.EM || 'Có lỗi xảy ra khi gửi lại OTP. Vui lòng thử lại.';
+        this.otpSuccessMessage = '';
+        this.isResendingOTP = false;
+      }
+    });
+  }
+
+  onOTPInput(event: any): void {
+    // Only allow numbers and limit to 6 digits
+    let value = event.target.value.replace(/\D/g, '');
+    if (value.length > 6) {
+      value = value.substring(0, 6);
+    }
+    this.otpCode = value;
+    event.target.value = value;
+  }
+
+  onOTPEnter(): void {
+    // Only verify if OTP is complete (6 digits) and not already verifying
+    if (this.otpCode.length === 6 && !this.isVerifyingOTP) {
+      this.verifyOTP();
+    }
   }
 }
 

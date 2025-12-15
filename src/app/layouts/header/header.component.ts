@@ -28,7 +28,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     { label: 'Tour du lịch', url: '/tours' },
     { label: 'Khuyến mãi', url: '/promotions' },
     { label: 'Tin tức & Cẩm nang', url: '/travel-news' },
-    { label: 'Trợ giúp', url: '' },
+    { label: 'Đánh giá', url: '/reviews' },
   ]
 
   get topMenu(): Menu[] {

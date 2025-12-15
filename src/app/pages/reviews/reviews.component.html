@@ -1,0 +1,235 @@
+<div class="reviews-container">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Đánh giá của tôi</h1>
+
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+      {{ errorMessage }}
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="mt-2 text-gray-600">Đang tải...</p>
+    </div>
+
+    <!-- Tours Available for Review -->
+    <div *ngIf="!isLoading && bookings.length > 0" class="mb-8">
+      <h2 class="text-2xl font-semibold text-gray-700 mb-4">Tour đã hoàn thành - Có thể đánh giá</h2>
+      <div class="grid gap-4">
+        <div *ngFor="let booking of bookings" class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">{{ booking.package_name }}</h3>
+              <p class="text-gray-600 mb-2">
+                <svg class="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                {{ booking.destination }}
+              </p>
+              <p class="text-sm text-gray-500">Ngày đặt: {{ booking.booking_date | date:'dd/MM/yyyy' }}</p>
+            </div>
+            <div class="ml-4">
+              <button
+                *ngIf="!hasReviewForBooking(booking.booking_id)"
+                (click)="openCreateForm(booking)"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                Viết đánh giá
+              </button>
+              <span
+                *ngIf="hasReviewForBooking(booking.booking_id)"
+                class="text-green-600 font-medium">
+                Đã đánh giá
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No Tours Available -->
+    <div *ngIf="!isLoading && bookings.length === 0" class="bg-gray-50 rounded-lg p-8 text-center mb-8">
+      <p class="text-gray-600">Bạn chưa có tour nào đã hoàn thành để đánh giá.</p>
+    </div>
+
+    <!-- My Reviews -->
+    <div *ngIf="!isLoading && reviews.length > 0" class="mt-8">
+      <h2 class="text-2xl font-semibold text-gray-700 mb-4">Đánh giá của tôi</h2>
+      <div class="grid gap-4">
+        <div *ngFor="let review of reviews" class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div class="flex justify-between items-start mb-4">
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ review.package_name || 'Tour' }}</h3>
+              <p *ngIf="review.destination" class="text-gray-600 mb-2">{{ review.destination }}</p>
+              <div class="flex items-center mb-2">
+                <div class="flex">
+                  <span *ngFor="let filled of getStarsArray(review.rating)" class="text-yellow-400 text-xl">★</span>
+                  <span *ngFor="let empty of getStarsArray(5 - review.rating)" class="text-gray-300 text-xl">★</span>
+                </div>
+                <span class="ml-2 text-gray-600">{{ review.rating }}/5</span>
+              </div>
+              <p *ngIf="review.comment" class="text-gray-700 mt-2">{{ review.comment }}</p>
+              <p class="text-sm text-gray-500 mt-2">
+                {{ review.created_at | date:'dd/MM/yyyy HH:mm' }}
+                <span *ngIf="review.is_approved" class="ml-2 text-green-600">✓ Đã duyệt</span>
+                <span *ngIf="!review.is_approved" class="ml-2 text-yellow-600">⏳ Chờ duyệt</span>
+              </p>
+            </div>
+            <div class="ml-4 flex gap-2">
+              <button
+                (click)="openEditForm(review)"
+                class="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                title="Sửa đánh giá">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button
+                (click)="deleteReview(review)"
+                class="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Xóa đánh giá">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No Reviews -->
+    <div *ngIf="!isLoading && reviews.length === 0 && bookings.length === 0" class="bg-gray-50 rounded-lg p-8 text-center">
+      <p class="text-gray-600">Bạn chưa có đánh giá nào.</p>
+    </div>
+  </div>
+
+  <!-- Create Review Modal -->
+  <div *ngIf="showCreateForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold text-gray-800">Viết đánh giá</h2>
+          <button (click)="closeCreateForm()" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div *ngIf="selectedBooking" class="mb-4 p-4 bg-gray-50 rounded-lg">
+          <h3 class="font-semibold text-gray-800">{{ selectedBooking.package_name }}</h3>
+          <p class="text-gray-600">{{ selectedBooking.destination }}</p>
+        </div>
+
+        <form (ngSubmit)="createReview()">
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Đánh giá (sao)</label>
+            <div class="flex gap-2">
+              <button
+                *ngFor="let i of [1,2,3,4,5]"
+                type="button"
+                (click)="newReview.rating = i"
+                [class.text-yellow-400]="i <= newReview.rating"
+                [class.text-gray-300]="i > newReview.rating"
+                class="text-3xl focus:outline-none transition-colors">
+                ★
+              </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">{{ newReview.rating }}/5 sao</p>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Bình luận</label>
+            <textarea
+              [(ngModel)]="newReview.comment"
+              name="comment"
+              rows="5"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Chia sẻ trải nghiệm của bạn về tour này..."></textarea>
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button
+              type="button"
+              (click)="closeCreateForm()"
+              class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              Hủy
+            </button>
+            <button
+              type="submit"
+              [disabled]="isLoading"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+              Gửi đánh giá
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Review Modal -->
+  <div *ngIf="editingReview" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold text-gray-800">Sửa đánh giá</h2>
+          <button (click)="closeEditForm()" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div *ngIf="editingReview" class="mb-4 p-4 bg-gray-50 rounded-lg">
+          <h3 class="font-semibold text-gray-800">{{ editingReview.package_name || 'Tour' }}</h3>
+          <p *ngIf="editingReview.destination" class="text-gray-600">{{ editingReview.destination }}</p>
+        </div>
+
+        <form (ngSubmit)="updateReview()">
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Đánh giá (sao)</label>
+            <div class="flex gap-2">
+              <button
+                *ngFor="let i of [1,2,3,4,5]"
+                type="button"
+                (click)="editForm.rating = i"
+                [class.text-yellow-400]="i <= (editForm.rating || 5)"
+                [class.text-gray-300]="i > (editForm.rating || 5)"
+                class="text-3xl focus:outline-none transition-colors">
+                ★
+              </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">{{ editForm.rating || 5 }}/5 sao</p>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-gray-700 font-medium mb-2">Bình luận</label>
+            <textarea
+              [(ngModel)]="editForm.comment"
+              name="editComment"
+              rows="5"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Chia sẻ trải nghiệm của bạn về tour này..."></textarea>
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button
+              type="button"
+              (click)="closeEditForm()"
+              class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              Hủy
+            </button>
+            <button
+              type="submit"
+              [disabled]="isLoading"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+              Cập nhật
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

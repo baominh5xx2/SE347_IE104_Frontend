@@ -85,4 +85,9 @@ export const routes: Routes = [
     path: 'travel-news',
     loadComponent: () => import('./pages/travel-news/travel-news.component').then(m => m.TravelNewsComponent)
   },
+  {
+    path: 'reviews',
+    loadComponent: () => import('./pages/reviews/reviews.component').then(m => m.ReviewsComponent),
+    canActivate: [authGuard]
+  },
 ];
