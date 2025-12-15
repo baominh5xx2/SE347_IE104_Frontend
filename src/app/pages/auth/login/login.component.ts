@@ -15,6 +15,7 @@ export class LoginComponent {
   loginMethod: 'email' | 'phone' = 'email';
   isLoading = false;
   otpSent = false;
+  errorMessage: string | null = null;
 
   loginForm = {
     email: '',
@@ -35,6 +36,7 @@ export class LoginComponent {
 
   onLogin() {
     this.isLoading = true;
+    this.errorMessage = null;
 
     if (this.loginMethod === 'email') {
       if (this.loginForm.email && this.loginForm.password) {
@@ -57,14 +59,25 @@ export class LoginComponent {
               } else {
                 this.router.navigate(['/home']);
               }
+            } else {
+              // Handle error response from backend
+              this.errorMessage = response.EM || 'Vui lòng nhập đầy đủ email và mật khẩu.';
             }
           },
           error: (error) => {
             console.error('Login error:', error);
             this.isLoading = false;
-            // Error handling - removed alert
+            // Handle HTTP errors
+            if (error.error && error.error.EM) {
+              this.errorMessage = error.error.EM;
+            } else {
+              this.errorMessage = 'Vui lòng nhập đầy đủ email và mật khẩu.';
+            }
           }
         });
+      } else {
+        this.isLoading = false;
+        this.errorMessage = 'Vui lòng nhập đầy đủ email và mật khẩu.';
       }
     } else {
       if (this.phoneForm.phone && this.phoneForm.otp) {
@@ -77,10 +90,22 @@ export class LoginComponent {
           error: (error) => {
             console.error('Phone login error:', error);
             this.isLoading = false;
+            if (error.error && error.error.EM) {
+              this.errorMessage = error.error.EM;
+            } else {
+              this.errorMessage = 'Đã có lỗi xảy ra. Vui lòng thử lại sau.';
+            }
           }
         });
+      } else {
+        this.isLoading = false;
+        this.errorMessage = 'Vui lòng nhập đầy đủ số điện thoại và mã OTP.';
       }
     }
+  }
+
+  clearError() {
+    this.errorMessage = null;
   }
 
   sendOTP() {

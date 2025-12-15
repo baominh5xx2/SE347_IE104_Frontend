@@ -193,7 +193,7 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
   }
 
   onClose(): void {
-    this.router.navigate(['/home']);
+    this.router.navigate(['/home'], { replaceUrl: true });
   }
 
   async sendMessage(): Promise<void> {
@@ -907,8 +907,8 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
       return;
     }
     
-    this.onClose();
-    this.router.navigate(['/tour-details', tourId]);
+    // Navigate directly to tour details, replacing the chat route
+    this.router.navigate(['/tour-details', tourId], { replaceUrl: true });
   }
 
 
