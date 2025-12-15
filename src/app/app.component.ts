@@ -76,7 +76,7 @@ export class AppComponent implements OnInit {
   }
 
   private checkRoute(): void {
-    this.isChatPage = this.router.url === '/chat';
+    this.isChatPage = this.router.url.startsWith('/chat-room/');
     this.isAdminPage = this.router.url.startsWith('/admin');
   }
 }
