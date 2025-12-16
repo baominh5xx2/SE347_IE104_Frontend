@@ -186,7 +186,17 @@
                 </div>
                 <div class="ml-4">
                   <div class="text-sm font-medium text-gray-900">{{ user.full_name }}</div>
-                  <div class="text-sm text-gray-500">ID: {{ user.user_id.substring(0, 8) }}...</div>
+                  <div class="text-sm text-gray-500 flex items-center gap-2">
+                    <span>ID: {{ user.user_id.substring(0, 8) }}...</span>
+                    <button 
+                      (click)="copyToClipboard(user.user_id)"
+                      class="text-blue-600 hover:text-blue-800 transition-colors"
+                      title="Copy User ID">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </td>
@@ -442,7 +452,17 @@
         <div class="grid grid-cols-2 gap-6">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">User ID</label>
-            <p class="text-gray-900 font-mono text-sm">{{ selectedUser.user_id }}</p>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-900 font-mono text-sm flex-1">{{ selectedUser.user_id }}</p>
+              <button 
+                (click)="copyToClipboard(selectedUser.user_id)"
+                class="text-blue-600 hover:text-blue-800 transition-colors p-1"
+                title="Copy User ID">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
