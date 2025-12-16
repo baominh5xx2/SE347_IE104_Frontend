@@ -17,6 +17,29 @@ export class PromotionListComponent implements OnInit {
   searchTerm = '';
   statusFilter: string = '';
   
+  // Advanced Filters
+  showAdvancedFilters = false;
+  
+  // Discount filter
+  minDiscountFilter: number | '' = '';
+  maxDiscountFilter: number | '' = '';
+  isDiscountFilterActive = false;
+  
+  // Date range filter
+  startDateFilter = '';
+  endDateFilter = '';
+  isDateRangeFilterActive = false;
+  
+  // Quantity filter
+  minQuantityFilter: number | '' = '';
+  maxQuantityFilter: number | '' = '';
+  isQuantityFilterActive = false;
+  
+  // User count filter
+  minUserCountFilter: number | '' = '';
+  maxUserCountFilter: number | '' = '';
+  isUserCountFilterActive = false;
+  
   showAddModal = false;
   showEditModal = false;
   showDeleteModal = false;
@@ -368,6 +391,175 @@ export class PromotionListComponent implements OnInit {
     const total = percentagePromotions.reduce((sum, promo) => sum + promo.discount_value, 0);
     const average = total / percentagePromotions.length;
     return `${average.toFixed(1)}%`;
+  }
+
+  // Advanced Filter Methods
+  applyDiscountFilter() {
+    if (!this.minDiscountFilter && !this.maxDiscountFilter) {
+      this.errorMessage = 'Vui lòng nhập giá trị giảm tối thiểu hoặc tối đa';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    const params: any = { limit: 100 };
+
+    if (this.minDiscountFilter) params.min_discount_value = Number(this.minDiscountFilter);
+    if (this.maxDiscountFilter) params.max_discount_value = Number(this.maxDiscountFilter);
+    if (this.statusFilter === 'active') params.is_active = true;
+    else if (this.statusFilter === 'inactive') params.is_active = false;
+
+    this.promotionService.filterByDiscount(params).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.promotions = response.promotions || [];
+          this.applyFilters();
+          this.isDiscountFilterActive = true;
+        } else {
+          this.errorMessage = response.EM || 'Không thể lọc theo giá trị giảm';
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi lọc theo giá trị giảm';
+        console.error('Filter by discount error:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  clearDiscountFilter() {
+    this.minDiscountFilter = '';
+    this.maxDiscountFilter = '';
+    this.isDiscountFilterActive = false;
+    this.loadPromotions();
+  }
+
+  applyDateRangeFilter() {
+    if (!this.startDateFilter && !this.endDateFilter) {
+      this.errorMessage = 'Vui lòng nhập ngày bắt đầu hoặc ngày kết thúc';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    const params: any = { limit: 100 };
+
+    if (this.startDateFilter) params.start_date = this.startDateFilter;
+    if (this.endDateFilter) params.end_date = this.endDateFilter;
+    if (this.statusFilter === 'active') params.is_active = true;
+    else if (this.statusFilter === 'inactive') params.is_active = false;
+
+    this.promotionService.filterByDateRange(params).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.promotions = response.promotions || [];
+          this.applyFilters();
+          this.isDateRangeFilterActive = true;
+        } else {
+          this.errorMessage = response.EM || 'Không thể lọc theo ngày';
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi lọc theo ngày';
+        console.error('Filter by date range error:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  clearDateRangeFilter() {
+    this.startDateFilter = '';
+    this.endDateFilter = '';
+    this.isDateRangeFilterActive = false;
+    this.loadPromotions();
+  }
+
+  applyQuantityFilter() {
+    if (!this.minQuantityFilter && !this.maxQuantityFilter) {
+      this.errorMessage = 'Vui lòng nhập số lượng tối thiểu hoặc tối đa';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    const params: any = { limit: 100 };
+
+    if (this.minQuantityFilter) params.min_quantity = Number(this.minQuantityFilter);
+    if (this.maxQuantityFilter) params.max_quantity = Number(this.maxQuantityFilter);
+    if (this.statusFilter === 'active') params.is_active = true;
+    else if (this.statusFilter === 'inactive') params.is_active = false;
+
+    this.promotionService.filterByQuantity(params).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.promotions = response.promotions || [];
+          this.applyFilters();
+          this.isQuantityFilterActive = true;
+        } else {
+          this.errorMessage = response.EM || 'Không thể lọc theo số lượng';
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi lọc theo số lượng';
+        console.error('Filter by quantity error:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  clearQuantityFilter() {
+    this.minQuantityFilter = '';
+    this.maxQuantityFilter = '';
+    this.isQuantityFilterActive = false;
+    this.loadPromotions();
+  }
+
+  applyUserCountFilter() {
+    if (!this.minUserCountFilter && !this.maxUserCountFilter) {
+      this.errorMessage = 'Vui lòng nhập số lượt sử dụng tối thiểu hoặc tối đa';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    const params: any = { limit: 100 };
+
+    if (this.minUserCountFilter) params.min_user_count = Number(this.minUserCountFilter);
+    if (this.maxUserCountFilter) params.max_user_count = Number(this.maxUserCountFilter);
+    if (this.statusFilter === 'active') params.is_active = true;
+    else if (this.statusFilter === 'inactive') params.is_active = false;
+
+    this.promotionService.filterByUserCount(params).subscribe({
+      next: (response) => {
+        if (response.EC === 0) {
+          this.promotions = response.promotions || [];
+          this.applyFilters();
+          this.isUserCountFilterActive = true;
+        } else {
+          this.errorMessage = response.EM || 'Không thể lọc theo lượt sử dụng';
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.errorMessage = 'Lỗi khi lọc theo lượt sử dụng';
+        console.error('Filter by user count error:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  clearUserCountFilter() {
+    this.minUserCountFilter = '';
+    this.maxUserCountFilter = '';
+    this.isUserCountFilterActive = false;
+    this.loadPromotions();
   }
 }
 
