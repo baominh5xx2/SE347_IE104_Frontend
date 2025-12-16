@@ -168,4 +168,152 @@ export class AdminPromotionService {
       }
     );
   }
+
+  /**
+   * Filter promotions by discount value range
+   */
+  filterByDiscount(params: {
+    min_discount_value?: number;
+    max_discount_value?: number;
+    is_active?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Observable<PromotionListResponse> {
+    let httpParams = new HttpParams();
+    
+    if (params.min_discount_value !== undefined) {
+      httpParams = httpParams.set('min_discount_value', params.min_discount_value.toString());
+    }
+    if (params.max_discount_value !== undefined) {
+      httpParams = httpParams.set('max_discount_value', params.max_discount_value.toString());
+    }
+    if (params.is_active !== undefined) {
+      httpParams = httpParams.set('is_active', params.is_active.toString());
+    }
+    if (params.limit !== undefined) {
+      httpParams = httpParams.set('limit', params.limit.toString());
+    }
+    if (params.offset !== undefined) {
+      httpParams = httpParams.set('offset', params.offset.toString());
+    }
+
+    return this.http.get<PromotionListResponse>(
+      `${this.apiBaseUrl}/promotions/filter/by-discount`,
+      {
+        headers: this.getHeaders(),
+        params: httpParams
+      }
+    );
+  }
+
+  /**
+   * Filter promotions by date range
+   */
+  filterByDateRange(params: {
+    start_date?: string;
+    end_date?: string;
+    is_active?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Observable<PromotionListResponse> {
+    let httpParams = new HttpParams();
+    
+    if (params.start_date) {
+      httpParams = httpParams.set('start_date', params.start_date);
+    }
+    if (params.end_date) {
+      httpParams = httpParams.set('end_date', params.end_date);
+    }
+    if (params.is_active !== undefined) {
+      httpParams = httpParams.set('is_active', params.is_active.toString());
+    }
+    if (params.limit !== undefined) {
+      httpParams = httpParams.set('limit', params.limit.toString());
+    }
+    if (params.offset !== undefined) {
+      httpParams = httpParams.set('offset', params.offset.toString());
+    }
+
+    return this.http.get<PromotionListResponse>(
+      `${this.apiBaseUrl}/promotions/filter/by-date-range`,
+      {
+        headers: this.getHeaders(),
+        params: httpParams
+      }
+    );
+  }
+
+  /**
+   * Filter promotions by quantity range
+   */
+  filterByQuantity(params: {
+    min_quantity?: number;
+    max_quantity?: number;
+    is_active?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Observable<PromotionListResponse> {
+    let httpParams = new HttpParams();
+    
+    if (params.min_quantity !== undefined) {
+      httpParams = httpParams.set('min_quantity', params.min_quantity.toString());
+    }
+    if (params.max_quantity !== undefined) {
+      httpParams = httpParams.set('max_quantity', params.max_quantity.toString());
+    }
+    if (params.is_active !== undefined) {
+      httpParams = httpParams.set('is_active', params.is_active.toString());
+    }
+    if (params.limit !== undefined) {
+      httpParams = httpParams.set('limit', params.limit.toString());
+    }
+    if (params.offset !== undefined) {
+      httpParams = httpParams.set('offset', params.offset.toString());
+    }
+
+    return this.http.get<PromotionListResponse>(
+      `${this.apiBaseUrl}/promotions/filter/by-quantity`,
+      {
+        headers: this.getHeaders(),
+        params: httpParams
+      }
+    );
+  }
+
+  /**
+   * Filter promotions by user count (used_count) range
+   */
+  filterByUserCount(params: {
+    min_user_count?: number;
+    max_user_count?: number;
+    is_active?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Observable<PromotionListResponse> {
+    let httpParams = new HttpParams();
+    
+    if (params.min_user_count !== undefined) {
+      httpParams = httpParams.set('min_user_count', params.min_user_count.toString());
+    }
+    if (params.max_user_count !== undefined) {
+      httpParams = httpParams.set('max_user_count', params.max_user_count.toString());
+    }
+    if (params.is_active !== undefined) {
+      httpParams = httpParams.set('is_active', params.is_active.toString());
+    }
+    if (params.limit !== undefined) {
+      httpParams = httpParams.set('limit', params.limit.toString());
+    }
+    if (params.offset !== undefined) {
+      httpParams = httpParams.set('offset', params.offset.toString());
+    }
+
+    return this.http.get<PromotionListResponse>(
+      `${this.apiBaseUrl}/promotions/filter/by-user-count`,
+      {
+        headers: this.getHeaders(),
+        params: httpParams
+      }
+    );
+  }
 }
