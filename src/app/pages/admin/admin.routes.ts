@@ -3,7 +3,7 @@ import { Routes } from '@angular/router';
 export const ADMIN_ROUTES: Routes = [
   {
     path: '',
-    loadComponent: () => import('./layout/admin-layout.component').then(m => m.AdminLayoutComponent),
+    loadComponent: () => import('../../layouts/admin-layout/admin-layout.component').then(m => m.AdminLayoutComponent),
     children: [
       {
         path: 'dashboard',
@@ -24,6 +24,10 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'promotions',
         loadComponent: () => import('./promotions/promotion-list.component').then(m => m.PromotionListComponent)
+      },
+      {
+        path: 'reviews',
+        loadComponent: () => import('./reviews/review-list.component').then(m => m.ReviewListComponent)
       },
       {
         path: 'reports',

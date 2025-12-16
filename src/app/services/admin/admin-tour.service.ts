@@ -280,4 +280,113 @@ export class AdminTourService {
       throw error;
     }
   }
+
+  // Filter APIs
+  async filterToursByMonth(
+    month: number,
+    year: number,
+    dateType: 'start_date' | 'end_date' = 'start_date',
+    isActive?: boolean,
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<TourPackageListResponse> {
+    try {
+      const params = new URLSearchParams();
+      params.append('month', month.toString());
+      params.append('year', year.toString());
+      params.append('date_type', dateType);
+      if (isActive !== undefined) params.append('is_active', isActive.toString());
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+
+      const response = await fetch(`${this.apiBaseUrl}/filter/by-month?${params}`);
+      if (!response.ok) {
+        throw new Error(`Failed to filter tours by month: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error filtering tours by month:', error);
+      throw error;
+    }
+  }
+
+  async filterToursByYear(
+    year: number,
+    dateType: 'start_date' | 'end_date' = 'start_date',
+    isActive?: boolean,
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<TourPackageListResponse> {
+    try {
+      const params = new URLSearchParams();
+      params.append('year', year.toString());
+      params.append('date_type', dateType);
+      if (isActive !== undefined) params.append('is_active', isActive.toString());
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+
+      const response = await fetch(`${this.apiBaseUrl}/filter/by-year?${params}`);
+      if (!response.ok) {
+        throw new Error(`Failed to filter tours by year: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error filtering tours by year:', error);
+      throw error;
+    }
+  }
+
+  async filterToursByDate(
+    targetDate: string,
+    dateType: 'start_date' | 'end_date' = 'start_date',
+    isActive?: boolean,
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<TourPackageListResponse> {
+    try {
+      const params = new URLSearchParams();
+      params.append('target_date', targetDate);
+      params.append('date_type', dateType);
+      if (isActive !== undefined) params.append('is_active', isActive.toString());
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+
+      const response = await fetch(`${this.apiBaseUrl}/filter/by-date?${params}`);
+      if (!response.ok) {
+        throw new Error(`Failed to filter tours by date: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error filtering tours by date:', error);
+      throw error;
+    }
+  }
+
+  async filterToursByPriceRange(
+    minPrice?: number,
+    maxPrice?: number,
+    priceSegment?: 'budget' | 'mid' | 'premium',
+    isActive?: boolean,
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<TourPackageListResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (minPrice !== undefined) params.append('min_price', minPrice.toString());
+      if (maxPrice !== undefined) params.append('max_price', maxPrice.toString());
+      if (priceSegment) params.append('price_segment', priceSegment);
+      if (isActive !== undefined) params.append('is_active', isActive.toString());
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+
+      const response = await fetch(`${this.apiBaseUrl}/filter/by-price-range?${params}`);
+      if (!response.ok) {
+        throw new Error(`Failed to filter tours by price range: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error filtering tours by price range:', error);
+      throw error;
+    }
+  }
 }
