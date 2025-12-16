@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminTourService, TourPackage, TourPackageCreateRequest, TourPackageUpdateRequest } from '../../../services/admin/admin-tour.service';
+import { AdminDialogService } from '../../../services/admin/admin-dialog.service';
 
 @Component({
   selector: 'app-tour-list',
@@ -23,9 +24,9 @@ export class TourListComponent implements OnInit {
   showAdvancedFilters = false;
   
   // Advanced Filters - Individual filter states
-  // Date filter
-  dateTypeFilter: 'start_date' | 'end_date' = 'start_date';
-  targetDateFilter = '';
+  // Date filter (range)
+  startDateFilter = '';
+  endDateFilter = '';
   isDateFilterActive = false;
   
   // Month/Year filter (combined)
@@ -50,8 +51,10 @@ export class TourListComponent implements OnInit {
   // Modals
   showAddModal = false;
   showEditModal = false;
+  showDetailModal = false;
   showDeleteModal = false;
   showBulkUploadModal = false;
+  showPreview = false; // Tour preview panel
   
   // Current tour for edit/delete
   currentTour: Partial<TourPackage> = {};
@@ -76,7 +79,10 @@ export class TourListComponent implements OnInit {
   // Formatted price for display
   formattedPrice: string = '';
 
-  constructor(private tourService: AdminTourService) {}
+  constructor(
+    private tourService: AdminTourService,
+    private dialogService: AdminDialogService
+  ) {}
 
   ngOnInit() {
     this.loadTours();
@@ -137,12 +143,32 @@ export class TourListComponent implements OnInit {
     this.imageUrls = [];
     this.selectedFiles = [];
     this.formattedPrice = '';
+    this.showPreview = true;  // Hiển thị preview mặc định khi tạo tour mới
     this.showAddModal = true;
   }
 
   closeAddModal() {
     this.showAddModal = false;
+    this.showPreview = false;
     this.currentTour = {};
+  }
+
+  // Detail Modal
+  openDetailModal(tour: TourPackage) {
+    this.currentTour = { ...tour };
+    this.imageUrls = tour.image_urls ? tour.image_urls.split(',') : [];
+    this.showDetailModal = true;
+    this.showPreview = true;
+  }
+
+  closeDetailModal() {
+    this.showDetailModal = false;
+    this.showPreview = false;
+    this.currentTour = {};
+  }
+
+  togglePreview() {
+    this.showPreview = !this.showPreview;
   }
 
   async saveTour() {
@@ -381,7 +407,7 @@ export class TourListComponent implements OnInit {
       });
 
       if (validFiles.length !== files.length) {
-        alert('Chỉ chấp nhận file ảnh định dạng JPEG, JPG, PNG, WebP');
+        this.dialogService.warning('File không hợp lệ', 'Chỉ chấp nhận file ảnh định dạng JPEG, JPG, PNG, WebP');
       }
 
       // Add new files
@@ -499,12 +525,14 @@ export class TourListComponent implements OnInit {
   }
 
   // Copy to clipboard
-  copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      alert('Đã copy vào clipboard!');
-    }).catch(err => {
+  async copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      await this.dialogService.alert('Thành công', 'Đã copy vào clipboard!');
+    } catch (err) {
       console.error('Failed to copy:', err);
-    });
+      await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard!');
+    }
   }
 
   // Bulk CSV Upload
@@ -527,7 +555,7 @@ export class TourListComponent implements OnInit {
       if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
         this.selectedCSVFile = file;
       } else {
-        alert('Vui lòng chọn file CSV!');
+        this.dialogService.warning('File không hợp lệ', 'Vui lòng chọn file CSV!');
         input.value = '';
       }
     }
@@ -535,7 +563,7 @@ export class TourListComponent implements OnInit {
 
   async uploadCSV() {
     if (!this.selectedCSVFile) {
-      alert('Vui lòng chọn file CSV!');
+      await this.dialogService.warning('Chưa chọn file', 'Vui lòng chọn file CSV!');
       return;
     }
 
@@ -545,16 +573,16 @@ export class TourListComponent implements OnInit {
       this.bulkUploadResult = result;
       
       if (result.EC === 0) {
-        alert(`Upload thành công! ${result.successful} tour được tạo, ${result.failed} thất bại.`);
+        await this.dialogService.alert('Upload thành công!', `${result.successful} tour được tạo, ${result.failed} thất bại.`);
         if (result.successful > 0) {
           await this.loadTours(); // Reload danh sách tour
         }
       } else {
-        alert(`Có lỗi xảy ra: ${result.EM}`);
+        await this.dialogService.alert('Lỗi', `Có lỗi xảy ra: ${result.EM}`);
       }
     } catch (error: any) {
       console.error('Error uploading CSV:', error);
-      alert('Lỗi khi upload file CSV!');
+      await this.dialogService.alert('Lỗi', 'Lỗi khi upload file CSV!');
     } finally {
       this.isLoading = false;
     }
@@ -576,19 +604,24 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
   
   // Date Filter
   async applyDateFilter() {
+    if (!this.startDateFilter || !this.endDateFilter) {
+      await this.dialogService.warning('Thiếu thông tin', 'Vui lòng chọn cả ngày bắt đầu và ngày kết thúc!');
+      return;
+    }
+
+    if (this.startDateFilter > this.endDateFilter) {
+      await this.dialogService.warning('Ngày không hợp lệ', 'Ngày bắt đầu phải trước ngày kết thúc!');
+      return;
+    }
+
     try {
-      if (!this.targetDateFilter) {
-        this.errorMessage = 'Vui lòng chọn ngày';
-        return;
-      }
-      
       this.isLoading = true;
       this.errorMessage = '';
       
       const isActive = this.statusFilter ? this.statusFilter === 'active' : undefined;
       const response = await this.tourService.filterToursByDate(
-        this.targetDateFilter,
-        this.dateTypeFilter,
+        this.startDateFilter,
+        this.endDateFilter,
         isActive
       );
       
@@ -604,8 +637,8 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
   }
 
   clearDateFilter() {
-    this.targetDateFilter = '';
-    this.dateTypeFilter = 'start_date';
+    this.startDateFilter = '';
+    this.endDateFilter = '';
     this.isDateFilterActive = false;
     this.loadTours();
   }
@@ -761,5 +794,16 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
     const total = this.tours.reduce((sum, tour) => sum + tour.price, 0);
     const average = total / this.tours.length;
     return this.formatPrice(average);
+  }
+
+  // Preview helper methods
+  formatPreviewPrice(price: number): string {
+    if (!price) return '0 ₫';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  }
+
+  formatPreviewDate(dateString: string): string {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 }

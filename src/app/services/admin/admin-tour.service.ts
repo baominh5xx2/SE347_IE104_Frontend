@@ -337,16 +337,16 @@ export class AdminTourService {
   }
 
   async filterToursByDate(
-    targetDate: string,
-    dateType: 'start_date' | 'end_date' = 'start_date',
+    startDate: string,
+    endDate: string,
     isActive?: boolean,
     limit: number = 100,
     offset: number = 0
   ): Promise<TourPackageListResponse> {
     try {
       const params = new URLSearchParams();
-      params.append('target_date', targetDate);
-      params.append('date_type', dateType);
+      params.append('start_date', startDate);
+      params.append('end_date', endDate);
       if (isActive !== undefined) params.append('is_active', isActive.toString());
       params.append('limit', limit.toString());
       params.append('offset', offset.toString());

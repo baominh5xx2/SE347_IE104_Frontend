@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { UserProfileService, UserProfile, UpdateProfileRequest, ChangePasswordRequest } from '../../../services/admin/admin-user-profile.service';
+import { AdminDialogService } from '../../../services/admin/admin-dialog.service';
+import { AuthStateService } from '../../../services/auth-state.service';
 
 @Component({
   selector: 'app-admin-profile',
@@ -35,7 +37,9 @@ export class AdminProfileComponent implements OnInit {
 
   constructor(
     private userProfileService: UserProfileService,
-    private router: Router
+    private router: Router,
+    private dialogService: AdminDialogService,
+    private authStateService: AuthStateService
   ) {}
 
   ngOnInit() {
@@ -234,10 +238,19 @@ export class AdminProfileComponent implements OnInit {
     });
   }
 
-  logout() {
-    if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
-      this.userProfileService.logout();
-      this.router.navigate(['/auth/login']);
+  async logout() {
+    const confirmed = await this.dialogService.confirm({
+      title: 'Đăng xuất',
+      message: 'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?',
+      confirmText: 'Đăng xuất',
+      cancelText: 'Hủy',
+      type: 'warning'
+    });
+
+    if (confirmed) {
+      // Clear all auth state (localStorage + service state)
+      this.authStateService.logout();
+      this.router.navigate(['/home']);
     }
   }
 

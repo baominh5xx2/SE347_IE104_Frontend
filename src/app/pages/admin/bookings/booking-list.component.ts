@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminBookingService, AdminBookingItem, AdminBookingDetail } from '../../../services/admin/admin-booking.service';
+import { AdminUserService } from '../../../services/admin/admin-user.service';
+import { AdminTourService } from '../../../services/admin/admin-tour.service';
 
 interface Booking {
   id: string;
@@ -45,11 +47,18 @@ export class BookingListComponent implements OnInit {
   newBooking: any = {
     contact_name: '',
     contact_phone: '',
+    contact_email: '',
     number_of_people: 1,
     package_id: '',
     special_requests: '',
     user_id: ''
   };
+  
+  // Thông tin hiển thị khi nhập ID
+  selectedUserInfo: any = null;
+  selectedTourInfo: any = null;
+  isLoadingUserInfo = false;
+  isLoadingTourInfo = false;
   
   // UI states
   isLoading: boolean = false;
@@ -65,7 +74,11 @@ export class BookingListComponent implements OnInit {
     total_revenue: 0
   };
 
-  constructor(private adminBookingService: AdminBookingService) {}
+  constructor(
+    private adminBookingService: AdminBookingService,
+    private adminUserService: AdminUserService,
+    private adminTourService: AdminTourService
+  ) {}
 
   ngOnInit() {
     this.loadBookings();
@@ -334,17 +347,78 @@ export class BookingListComponent implements OnInit {
     this.newBooking = {
       contact_name: '',
       contact_phone: '',
+      contact_email: '',
       number_of_people: 1,
       package_id: '',
       special_requests: '',
       user_id: ''
     };
+    this.selectedUserInfo = null;
+    this.selectedTourInfo = null;
     this.showAddModal = true;
   }
 
   closeAddModal() {
     this.showAddModal = false;
     this.errorMessage = '';
+    this.selectedUserInfo = null;
+    this.selectedTourInfo = null;
+  }
+
+  // Fetch thông tin user khi nhập user_id
+  async onUserIdChange() {
+    if (!this.newBooking.user_id || this.newBooking.user_id.trim() === '') {
+      this.selectedUserInfo = null;
+      return;
+    }
+
+    this.isLoadingUserInfo = true;
+    try {
+      const response = await this.adminUserService.getUserProfile(this.newBooking.user_id).toPromise();
+      if (response && response.EC === 0) {
+        this.selectedUserInfo = response.data;
+        // Auto-fill contact info nếu chưa điền
+        if (!this.newBooking.contact_name) {
+          this.newBooking.contact_name = this.selectedUserInfo.full_name;
+        }
+        if (!this.newBooking.contact_phone) {
+          this.newBooking.contact_phone = this.selectedUserInfo.phone_number;
+        }
+        if (!this.newBooking.contact_email) {
+          this.newBooking.contact_email = this.selectedUserInfo.email;
+        }
+      } else {
+        this.selectedUserInfo = null;
+      }
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      this.selectedUserInfo = null;
+    } finally {
+      this.isLoadingUserInfo = false;
+    }
+  }
+
+  // Fetch thông tin tour khi nhập package_id
+  async onPackageIdChange() {
+    if (!this.newBooking.package_id || this.newBooking.package_id.trim() === '') {
+      this.selectedTourInfo = null;
+      return;
+    }
+
+    this.isLoadingTourInfo = true;
+    try {
+      const response = await this.adminTourService.getTourPackageById(this.newBooking.package_id);
+      if (response && response.EC === 0) {
+        this.selectedTourInfo = response.package;
+      } else {
+        this.selectedTourInfo = null;
+      }
+    } catch (error) {
+      console.error('Error fetching tour info:', error);
+      this.selectedTourInfo = null;
+    } finally {
+      this.isLoadingTourInfo = false;
+    }
   }
 
   async saveNewBooking() {

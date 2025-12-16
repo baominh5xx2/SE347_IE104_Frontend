@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { TravelNewsService } from '../../services/travel-news.service';
 import { TravelNews } from '../../shared/models/travel-news.model';
@@ -16,7 +16,6 @@ import { take } from 'rxjs/operators';
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink,
     TravelNewsCardComponent,
     AiChatPanelComponent
   ],

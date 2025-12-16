@@ -1,6 +1,7 @@
 ﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AdminDialogService } from '../../../services/admin/admin-dialog.service';
 import { 
   AdminUserService, 
   UserProfile, 
@@ -84,7 +85,8 @@ export class CustomerListComponent implements OnInit {
   constructor(
     private adminUserService: AdminUserService,
     private adminReviewService: AdminReviewService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private dialogService: AdminDialogService
   ) {
     this.createUserForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -247,7 +249,7 @@ export class CustomerListComponent implements OnInit {
       if (response?.EC === 0) {
         this.successMessage = 'Tạo user thành công!';
         if (response.data.password) {
-          alert(`User đã được tạo với mật khẩu: ${response.data.password}`);
+          await this.dialogService.alert('Tạo user thành công', `User đã được tạo với mật khẩu: ${response.data.password}`);
         }
         this.closeCreateUserModal();
         await this.loadAllUsers();
@@ -544,6 +546,17 @@ export class CustomerListComponent implements OnInit {
       case 'completed': return 'bg-blue-100 text-blue-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  // Copy to clipboard
+  async copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      await this.dialogService.alert('Thành công', 'Đã copy vào clipboard!');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard!');
     }
   }
 }
