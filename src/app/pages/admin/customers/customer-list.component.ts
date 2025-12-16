@@ -1,332 +1,549 @@
-import { Component, OnInit } from '@angular/core';
+﻿import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { AdminUserService, UserProfile, ChatRoom } from '../../../services/admin/admin-user.service';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { 
+  AdminUserService, 
+  UserProfile, 
+  CreateUserRequest,
+  UpdateUserRequest,
+  ChatRoom,
+  UserBooking
+} from '../../../services/admin/admin-user.service';
+import { AdminReviewService } from '../../../services/admin/admin-review.service';
 
-interface UserData {
-  profile: UserProfile;
-  summary: {
+interface UserSummaryData {
+  user: UserProfile;
+  kpi: {
     total_bookings: number;
     pending_bookings: number;
     confirmed_bookings: number;
     completed_tours: number;
     cancelled_bookings: number;
     total_paid_amount: number;
+    currency: string;
   };
-  bookings: any[];
-  chatRooms: ChatRoom[];
+  recent: {
+    recent_bookings: any[];
+    recent_payments: any[];
+  };
 }
 
 @Component({
   selector: 'app-customer-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './customer-list.component.html',
   styleUrls: ['./customer-list.component.scss']
 })
 export class CustomerListComponent implements OnInit {
-  // Search
-  searchUserId: string = '';
-  isLoading: boolean = false;
-  errorMessage: string = '';
+  allUsers: UserProfile[] = [];
+  filteredUsers: UserProfile[] = [];
+  isLoadingUsers: boolean = false;
+  searchTerm: string = '';
   
-  // User data
-  userData: UserData | null = null;
+  // Filter properties
+  filterHasBooking: 'all' | 'has' | 'no' = 'all';
+  filterIsActive: 'all' | 'active' | 'inactive' = 'all';
+  filterHasChat: 'all' | 'has' | 'no' = 'all';
+  filterTourId: string = '';
   
-  // Modal
-  showDetailModal: boolean = false;
-  activeTab: 'info' | 'bookings' | 'chat' | 'timeline' = 'info';
+  selectedUser: UserProfile | null = null;
+  userSummary: UserSummaryData | null = null;
+  userBookings: UserBooking[] = [];
+  userChatRooms: ChatRoom[] = [];
+  userReviews: any[] = [];
   
-  // Chat
-  selectedRoomId: string = '';
-  selectedRoom: ChatRoom | null = null;
-  
-  // Bookings pagination
   bookingsPage: number = 1;
   bookingsLimit: number = 10;
-  totalBookings: number = 0;
+  bookingsTotalPages: number = 0;
+  bookingsTotal: number = 0;
+  bookingsSort: string = 'created_at_desc';
+  bookingsStatus: string = '';
   
-  // Timeline activities
-  timelineActivities: any[] = [];
+  showUserDetailModal: boolean = false;
+  showCreateUserModal: boolean = false;
+  showEditUserModal: boolean = false;
+  showDeleteConfirmModal: boolean = false;
+  
+  activeTab: 'info' | 'bookings' | 'chat' | 'summary' | 'reviews' = 'info';
+  selectedChatRoom: ChatRoom | null = null;
+  
+  createUserForm: FormGroup;
+  editUserForm: FormGroup;
+  
+  isCreating: boolean = false;
+  isUpdating: boolean = false;
+  isDeleting: boolean = false;
+  isLoadingDetails: boolean = false;
+  isLoadingBookings: boolean = false;
+  isLoadingChat: boolean = false;
+  
+  errorMessage: string = '';
+  successMessage: string = '';
+  
+  constructor(
+    private adminUserService: AdminUserService,
+    private adminReviewService: AdminReviewService,
+    private fb: FormBuilder
+  ) {
+    this.createUserForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      full_name: ['', Validators.required],
+      phone_number: ['', Validators.required],
+      password: [''],
+      role: ['user', Validators.required],
+      is_active: [true]
+    });
+    
+    this.editUserForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      full_name: ['', Validators.required],
+      phone_number: ['', Validators.required],
+      password: [''],
+      role: ['user', Validators.required],
+      is_active: [true]
+    });
+  }
 
-  constructor(private adminUserService: AdminUserService) {}
+  ngOnInit() {
+    this.loadAllUsers();
+  }
 
-  ngOnInit() {}
+  async loadAllUsers() {
+    this.isLoadingUsers = true;
+    this.errorMessage = '';
+    
+    try {
+      const response = await this.adminUserService.getAllUsers().toPromise();
+      if (response?.EC === 0 && response?.data) {
+        this.allUsers = response.data.users;
+        this.filteredUsers = [...this.allUsers];
+      } else {
+        this.errorMessage = response?.EM || 'Không thể tải danh sách users';
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.error?.EM || 'Lỗi khi tải danh sách users';
+      console.error('Error loading users:', error);
+    } finally {
+      this.isLoadingUsers = false;
+    }
+  }
 
-  /**
-   * Search user by user_id
-   */
-  async searchUser() {
-    if (!this.searchUserId.trim()) {
-      this.errorMessage = 'Vui lòng nhập User ID';
+  async filterUsers() {
+    this.isLoadingUsers = true;
+    this.errorMessage = '';
+    
+    const term = this.searchTerm.toLowerCase().trim();
+    
+    let filtered = [...this.allUsers];
+    
+    // Search by text (email, name, phone, ID)
+    if (term) {
+      filtered = filtered.filter(user =>
+        user.email.toLowerCase().includes(term) ||
+        user.full_name.toLowerCase().includes(term) ||
+        user.user_id.toLowerCase().includes(term) ||
+        (user.phone_number && user.phone_number.includes(term))
+      );
+    }
+    
+    // Filter by active status
+    if (this.filterIsActive !== 'all') {
+      const isActive = this.filterIsActive === 'active';
+      filtered = filtered.filter(user => user.is_active === isActive);
+    }
+    
+    // For advanced filters (booking, chat, tour), we need to fetch additional data
+    if (this.filterHasBooking !== 'all' || this.filterHasChat !== 'all' || this.filterTourId) {
+      const promises = filtered.map(async (user) => {
+        try {
+          // Check booking filter
+          if (this.filterHasBooking !== 'all') {
+            const summaryResponse = await this.adminUserService.getUserSummary(user.user_id).toPromise();
+            const totalBookings = summaryResponse?.data?.kpi?.total_bookings ?? 0;
+            const hasBookings = totalBookings > 0;
+            
+            if (this.filterHasBooking === 'has' && !hasBookings) {
+              return null;
+            }
+            if (this.filterHasBooking === 'no' && hasBookings) {
+              return null;
+            }
+          }
+          
+          // Check chat filter
+          if (this.filterHasChat !== 'all') {
+            const chatResponse = await this.adminUserService.getUserChatHistory(user.user_id).toPromise();
+            const totalRooms = chatResponse?.data?.rooms?.length ?? 0;
+            const hasChat = totalRooms > 0;
+            
+            if (this.filterHasChat === 'has' && !hasChat) {
+              return null;
+            }
+            if (this.filterHasChat === 'no' && hasChat) {
+              return null;
+            }
+          }
+          
+          // Check tour ID filter
+          if (this.filterTourId) {
+            const bookingsResponse = await this.adminUserService.getUserBookings(user.user_id, {
+              page: 1,
+              limit: 100
+            }).toPromise();
+            const hasBookingForTour = bookingsResponse?.data?.items?.some(
+              (booking: any) => booking.package_id === this.filterTourId
+            ) ?? false;
+            
+            if (!hasBookingForTour) {
+              return null;
+            }
+          }
+          
+          return user;
+        } catch (error) {
+          console.error('Error filtering user:', user.user_id, error);
+          // If API call fails, exclude the user from results to be safe
+          return null;
+        }
+      });
+      
+      const results = await Promise.all(promises);
+      filtered = results.filter((user): user is UserProfile => user !== null);
+    }
+    
+    this.filteredUsers = filtered;
+    this.isLoadingUsers = false;
+  }
+
+  openCreateUserModal() {
+    this.createUserForm.reset({
+      role: 'user',
+      is_active: true
+    });
+    this.showCreateUserModal = true;
+    this.errorMessage = '';
+  }
+
+  closeCreateUserModal() {
+    this.showCreateUserModal = false;
+    this.createUserForm.reset();
+    this.errorMessage = '';
+  }
+
+  async createUser() {
+    if (this.createUserForm.invalid) {
+      this.errorMessage = 'Vui lòng điền đầy đủ thông tin';
       return;
     }
-
-    this.isLoading = true;
+    
+    this.isCreating = true;
     this.errorMessage = '';
-    this.userData = null;
-
+    
     try {
-      // Get user summary (includes profile + KPIs)
-      const summaryResponse = await this.adminUserService.getUserSummary(this.searchUserId).toPromise();
+      const request: CreateUserRequest = this.createUserForm.value;
+      const response = await this.adminUserService.createUser(request).toPromise();
       
-      if (summaryResponse?.EC !== 0 || !summaryResponse?.data) {
-        this.errorMessage = summaryResponse?.EM || 'Không tìm thấy user';
-        this.isLoading = false;
-        return;
-      }
-
-      const profile = summaryResponse.data.user;
-      const summary = summaryResponse.data.kpi || {
-        total_bookings: 0,
-        pending_bookings: 0,
-        confirmed_bookings: 0,
-        completed_tours: 0,
-        cancelled_bookings: 0,
-        total_paid_amount: 0
-      };
-
-      // Get bookings
-      const bookingsResponse = await this.adminUserService.getUserBookings(this.searchUserId, {
-        page: 1,
-        limit: 50,
-        sort: 'created_at_desc'
-      }).toPromise();
-      const bookings = bookingsResponse?.data?.items || [];
-
-      // Get chat history
-      const chatResponse = await this.adminUserService.getUserChatHistory(this.searchUserId).toPromise();
-      const chatRooms = chatResponse?.data?.rooms || [];
-
-      // Set user data
-      this.userData = {
-        profile,
-        summary,
-        bookings,
-        chatRooms
-      };
-
-      // Open detail modal
-      this.showDetailModal = true;
-      this.activeTab = 'info';
-      this.loadTimeline();
-
-    } catch (error: any) {
-      console.error('Error searching user:', error);
-      this.errorMessage = error?.error?.EM || 'Lỗi khi tìm kiếm user';
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  /**
-   * Load timeline activities
-   */
-  loadTimeline() {
-    if (!this.userData) return;
-
-    const activities: any[] = [];
-
-    // Add bookings
-    this.userData.bookings.forEach(booking => {
-      activities.push({
-        type: 'booking',
-        id: booking.booking_id,
-        title: booking.package_name || 'Tour booking',
-        description: `${booking.number_of_people} người - ${this.formatPrice(booking.total_amount)}`,
-        date: booking.created_at,
-        status: booking.status,
-        icon: 'booking',
-        color: this.getBookingColor(booking.status)
-      });
-    });
-
-    // Add chat rooms
-    this.userData.chatRooms.forEach((room, index) => {
-      activities.push({
-        type: 'chat',
-        id: room.room_id,
-        title: room.title || `Hội thoại #${index + 1}`,
-        description: `${room.message_count} tin nhắn`,
-        date: room.created_at,
-        icon: 'chat',
-        color: 'blue'
-      });
-    });
-
-    // Sort by date
-    this.timelineActivities = activities.sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  }
-
-  /**
-   * View chat room messages
-   */
-  viewChatRoom(roomId: string) {
-    const room = this.userData?.chatRooms.find(r => r.room_id === roomId);
-    if (room) {
-      this.selectedRoomId = roomId;
-      this.selectedRoom = room;
-      this.activeTab = 'chat';
-    }
-  }
-
-  /**
-   * Toggle user status
-   */
-  toggleUserStatus() {
-    if (!this.userData) return;
-
-    const currentStatus = this.userData.profile.is_active;
-    const newStatus = !currentStatus;
-    const reason = newStatus ? 'Activated by admin' : 'Deactivated by admin';
-
-    this.adminUserService.updateUserStatus(this.userData.profile.user_id, {
-      is_active: newStatus,
-      reason: reason
-    }).subscribe({
-      next: (response) => {
-        if (response.EC === 0 && this.userData) {
-          this.userData.profile.is_active = newStatus;
-          alert(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} user thành công`);
+      if (response?.EC === 0) {
+        this.successMessage = 'Tạo user thành công!';
+        if (response.data.password) {
+          alert(`User đã được tạo với mật khẩu: ${response.data.password}`);
         }
-      },
-      error: (error) => {
-        console.error('Error updating status:', error);
-        alert('Không thể cập nhật trạng thái user');
+        this.closeCreateUserModal();
+        await this.loadAllUsers();
+        setTimeout(() => this.successMessage = '', 3000);
+      } else {
+        this.errorMessage = response?.EM || 'Không thể tạo user';
       }
-    });
-  }
-
-  /**
-   * Close modal
-   */
-  closeDetailModal() {
-    this.showDetailModal = false;
-    this.userData = null;
-    this.activeTab = 'info';
-    this.selectedRoomId = '';
-    this.selectedRoom = null;
-    this.timelineActivities = [];
-  }
-
-  /**
-   * Switch tab
-   */
-  switchTab(tab: 'info' | 'bookings' | 'chat' | 'timeline') {
-    this.activeTab = tab;
-  }
-
-  /**
-   * View activity detail
-   */
-  viewActivity(activity: any) {
-    if (activity.type === 'booking') {
-      this.activeTab = 'bookings';
-    } else if (activity.type === 'chat') {
-      this.viewChatRoom(activity.id);
+    } catch (error: any) {
+      this.errorMessage = error?.error?.EM || 'Lỗi khi tạo user';
+      console.error('Error creating user:', error);
+    } finally {
+      this.isCreating = false;
     }
   }
 
-  // Utility methods
-  formatPrice(price: number): string {
-    return new Intl.NumberFormat('vi-VN').format(price) + ' VNĐ';
+  async viewUserDetails(user: UserProfile) {
+    this.selectedUser = user;
+    this.showUserDetailModal = true;
+    this.activeTab = 'info';
+    this.isLoadingDetails = true;
+    this.errorMessage = '';
+    
+    try {
+      const response = await this.adminUserService.getUserSummary(user.user_id).toPromise();
+      if (response?.EC === 0 && response?.data) {
+        this.userSummary = response.data;
+      }
+    } catch (error: any) {
+      this.errorMessage = 'Không thể tải thông tin chi tiết';
+      console.error('Error loading user summary:', error);
+    } finally {
+      this.isLoadingDetails = false;
+    }
   }
 
-  formatDate(date: string): string {
-    return new Date(date).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+  closeUserDetailModal() {
+    this.showUserDetailModal = false;
+    this.selectedUser = null;
+    this.userSummary = null;
+    this.userBookings = [];
+    this.userChatRooms = [];
+    this.activeTab = 'info';
+  }
+
+  async switchTab(tab: 'info' | 'bookings' | 'chat' | 'summary' | 'reviews') {
+    this.activeTab = tab;
+    
+    if (tab === 'bookings' && this.selectedUser && this.userBookings.length === 0) {
+      await this.loadUserBookings();
+    } else if (tab === 'chat' && this.selectedUser && this.userChatRooms.length === 0) {
+      await this.loadUserChatHistory();
+    } else if (tab === 'reviews' && this.selectedUser && this.userReviews.length === 0) {
+      await this.loadUserReviews();
+    }
+  }
+
+  async loadUserBookings() {
+    if (!this.selectedUser) return;
+    
+    this.isLoadingBookings = true;
+    this.errorMessage = '';
+    
+    try {
+      const params: any = {
+        page: this.bookingsPage,
+        limit: this.bookingsLimit,
+        sort: this.bookingsSort
+      };
+      
+      if (this.bookingsStatus) {
+        params.status = this.bookingsStatus;
+      }
+      
+      const response = await this.adminUserService.getUserBookings(this.selectedUser.user_id, params).toPromise();
+      if (response?.EC === 0 && response?.data) {
+        this.userBookings = response.data.items;
+        this.bookingsTotalPages = response.data.total_pages;
+        this.bookingsTotal = response.data.total;
+      }
+    } catch (error: any) {
+      this.errorMessage = 'Không thể tải danh sách bookings';
+      console.error('Error loading bookings:', error);
+    } finally {
+      this.isLoadingBookings = false;
+    }
+  }
+
+  async changeBookingsPage(page: number) {
+    if (page < 1 || page > this.bookingsTotalPages) return;
+    this.bookingsPage = page;
+    await this.loadUserBookings();
+  }
+
+  async loadUserChatHistory() {
+    if (!this.selectedUser) return;
+    
+    this.isLoadingChat = true;
+    this.errorMessage = '';
+    
+    try {
+      const response = await this.adminUserService.getUserChatHistory(this.selectedUser.user_id).toPromise();
+      if (response?.EC === 0 && response?.data) {
+        this.userChatRooms = response.data.rooms;
+      }
+    } catch (error: any) {
+      this.errorMessage = 'Không thể tải lịch sử chat';
+      console.error('Error loading chat history:', error);
+    } finally {
+      this.isLoadingChat = false;
+    }
+  }
+
+  async loadUserReviews() {
+    if (!this.selectedUser) return;
+    
+    this.isLoadingDetails = true;
+    this.errorMessage = '';
+    
+    try {
+      const response = await this.adminReviewService.getReviews({
+        user_id: this.selectedUser.user_id,
+        limit: 100
+      }).toPromise();
+      
+      if (response?.EC === 0 && response?.data) {
+        this.userReviews = response.data;
+      }
+    } catch (error: any) {
+      this.errorMessage = 'Không thể tải danh sách reviews';
+      console.error('Error loading user reviews:', error);
+    } finally {
+      this.isLoadingDetails = false;
+    }
+  }
+
+  selectChatRoom(room: ChatRoom) {
+    this.selectedChatRoom = room;
+  }
+
+  openEditUserModal(user: UserProfile) {
+    this.selectedUser = user;
+    this.editUserForm.patchValue({
+      email: user.email,
+      full_name: user.full_name,
+      phone_number: user.phone_number,
+      role: user.role,
+      is_active: user.is_active,
+      password: ''
     });
+    this.showEditUserModal = true;
+    this.errorMessage = '';
   }
 
-  formatDateShort(date: string): string {
-    return new Date(date).toLocaleDateString('vi-VN');
+  closeEditUserModal() {
+    this.showEditUserModal = false;
+    this.selectedUser = null;
+    this.editUserForm.reset();
+    this.errorMessage = '';
   }
 
-  getStatusColor(isActive: boolean): string {
-    return isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+  async updateUser() {
+    if (this.editUserForm.invalid || !this.selectedUser) {
+      this.errorMessage = 'Vui lòng điền đầy đủ thông tin';
+      return;
+    }
+    
+    this.isUpdating = true;
+    this.errorMessage = '';
+    
+    try {
+      const request: UpdateUserRequest = this.editUserForm.value;
+      if (!request.password) {
+        delete request.password;
+      }
+      
+      const response = await this.adminUserService.updateUser(this.selectedUser.user_id, request).toPromise();
+      
+      if (response?.EC === 0) {
+        this.successMessage = 'Cập nhật user thành công!';
+        this.closeEditUserModal();
+        await this.loadAllUsers();
+        setTimeout(() => this.successMessage = '', 3000);
+      } else {
+        this.errorMessage = response?.EM || 'Không thể cập nhật user';
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.error?.EM || 'Lỗi khi cập nhật user';
+      console.error('Error updating user:', error);
+    } finally {
+      this.isUpdating = false;
+    }
   }
 
-  getStatusText(isActive: boolean): string {
-    return isActive ? 'Hoạt động' : 'Không hoạt động';
+  openDeleteConfirmModal(user: UserProfile) {
+    this.selectedUser = user;
+    this.showDeleteConfirmModal = true;
+    this.errorMessage = '';
   }
 
-  getBookingColor(status: string): string {
-    const colors: { [key: string]: string } = {
-      'confirmed': 'green',
-      'pending': 'yellow',
-      'completed': 'blue',
-      'cancelled': 'red'
-    };
-    return colors[status] || 'gray';
+  closeDeleteConfirmModal() {
+    this.showDeleteConfirmModal = false;
+    this.selectedUser = null;
+    this.errorMessage = '';
   }
 
-  getBookingStatusColor(status: string): string {
-    const colors: { [key: string]: string } = {
-      'confirmed': 'bg-green-100 text-green-800',
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'completed': 'bg-blue-100 text-blue-800',
-      'cancelled': 'bg-red-100 text-red-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+  async deleteUser() {
+    if (!this.selectedUser) return;
+    
+    this.isDeleting = true;
+    this.errorMessage = '';
+    
+    try {
+      const response = await this.adminUserService.deleteUser(this.selectedUser.user_id).toPromise();
+      
+      if (response?.EC === 0) {
+        this.successMessage = 'Xóa user thành công!';
+        this.closeDeleteConfirmModal();
+        await this.loadAllUsers();
+        setTimeout(() => this.successMessage = '', 3000);
+      } else {
+        this.errorMessage = response?.EM || 'Không thể xóa user';
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.error?.EM || 'Lỗi khi xóa user. User có thể có dữ liệu liên quan.';
+      console.error('Error deleting user:', error);
+    } finally {
+      this.isDeleting = false;
+    }
   }
 
-  getBookingStatusText(status: string): string {
-    const texts: { [key: string]: string } = {
-      'confirmed': 'Đã xác nhận',
-      'pending': 'Chờ xử lý',
-      'completed': 'Hoàn thành',
-      'cancelled': 'Đã hủy'
-    };
-    return texts[status] || status;
+  resetFilters() {
+    this.searchTerm = '';
+    this.filterHasBooking = 'all';
+    this.filterIsActive = 'all';
+    this.filterHasChat = 'all';
+    this.filterTourId = '';
+    this.filteredUsers = [...this.allUsers];
   }
 
-  getPaymentStatusColor(status: string): string {
-    return status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800';
+  applyFilters() {
+    this.filterUsers();
   }
 
-  getPaymentStatusText(status: string): string {
-    return status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán';
+  async toggleUserStatus(user: UserProfile) {
+    const newStatus = !user.is_active;
+    const confirmMsg = newStatus 
+      ? `Kích hoạt tài khoản ${user.email}?`
+      : `Vô hiệu hóa tài khoản ${user.email}?`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+      const response = await this.adminUserService.updateUserStatus(user.user_id, {
+        is_active: newStatus
+      }).toPromise();
+      
+      if (response?.EC === 0) {
+        this.successMessage = `${newStatus ? 'Kích hoạt' : 'Vô hiệu hóa'} tài khoản thành công!`;
+        await this.loadAllUsers();
+        setTimeout(() => this.successMessage = '', 3000);
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.error?.EM || 'Lỗi khi cập nhật trạng thái';
+      console.error('Error updating status:', error);
+    }
   }
 
-  getRoleDisplayName(roleId?: string): string {
-    const roles: { [key: string]: string } = {
-      'customer': 'Khách hàng',
-      'admin': 'Quản trị viên'
-    };
-    return roles[roleId || ''] || 'Người dùng';
+  formatDate(dateString: string): string {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleString('vi-VN');
   }
 
-  getRoleColorClass(roleId?: string): string {
-    const colors: { [key: string]: string } = {
-      'customer': 'bg-blue-100 text-blue-800',
-      'admin': 'bg-red-100 text-red-800'
-    };
-    return colors[roleId || ''] || 'bg-gray-100 text-gray-800';
+  formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('vi-VN').format(amount);
   }
 
-  getLoginTypeDisplayName(loginType: string): string {
-    const types: { [key: string]: string } = {
-      'email': 'Email/Mật khẩu',
-      'google': 'Google',
-      'facebook': 'Facebook',
-      'apple': 'Apple'
-    };
-    return types[loginType] || loginType;
+  getRoleBadgeClass(role: string): string {
+    switch (role) {
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'user': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   }
 
-  getLoginTypeIcon(loginType: string): string {
-    const icons: { [key: string]: string } = {
-      'email': 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
-      'google': 'M12.545 10.239v3.821h5.445c-.712 2.315-2.647 3.972-5.445 3.972a6.033 6.033 0 110-12.064c1.498 0 2.866.549 3.921 1.453l2.814-2.814A9.969 9.969 0 0012.545 2C7.021 2 2.543 6.477 2.543 12s4.478 10 10.002 10c8.396 0 10.249-7.85 9.426-11.748l-9.426-.013z',
-      'facebook': 'M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z',
-      'apple': 'M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z'
-    };
-    return icons[loginType] || icons['email'];
+  getStatusBadgeClass(isActive: boolean): string {
+    return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+  }
+
+  getBookingStatusBadgeClass(status: string): string {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   }
 }

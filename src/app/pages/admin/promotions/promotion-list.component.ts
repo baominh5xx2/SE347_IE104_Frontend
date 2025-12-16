@@ -349,5 +349,25 @@ export class PromotionListComponent implements OnInit {
       return `Giảm ${this.formatPrice(promo.discount_value)}`;
     }
   }
+
+  // Stats methods
+  getActivePromotions(): number {
+    return this.promotions.filter(promo => promo.is_active).length;
+  }
+
+  getInactivePromotions(): number {
+    return this.promotions.filter(promo => !promo.is_active).length;
+  }
+
+  getAverageDiscount(): string {
+    if (this.promotions.length === 0) return '0%';
+    
+    const percentagePromotions = this.promotions.filter(p => p.discount_type === 'PERCENTAGE');
+    if (percentagePromotions.length === 0) return 'N/A';
+    
+    const total = percentagePromotions.reduce((sum, promo) => sum + promo.discount_value, 0);
+    const average = total / percentagePromotions.length;
+    return `${average.toFixed(1)}%`;
+  }
 }
 

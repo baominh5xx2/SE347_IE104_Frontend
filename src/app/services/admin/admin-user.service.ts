@@ -14,12 +14,82 @@ export interface UserProfile {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  last_access_time?: string;
 }
 
 export interface UserProfileResponse {
   EC: number;
   EM: string;
   data: UserProfile;
+}
+
+// Create User
+export interface CreateUserRequest {
+  email: string;
+  full_name: string;
+  password?: string;
+  phone_number: string;
+  role: string;
+  is_active: boolean;
+}
+
+export interface CreateUserResponse {
+  EC: number;
+  EM: string;
+  data: {
+    user_id: string;
+    email: string;
+    full_name: string;
+    phone_number: string;
+    role: string;
+    is_active: boolean;
+    password?: string;
+  };
+}
+
+// Update User
+export interface UpdateUserRequest {
+  email?: string;
+  full_name?: string;
+  password?: string;
+  phone_number?: string;
+  role?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateUserResponse {
+  EC: number;
+  EM: string;
+  data: {
+    user_id: string;
+    email: string;
+    full_name: string;
+    phone_number: string;
+    role: string;
+    is_active: boolean;
+    updated_at: string;
+  };
+}
+
+// Delete User
+export interface DeleteUserResponse {
+  EC: number;
+  EM: string;
+  data: {
+    user_id: string;
+    email: string;
+    full_name: string;
+  };
+}
+
+// All Users List
+export interface AllUsersResponse {
+  EC: number;
+  EM: string;
+  data: {
+    users: UserProfile[];
+    total: number;
+  };
 }
 
 // User Bookings
@@ -154,11 +224,57 @@ export class AdminUserService {
   }
 
   /**
+   * POST /api/v1/admin/users
+   * Create a new user (admin only)
+   */
+  createUser(request: CreateUserRequest): Observable<CreateUserResponse> {
+    return this.http.post<CreateUserResponse>(
+      this.apiBaseUrl,
+      request,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  /**
+   * GET /api/v1/admin/users
+   * Get all users in the database (admin only)
+   */
+  getAllUsers(): Observable<AllUsersResponse> {
+    return this.http.get<AllUsersResponse>(
+      this.apiBaseUrl,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  /**
    * GET /api/v1/admin/users/{user_id}
    * Get user profile by ID
    */
   getUserProfile(userId: string): Observable<UserProfileResponse> {
     return this.http.get<UserProfileResponse>(
+      `${this.apiBaseUrl}/${userId}`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  /**
+   * PUT /api/v1/admin/users/{user_id}
+   * Update user information (admin only)
+   */
+  updateUser(userId: string, request: UpdateUserRequest): Observable<UpdateUserResponse> {
+    return this.http.put<UpdateUserResponse>(
+      `${this.apiBaseUrl}/${userId}`,
+      request,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  /**
+   * DELETE /api/v1/admin/users/{user_id}
+   * Delete user by ID (admin only)
+   */
+  deleteUser(userId: string): Observable<DeleteUserResponse> {
+    return this.http.delete<DeleteUserResponse>(
       `${this.apiBaseUrl}/${userId}`,
       { headers: this.getHeaders() }
     );

@@ -19,6 +19,34 @@ export class TourListComponent implements OnInit {
   statusFilter: string = '';
   destinationFilter = '';
   
+  // Advanced Filters toggle
+  showAdvancedFilters = false;
+  
+  // Advanced Filters - Individual filter states
+  // Date filter
+  dateTypeFilter: 'start_date' | 'end_date' = 'start_date';
+  targetDateFilter = '';
+  isDateFilterActive = false;
+  
+  // Month/Year filter (combined)
+  periodDateTypeFilter: 'start_date' | 'end_date' = 'start_date';
+  periodMonthFilter: number | '' = '';
+  periodYearFilter: number | '' = '';
+  isPeriodFilterActive = false;
+  
+  // Price filter
+  priceSegmentFilter: '' | 'budget' | 'mid' | 'premium' | 'custom' = '';
+  minPriceFilter: number | '' = '';
+  maxPriceFilter: number | '' = '';
+  isPriceFilterActive = false;
+  
+  // Slot filter
+  minSlotFilter: number | '' = '';
+  maxSlotFilter: number | '' = '';
+  isSlotFilterActive = false;
+  
+  currentYear = new Date().getFullYear();
+  
   // Modals
   showAddModal = false;
   showEditModal = false;
@@ -542,5 +570,196 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
     link.href = URL.createObjectURL(blob);
     link.download = 'tour_template.csv';
     link.click();
+  }
+
+  // Individual filter methods
+  
+  // Date Filter
+  async applyDateFilter() {
+    try {
+      if (!this.targetDateFilter) {
+        this.errorMessage = 'Vui lòng chọn ngày';
+        return;
+      }
+      
+      this.isLoading = true;
+      this.errorMessage = '';
+      
+      const isActive = this.statusFilter ? this.statusFilter === 'active' : undefined;
+      const response = await this.tourService.filterToursByDate(
+        this.targetDateFilter,
+        this.dateTypeFilter,
+        isActive
+      );
+      
+      this.tours = response.packages || [];
+      this.applyFilters();
+      this.isDateFilterActive = true;
+    } catch (error: any) {
+      this.errorMessage = error.message || 'Không thể áp dụng bộ lọc theo ngày';
+      console.error('Apply date filter error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  clearDateFilter() {
+    this.targetDateFilter = '';
+    this.dateTypeFilter = 'start_date';
+    this.isDateFilterActive = false;
+    this.loadTours();
+  }
+
+  // Period Filter (Month/Year combined)
+  async applyPeriodFilter() {
+    try {
+      if (!this.periodMonthFilter && !this.periodYearFilter) {
+        this.errorMessage = 'Vui lòng nhập tháng hoặc năm';
+        return;
+      }
+      
+      this.isLoading = true;
+      this.errorMessage = '';
+      
+      const isActive = this.statusFilter ? this.statusFilter === 'active' : undefined;
+      let response: any;
+
+      // If both month and year are provided, filter by month
+      if (this.periodMonthFilter && this.periodYearFilter) {
+        response = await this.tourService.filterToursByMonth(
+          Number(this.periodMonthFilter),
+          Number(this.periodYearFilter),
+          this.periodDateTypeFilter,
+          isActive
+        );
+      } 
+      // If only year is provided, filter by year
+      else if (this.periodYearFilter) {
+        response = await this.tourService.filterToursByYear(
+          Number(this.periodYearFilter),
+          this.periodDateTypeFilter,
+          isActive
+        );
+      }
+      
+      this.tours = response.packages || [];
+      this.applyFilters();
+      this.isPeriodFilterActive = true;
+    } catch (error: any) {
+      this.errorMessage = error.message || 'Không thể áp dụng bộ lọc';
+      console.error('Apply period filter error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  clearPeriodFilter() {
+    this.periodMonthFilter = '';
+    this.periodYearFilter = '';
+    this.periodDateTypeFilter = 'start_date';
+    this.isPeriodFilterActive = false;
+    this.loadTours();
+  }
+
+  // Price Filter
+  async applyPriceFilter() {
+    try {
+      if (!this.priceSegmentFilter) {
+        this.errorMessage = 'Vui lòng chọn phân khúc giá';
+        return;
+      }
+      
+      let segment: 'budget' | 'mid' | 'premium' | undefined;
+      let minPrice: number | undefined;
+      let maxPrice: number | undefined;
+
+      if (this.priceSegmentFilter === 'custom') {
+        minPrice = this.minPriceFilter ? Number(this.minPriceFilter) : undefined;
+        maxPrice = this.maxPriceFilter ? Number(this.maxPriceFilter) : undefined;
+        if (!minPrice && !maxPrice) {
+          this.errorMessage = 'Vui lòng nhập giá tối thiểu hoặc tối đa';
+          return;
+        }
+      } else {
+        segment = this.priceSegmentFilter as 'budget' | 'mid' | 'premium';
+      }
+      
+      this.isLoading = true;
+      this.errorMessage = '';
+      
+      const isActive = this.statusFilter ? this.statusFilter === 'active' : undefined;
+      const response = await this.tourService.filterToursByPriceRange(
+        minPrice,
+        maxPrice,
+        segment,
+        isActive
+      );
+      
+      this.tours = response.packages || [];
+      this.applyFilters();
+      this.isPriceFilterActive = true;
+    } catch (error: any) {
+      this.errorMessage = error.message || 'Không thể áp dụng bộ lọc theo giá';
+      console.error('Apply price filter error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  clearPriceFilter() {
+    this.priceSegmentFilter = '';
+    this.minPriceFilter = '';
+    this.maxPriceFilter = '';
+    this.isPriceFilterActive = false;
+    this.loadTours();
+  }
+
+  onPriceSegmentChange() {
+    if (this.priceSegmentFilter !== 'custom') {
+      this.minPriceFilter = '';
+      this.maxPriceFilter = '';
+    }
+  }
+
+  // Slot Filter methods
+  applySlotFilter() {
+    if (!this.minSlotFilter && !this.maxSlotFilter) {
+      this.errorMessage = 'Vui lòng nhập số slot tối thiểu hoặc tối đa';
+      return;
+    }
+
+    const min = this.minSlotFilter ? Number(this.minSlotFilter) : 0;
+    const max = this.maxSlotFilter ? Number(this.maxSlotFilter) : Infinity;
+
+    this.tours = this.tours.filter(tour => {
+      const slots = tour.available_slots;
+      return slots >= min && slots <= max;
+    });
+
+    this.applyFilters();
+    this.isSlotFilterActive = true;
+  }
+
+  clearSlotFilter() {
+    this.minSlotFilter = '';
+    this.maxSlotFilter = '';
+    this.isSlotFilterActive = false;
+    this.loadTours();
+  }
+
+  // Stats methods
+  getActiveTours(): number {
+    return this.tours.filter(tour => tour.is_active).length;
+  }
+
+  getInactiveTours(): number {
+    return this.tours.filter(tour => !tour.is_active).length;
+  }
+
+  getAveragePrice(): string {
+    if (this.tours.length === 0) return '0 ₫';
+    const total = this.tours.reduce((sum, tour) => sum + tour.price, 0);
+    const average = total / this.tours.length;
+    return this.formatPrice(average);
   }
 }
