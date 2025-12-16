@@ -64,15 +64,17 @@ export interface BookingCreateRequest {
   number_of_people: number;
   contact_name: string;
   contact_phone: string;
+  contact_email: string; // Required for OTP
   user_id: string;
   special_requests?: string;
   promotion_id?: string;
+  promotion_code?: string;
 }
 
 export interface BookingCreateResponse {
   EC: number;
   EM: string;
-  data: {
+  data?: {
     booking_id: string;
     package_id: string;
     user_id: string;
@@ -80,11 +82,13 @@ export interface BookingCreateResponse {
     total_amount: number;
     contact_name: string;
     contact_phone: string;
+    contact_email?: string;
     special_requests?: string;
     promotion_id?: string;
     status: string;
     created_at: string;
     updated_at: string;
+    awaiting_otp?: boolean; // For OTP flow
   };
 }
 
@@ -195,8 +199,9 @@ export class BookingService {
   }
 
   createBooking(booking: BookingCreateRequest): Observable<BookingCreateResponse> {
+    // Backend uses create-with-otp endpoint
     return this.http.post<BookingCreateResponse>(
-      `${this.apiBaseUrl}/bookings/`,
+      `${this.apiBaseUrl}/bookings/create-with-otp`,
       booking,
       {
         headers: this.getHeaders()
@@ -226,6 +231,33 @@ export class BookingService {
   deleteBooking(bookingId: string): Observable<BookingDeleteResponse> {
     return this.http.delete<BookingDeleteResponse>(
       `${this.apiBaseUrl}/bookings/${bookingId}`,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  // Verify OTP for booking
+  verifyOTP(bookingId: string, otpCode: string): Observable<BookingCreateResponse> {
+    return this.http.post<BookingCreateResponse>(
+      `${this.apiBaseUrl}/bookings/verify-otp`,
+      {
+        booking_id: bookingId,
+        otp_code: otpCode
+      },
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  // Resend OTP for booking
+  resendOTP(bookingId: string): Observable<BookingCreateResponse> {
+    return this.http.post<BookingCreateResponse>(
+      `${this.apiBaseUrl}/bookings/resend-otp`,
+      {
+        booking_id: bookingId
+      },
       {
         headers: this.getHeaders()
       }
