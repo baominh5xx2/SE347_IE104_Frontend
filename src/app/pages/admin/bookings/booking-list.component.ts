@@ -5,6 +5,7 @@ import { AdminBookingService, AdminBookingItem, AdminBookingDetail } from '../..
 import { AdminUserService } from '../../../services/admin/admin-user.service';
 import { AdminTourService } from '../../../services/admin/admin-tour.service';
 import { AdminDialogService } from '../../../services/admin/admin-dialog.service';
+import { AdminPaymentService } from '../../../services/admin/admin-payment.service';
 
 interface Booking {
   id: string;
@@ -33,12 +34,12 @@ interface Booking {
 export class BookingListComponent implements OnInit {
   bookings: Booking[] = [];
   filteredBookings: Booking[] = [];
-  
+
   // Filters
   searchTerm: string = '';
   statusFilter: string = '';
   phoneFilter: string = '';
-  
+
   // Modal states
   showDetailModal: boolean = false;
   showDeleteModal: boolean = false;
@@ -60,13 +61,13 @@ export class BookingListComponent implements OnInit {
     user_id: '',
     skip_otp: true
   };
-  
+
   // Thông tin hiển thị khi nhập ID
   selectedUserInfo: any = null;
   selectedTourInfo: any = null;
   isLoadingUserInfo = false;
   isLoadingTourInfo = false;
-  
+
   // UI states
   isLoading: boolean = false;
   errorMessage: string = '';
@@ -85,8 +86,9 @@ export class BookingListComponent implements OnInit {
     private adminBookingService: AdminBookingService,
     private adminUserService: AdminUserService,
     private adminTourService: AdminTourService,
-    private dialogService: AdminDialogService
-  ) {}
+    private dialogService: AdminDialogService,
+    private adminPaymentService: AdminPaymentService
+  ) { }
 
   ngOnInit() {
     this.loadBookings();
@@ -96,16 +98,16 @@ export class BookingListComponent implements OnInit {
   async loadBookings() {
     this.isLoading = true;
     this.errorMessage = '';
-    
+
     try {
       const params = {
         status: this.statusFilter || undefined,
         limit: 100,
         offset: 0
       };
-      
+
       const response = await this.adminBookingService.getAllBookingsAdmin(params).toPromise();
-      
+
       if (response && response.EC === 0) {
         this.bookings = response.data.map(item => this.mapAdminBookingItemToBooking(item));
         this.stats.total_bookings = response.total;
@@ -113,7 +115,7 @@ export class BookingListComponent implements OnInit {
         this.errorMessage = response?.EM || 'Không thể tải danh sách bookings';
         this.bookings = [];
       }
-      
+
       this.applyFilters();
       this.calculateStats();
     } catch (error: any) {
@@ -131,7 +133,7 @@ export class BookingListComponent implements OnInit {
       id: item.booking_id,
       booking_id: item.booking_id,
       customerName: item.user_full_name,
-      customerPhone: '', 
+      customerPhone: '',
       tourName: item.tour_name,
       destination: item.destination,
       numberOfPeople: item.number_of_people,
@@ -156,14 +158,14 @@ export class BookingListComponent implements OnInit {
 
   applyFilters() {
     this.filteredBookings = this.bookings.filter(booking => {
-      const matchesSearch = !this.searchTerm || 
+      const matchesSearch = !this.searchTerm ||
         booking.customerName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         booking.customerPhone.includes(this.searchTerm) ||
         booking.tourName.toLowerCase().includes(this.searchTerm.toLowerCase());
-      
+
       const matchesStatus = !this.statusFilter || booking.status === this.statusFilter;
       const matchesPhone = !this.phoneFilter || booking.customerPhone.includes(this.phoneFilter);
-      
+
       return matchesSearch && matchesStatus && matchesPhone;
     });
   }
@@ -177,7 +179,7 @@ export class BookingListComponent implements OnInit {
     try {
       // Lấy thông tin chi tiết từ admin API
       const response = await this.adminBookingService.getBookingDetailAdmin(booking.id).toPromise();
-      
+
       if (response && response.EC === 0) {
         const detail = response.data;
         this.currentBooking = {
@@ -208,7 +210,7 @@ export class BookingListComponent implements OnInit {
     this.isLoading = true;
     try {
       const response = await this.adminBookingService.updateBooking(id, { status: newStatus }).toPromise();
-      
+
       if (response && response.EC === 0) {
         const booking = this.bookings.find(b => b.id === id);
         if (booking) {
@@ -250,7 +252,7 @@ export class BookingListComponent implements OnInit {
 
   async cancelBooking() {
     if (!this.cancelId) return;
-    
+
     console.log('🟡 Cancelling booking with ID:', this.cancelId);
     this.isLoading = true;
     try {
@@ -259,15 +261,15 @@ export class BookingListComponent implements OnInit {
         status: 'cancelled'
       }).toPromise();
       console.log('✅ Cancel response:', response);
-      
+
       if (response && response.EC === 0) {
         console.log('Booking cancelled successfully, updating UI and reloading data');
-        
+
         // Reload toàn bộ danh sách bookings để đảm bảo dữ liệu mới nhất
         await this.loadBookings();
-        
+
         this.closeCancelModal();
-        
+
         // Thông báo thành công qua dialog
         await this.dialogService.alert(
           'Thành công',
@@ -293,21 +295,21 @@ export class BookingListComponent implements OnInit {
 
   async deleteBooking() {
     if (!this.deleteId) return;
-    
+
     console.log('🔴 Hard deleting booking with ID:', this.deleteId);
     this.isLoading = true;
     try {
       const response = await this.adminBookingService.deleteBooking(this.deleteId).toPromise();
       console.log('✅ Delete response:', response);
-      
+
       if (response && response.EC === 0) {
         console.log('Booking deleted successfully, updating UI and reloading data');
-        
+
         // Reload toàn bộ danh sách bookings để đảm bảo dữ liệu mới nhất
         await this.loadBookings();
-        
+
         this.closeDeleteModal();
-        
+
         // Thông báo thành công qua dialog
         await this.dialogService.alert(
           'Thành công',
@@ -380,7 +382,7 @@ export class BookingListComponent implements OnInit {
       this.closeDetailModal();
       return;
     }
-    
+
     this.isLoading = true;
     try {
       let response;
@@ -397,7 +399,7 @@ export class BookingListComponent implements OnInit {
         };
         response = await this.adminBookingService.updateBooking(this.editingBooking.id, updateData).toPromise();
       }
-      
+
       if (response && response.EC === 0) {
         const index = this.bookings.findIndex(b => b.id === this.editingBooking!.id);
         if (index !== -1) {
@@ -550,15 +552,15 @@ export class BookingListComponent implements OnInit {
     try {
       console.log('📝 Creating booking:', this.newBooking);
       const response = await this.adminBookingService.createBookingWithOTP(this.newBooking).toPromise();
-      
+
       console.log('✅ Create booking response:', response);
-      
+
       if (response && response.EC === 0) {
         // Admin tạo booking thành công - Backend tự động xử lý OTP hoặc skip OTP
         await this.loadBookings();
         this.closeAddModal();
         await this.dialogService.alert(
-          'Thành công', 
+          'Thành công',
           'Đã tạo booking thành công! Booking ID: ' + response.data.booking_id
         );
       } else {
@@ -582,6 +584,44 @@ export class BookingListComponent implements OnInit {
     } catch (error) {
       console.error('Error copying to clipboard:', error);
       await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard');
+    }
+  }
+
+  /**
+   * Process payment for a booking (admin creates payment for user)
+   */
+  async processPayment(booking: Booking) {
+    const confirmed = await this.dialogService.confirm({
+      title: 'Xác nhận thanh toán',
+      message: `Bạn có muốn thanh toán cho booking "${booking.tourName}" với số tiền ${this.formatPrice(booking.totalAmount)}?`,
+      confirmText: 'Thanh toán',
+      cancelText: 'Hủy'
+    });
+
+    if (!confirmed) return;
+
+    this.isLoading = true;
+    try {
+      const response = await this.adminPaymentService.createPayment({
+        booking_id: booking.id,
+        payment_method: 'bank_transfer',
+        notes: 'Admin thanh toán cho khách hàng'
+      }).toPromise();
+
+      if (response && response.EC === 0) {
+        await this.loadBookings();
+        await this.dialogService.alert(
+          'Thành công',
+          'Đã thanh toán thành công! Booking đã được xác nhận.'
+        );
+      } else {
+        await this.dialogService.alert('Lỗi', response?.EM || 'Không thể thanh toán');
+      }
+    } catch (error: any) {
+      console.error('Error processing payment:', error);
+      await this.dialogService.alert('Lỗi', error?.error?.EM || 'Lỗi khi thanh toán');
+    } finally {
+      this.isLoading = false;
     }
   }
 }

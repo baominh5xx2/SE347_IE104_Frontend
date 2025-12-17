@@ -71,7 +71,7 @@ export class AdminPaymentService {
   constructor(
     private http: HttpClient,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   private get apiBaseUrl(): string {
     return this.configService.getApiUrl();
@@ -124,6 +124,16 @@ export class AdminPaymentService {
     return this.http.post<AdminRefundResponse>(
       `${this.apiBaseUrl}/payments/admin/${paymentId}/refund`,
       payload,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  confirmPayment(paymentId: string): Observable<AdminCreatePaymentResponse> {
+    return this.http.post<AdminCreatePaymentResponse>(
+      `${this.apiBaseUrl}/payments/admin/${paymentId}/confirm`,
+      {},
       {
         headers: this.getHeaders()
       }
