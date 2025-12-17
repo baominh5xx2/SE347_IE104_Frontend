@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -41,6 +41,17 @@ export class NotificationService {
     constructor(private http: HttpClient) { }
 
     /**
+     * Get headers with Authorization token
+     */
+    private getHeaders(): HttpHeaders {
+        const token = localStorage.getItem('access_token');
+        return new HttpHeaders({
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        });
+    }
+
+    /**
      * Lấy danh sách thông báo
      */
     getNotifications(
@@ -56,14 +67,20 @@ export class NotificationService {
             params = params.set('offset', offset.toString());
         }
 
-        return this.http.get<NotificationListResponse>(this.apiUrl, { params });
+        return this.http.get<NotificationListResponse>(this.apiUrl, {
+            params,
+            headers: this.getHeaders()
+        });
     }
 
     /**
      * Lấy số lượng thông báo chưa đọc
      */
     getUnreadCount(): Observable<NotificationUnreadCountResponse> {
-        return this.http.get<NotificationUnreadCountResponse>(`${this.apiUrl}/unread-count`);
+        return this.http.get<NotificationUnreadCountResponse>(
+            `${this.apiUrl}/unread-count`,
+            { headers: this.getHeaders() }
+        );
     }
 
     /**
@@ -72,7 +89,8 @@ export class NotificationService {
     markAsRead(notificationId: string): Observable<NotificationMarkReadResponse> {
         return this.http.post<NotificationMarkReadResponse>(
             `${this.apiUrl}/${notificationId}/read`,
-            {}
+            {},
+            { headers: this.getHeaders() }
         );
     }
 
@@ -82,7 +100,8 @@ export class NotificationService {
     markAllAsRead(): Observable<NotificationMarkReadResponse> {
         return this.http.post<NotificationMarkReadResponse>(
             `${this.apiUrl}/read-all`,
-            {}
+            {},
+            { headers: this.getHeaders() }
         );
     }
 

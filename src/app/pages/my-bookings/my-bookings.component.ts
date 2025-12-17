@@ -76,15 +76,13 @@ export class MyBookingsComponent implements OnInit {
     // Call API with high limit to get all bookings for stats
     this.bookingService.getMyBookings({ limit: 100, offset: 0 }).subscribe({
       next: (response) => {
-        console.log('loadAllStats response:', response);
         if (response.EC === 0) {
           this.allBookings = response.data || [];
-          console.log('allBookings loaded:', this.allBookings.length);
           this.calculateStats();
         }
       },
       error: (error) => {
-        console.error('Error loading stats:', error);
+        // Silent fail for stats - main list will still show
       }
     });
   }
