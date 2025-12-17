@@ -139,12 +139,12 @@ export class AdminTourService {
         },
         body: JSON.stringify(packageData),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || `Failed to create tour package: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error creating tour package:', error);
@@ -164,12 +164,12 @@ export class AdminTourService {
         },
         body: JSON.stringify(packageData),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || `Failed to update tour package: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error updating tour package:', error);
@@ -182,11 +182,11 @@ export class AdminTourService {
       const response = await fetch(`${this.apiBaseUrl}/${packageId}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to delete tour package: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error deleting tour package:', error);
@@ -200,27 +200,27 @@ export class AdminTourService {
   ): Promise<TourPackageDetailResponse> {
     try {
       const formData = new FormData();
-      
+
       // Append package data
       Object.entries(packageData).forEach(([key, value]) => {
         formData.append(key, value.toString());
       });
-      
+
       // Append images
       images.forEach((file) => {
         formData.append('images', file);
       });
-      
+
       const response = await fetch(`${this.apiBaseUrl}/`, {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || `Failed to create tour package: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error creating tour package with images:', error);
@@ -238,7 +238,7 @@ export class AdminTourService {
       images.forEach((file) => {
         formData.append('images', file);
       });
-      
+
       const response = await fetch(
         `${this.apiBaseUrl}/${packageId}/images?replace_existing=${replaceExisting}`,
         {
@@ -246,12 +246,12 @@ export class AdminTourService {
           body: formData,
         }
       );
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || `Failed to manage images: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error managing images:', error);
@@ -263,17 +263,17 @@ export class AdminTourService {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await fetch(`${this.apiBaseUrl}/bulk/csv`, {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || `Failed to upload CSV: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('Error uploading CSV:', error);
@@ -386,6 +386,35 @@ export class AdminTourService {
       return await response.json();
     } catch (error) {
       console.error('Error filtering tours by price range:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel tour package and all related bookings
+   */
+  async cancelTourPackage(packageId: string, reason?: string): Promise<{ EC: number; EM: string; cancelled_bookings: number; notifications_sent: number }> {
+    try {
+      const token = localStorage.getItem('access_token');
+      const params = new URLSearchParams();
+      if (reason) params.append('reason', reason);
+
+      const response = await fetch(`${this.apiBaseUrl}/${packageId}/cancel?${params}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || `Failed to cancel tour package: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error cancelling tour package:', error);
       throw error;
     }
   }

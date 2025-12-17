@@ -38,6 +38,10 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./reports/reports.component').then(m => m.ReportsComponent)
       },
       {
+        path: 'cancellations',
+        loadComponent: () => import('./cancellations/cancellation-management.component').then(m => m.CancellationManagementComponent)
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./admin-profile/admin-profile.component').then(m => m.AdminProfileComponent)
       },

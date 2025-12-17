@@ -65,7 +65,7 @@ export class PaymentManagementComponent implements OnInit {
     private adminPaymentService: AdminPaymentService,
     private dialogService: AdminDialogService,
     private http: HttpClient
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadStatusOptions();
@@ -308,5 +308,37 @@ export class PaymentManagementComponent implements OnInit {
       refunded: 'Đã hoàn tiền'
     };
     return map[status] || status;
+  }
+
+  /**
+   * Process a pending payment - mark as completed
+   */
+  async processPayment(payment: AdminPaymentItem) {
+    const confirmed = await this.dialogService.confirm({
+      title: 'Xác nhận thanh toán',
+      message: `Bạn có muốn xác nhận thanh toán ${payment.amount?.toLocaleString('vi-VN')} VNĐ cho booking này?`,
+      confirmText: 'Xác nhận',
+      cancelText: 'Hủy'
+    });
+
+    if (!confirmed) return;
+
+    this.isLoading = true;
+    try {
+      // Use confirmPayment to update existing pending payment to completed
+      const response = await this.adminPaymentService.confirmPayment(payment.payment_id).toPromise();
+
+      if (response && response.EC === 0) {
+        await this.dialogService.alert('Thành công', 'Đã xác nhận thanh toán thành công!');
+        await this.loadPayments();
+      } else {
+        await this.dialogService.alert('Lỗi', response?.EM || 'Không thể xác nhận thanh toán');
+      }
+    } catch (error: any) {
+      console.error('Error processing payment:', error);
+      await this.dialogService.alert('Lỗi', error?.error?.detail || error?.error?.EM || 'Không thể xác nhận thanh toán');
+    } finally {
+      this.isLoading = false;
+    }
   }
 }

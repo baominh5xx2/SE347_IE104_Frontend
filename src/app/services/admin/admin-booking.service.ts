@@ -166,6 +166,44 @@ export interface BookingDeleteResponse {
   EM: string;
 }
 
+// Booking Cancellation Item (from booking_cancellations table)
+export interface BookingCancellationItem {
+  cancellation_id: string;
+  booking_id: string;
+  user_id: string;
+  user_email: string;
+  user_full_name: string;
+  package_id: string;
+  tour_name: string;
+  // Booking snapshot
+  number_of_people: number;
+  total_amount: number;
+  contact_name: string;
+  contact_phone: string;
+  contact_email: string;
+  special_requests?: string;
+  previous_status: string;
+  booking_created_at: string;
+  // Cancellation info
+  reason?: string;
+  cancelled_at: string;
+  cancelled_by: 'user' | 'admin' | 'system';
+  created_at: string;
+}
+
+export interface BookingCancellationListResponse {
+  EC: number;
+  EM: string;
+  data: BookingCancellationItem[];
+  total: number;
+}
+
+export interface CancellationListParams {
+  cancelled_by?: string;
+  limit?: number;
+  offset?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -177,7 +215,7 @@ export class AdminBookingService {
   constructor(
     private http: HttpClient,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('access_token');
@@ -193,7 +231,7 @@ export class AdminBookingService {
    */
   getAllBookingsAdmin(params?: BookingListParams): Observable<AdminBookingListResponse> {
     let httpParams = new HttpParams();
-    
+
     if (params?.status) {
       httpParams = httpParams.set('status', params.status);
     }
@@ -219,7 +257,7 @@ export class AdminBookingService {
    */
   getUserBookingsAdmin(userId: string, params?: BookingListParams): Observable<AdminBookingListResponse> {
     let httpParams = new HttpParams();
-    
+
     if (params?.status) {
       httpParams = httpParams.set('status', params.status);
     }
@@ -259,7 +297,7 @@ export class AdminBookingService {
    */
   getBookings(params?: BookingListParams): Observable<BookingListResponse> {
     let httpParams = new HttpParams();
-    
+
     if (params?.status) {
       httpParams = httpParams.set('status', params.status);
     }
@@ -407,6 +445,32 @@ export class AdminBookingService {
       `${this.apiBaseUrl}/bookings/${bookingId}`,
       {
         headers: this.getHeaders()
+      }
+    );
+  }
+
+  /**
+   * GET /api/v1/bookings/admin/cancellations
+   * Admin: Lấy danh sách tất cả booking cancellations
+   */
+  getCancellationsAdmin(params?: CancellationListParams): Observable<BookingCancellationListResponse> {
+    let httpParams = new HttpParams();
+
+    if (params?.cancelled_by) {
+      httpParams = httpParams.set('cancelled_by', params.cancelled_by);
+    }
+    if (params?.limit !== undefined) {
+      httpParams = httpParams.set('limit', params.limit.toString());
+    }
+    if (params?.offset !== undefined) {
+      httpParams = httpParams.set('offset', params.offset.toString());
+    }
+
+    return this.http.get<BookingCancellationListResponse>(
+      `${this.apiBaseUrl}/bookings/admin/cancellations`,
+      {
+        headers: this.getHeaders(),
+        params: httpParams
       }
     );
   }
