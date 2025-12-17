@@ -5,6 +5,9 @@ import { Router } from '@angular/router';
 
 interface Message {
   content: string;
+  role: 'user' | 'assistant' | 'admin';
+  created_at: string;
+  // UI helpers
   isUser: boolean;
   timestamp: Date;
   isError?: boolean;
@@ -13,8 +16,9 @@ interface Message {
 interface Conversation {
   id: string;
   title: string;
-  createdAt: Date;
   updatedAt: Date;
+  lastMessage?: string;
+  messageCount?: number;
 }
 
 @Component({
@@ -24,7 +28,7 @@ interface Conversation {
   templateUrl: './admin-chatbot.component.html',
   styleUrls: ['./admin-chatbot.component.scss']
 })
-export class AdminChatbotComponent implements OnInit, OnDestroy {
+export class AdminChatbotComponent implements OnInit {
   @Output() close = new EventEmitter<void>();
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('messageInput') messageInputRef!: ElementRef;
@@ -41,26 +45,15 @@ export class AdminChatbotComponent implements OnInit, OnDestroy {
   isLoadingMessages = false;
   isDeletingConversation: string | null = null;
 
+  private apiUrl = 'http://localhost:8000/api/v1/admin/agent';
+
   constructor(
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
-    // Load conversations from localStorage
-    this.loadConversationsFromStorage();
-    
-    // Start with a new conversation if none exist
-    if (!this.conversations.length) {
-      this.startNewConversation();
-    } else {
-      // Load the most recent conversation
-      this.selectConversation(this.conversations[0].id);
-    }
-  }
-
-  ngOnDestroy(): void {
-    // Save conversations before leaving
-    this.saveConversationsToStorage();
+    // Load conversations from API
+    this.loadConversations();
   }
 
   onClose(): void {
@@ -68,67 +61,113 @@ export class AdminChatbotComponent implements OnInit, OnDestroy {
   }
 
   startNewConversation(): void {
-    const newConversation: Conversation = {
-      id: this.generateId(),
-      title: 'Cuộc trò chuyện mới',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.conversations.unshift(newConversation);
-    this.activeConversation = newConversation;
-    this.conversationId = newConversation.id;
+    this.activeConversation = null;
+    this.conversationId = null;
     this.messages = [];
-    
-    // Add welcome message
-    this.addAssistantMessage('Xin chào Admin! Tôi có thể giúp gì cho bạn hôm nay?');
-    this.saveConversationsToStorage();
+    this.addSystemMessage('Xin chào Admin! Tôi có thể giúp gì cho bạn hôm nay?');
   }
 
-  selectConversation(conversationId: string): void {
+  async loadConversations(): Promise<void> {
+    this.isLoadingConversations = true;
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${this.apiUrl}/conversations?limit=20`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Map Backend (snake_case) to Frontend (camelCase)
+        this.conversations = data.map((item: any) => ({
+          id: item.room_id,
+          title: item.title,
+          updatedAt: new Date(item.updated_at),
+          lastMessage: item.last_message,
+          messageCount: item.message_count
+        }));
+
+        // If there are conversations but no active selection, verify state
+        if (this.conversations.length > 0 && !this.conversationId) {
+          // Keep as new conversation state
+        }
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+    } finally {
+      this.isLoadingConversations = false;
+    }
+  }
+
+  async selectConversation(conversationId: string): Promise<void> {
+    if (this.conversationId === conversationId) return;
+
     const conversation = this.conversations.find(c => c.id === conversationId);
     if (!conversation) return;
 
     this.activeConversation = conversation;
     this.conversationId = conversationId;
-    
-    // Load messages from localStorage
-    const savedMessages = localStorage.getItem(`admin_chat_messages_${conversationId}`);
-    if (savedMessages) {
-      this.messages = JSON.parse(savedMessages).map((m: any) => ({
-        ...m,
-        timestamp: new Date(m.timestamp)
-      }));
-    } else {
-      this.messages = [];
-      this.addAssistantMessage('Xin chào Admin! Tôi có thể giúp gì cho bạn?');
-    }
+    this.isLoadingMessages = true;
 
-    setTimeout(() => this.scrollToBottom(), 100);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${this.apiUrl}/conversations/${conversationId}/messages`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.messages = data.map((msg: any) => ({
+          content: msg.content,
+          role: msg.role,
+          created_at: msg.created_at,
+          isUser: msg.role === 'user' || msg.role === 'admin',
+          timestamp: new Date(msg.created_at)
+        }));
+        setTimeout(() => this.scrollToBottom(), 100);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      this.addSystemMessage('Không thể tải lịch sử trò chuyện.', true);
+    } finally {
+      this.isLoadingMessages = false;
+    }
   }
 
-  async deleteConversation(conversationId: string): Promise<void> {
-    if (this.isDeletingConversation) return;
-
-    this.isDeletingConversation = conversationId;
-    
-    // Remove from array
-    this.conversations = this.conversations.filter(c => c.id !== conversationId);
-    
-    // Remove messages from storage
-    localStorage.removeItem(`admin_chat_messages_${conversationId}`);
-    
-    // If deleting active conversation, switch to another
-    if (this.activeConversation?.id === conversationId) {
-      if (this.conversations.length > 0) {
-        this.selectConversation(this.conversations[0].id);
-      } else {
-        this.startNewConversation();
-      }
+  async deleteConversation(conversationId: string, event?: Event): Promise<void> {
+    if (event) {
+      event.stopPropagation();
     }
 
-    this.saveConversationsToStorage();
-    this.isDeletingConversation = null;
+    if (this.isDeletingConversation) return;
+    if (!confirm('Bạn có chắc muốn xóa cuộc trò chuyện này?')) return;
+
+    this.isDeletingConversation = conversationId;
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${this.apiUrl}/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        this.conversations = this.conversations.filter(c => c.id !== conversationId);
+
+        if (this.conversationId === conversationId) {
+          this.startNewConversation();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+    } finally {
+      this.isDeletingConversation = null;
+    }
   }
 
   async sendMessage(): Promise<void> {
@@ -137,110 +176,111 @@ export class AdminChatbotComponent implements OnInit, OnDestroy {
     const messageText = this.userMessage.trim();
     this.userMessage = '';
 
-    // Add user message
+    // Optimistic UI update
     this.addUserMessage(messageText);
 
-    // Update conversation title if it's the first message
-    if (this.activeConversation && this.messages.filter(m => m.isUser).length === 1) {
-      this.activeConversation.title = messageText.substring(0, 50);
-      this.saveConversationsToStorage();
-    }
-
-    // Show typing indicator
     this.isTyping = true;
     this.isStreaming = true;
 
-    // Simulate AI response (TODO: Replace with actual API call)
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${this.apiUrl}/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: messageText,
+          session_id: this.conversationId // Send current room ID if exists
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
       this.isTyping = false;
-      this.addAssistantMessage('Tính năng này đang được phát triển. Tôi sẽ sớm có thể trả lời câu hỏi của bạn!');
+
+      if (data.success) {
+        this.addAssistantMessage(data.response || 'Đã xử lý xong yêu cầu của bạn.');
+
+        // Update session ID if it was a new conversation
+        if (!this.conversationId && data.session_id) {
+          this.conversationId = data.session_id;
+          // Refresh conversation list to show the new room
+          this.loadConversations();
+        }
+      } else {
+        this.addAssistantMessage(data.error || 'Có lỗi xảy ra khi xử lý yêu cầu.', true);
+      }
+
+    } catch (error) {
+      this.isTyping = false;
+      console.error('Admin agent error:', error);
+      this.addAssistantMessage(
+        'Lỗi kết nối đến Admin Intelligence. Vui lòng thử lại sau.',
+        true
+      );
+    } finally {
       this.isStreaming = false;
-    }, 1500);
+    }
   }
 
   private addUserMessage(content: string): void {
     const message: Message = {
       content,
+      role: 'admin',
+      created_at: new Date().toISOString(),
       isUser: true,
       timestamp: new Date()
     };
     this.messages.push(message);
-    this.saveMessagesToStorage();
     setTimeout(() => this.scrollToBottom(), 100);
   }
 
   private addAssistantMessage(content: string, isError: boolean = false): void {
     const message: Message = {
       content,
+      role: 'assistant',
+      created_at: new Date().toISOString(),
       isUser: false,
       timestamp: new Date(),
       isError
     };
     this.messages.push(message);
-    this.saveMessagesToStorage();
     setTimeout(() => this.scrollToBottom(), 100);
+  }
+
+  private addSystemMessage(content: string, isError: boolean = false): void {
+    // Treat system messages as assistant messages for UI purposes
+    this.addAssistantMessage(content, isError);
   }
 
   private scrollToBottom(): void {
     if (this.messagesContainer?.nativeElement) {
-      this.messagesContainer.nativeElement.scrollTop = 
+      this.messagesContainer.nativeElement.scrollTop =
         this.messagesContainer.nativeElement.scrollHeight;
     }
   }
 
-  private generateId(): string {
-    return `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-  }
-
   getConversationPreview(conversation: Conversation): string {
-    const messages = this.getMessagesForConversation(conversation.id);
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      return lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : '');
-    }
-    return 'Không có tin nhắn';
-  }
-
-  private getMessagesForConversation(conversationId: string): Message[] {
-    const savedMessages = localStorage.getItem(`admin_chat_messages_${conversationId}`);
-    if (savedMessages) {
-      return JSON.parse(savedMessages);
-    }
-    return [];
-  }
-
-  private loadConversationsFromStorage(): void {
-    const saved = localStorage.getItem('admin_chat_conversations');
-    if (saved) {
-      this.conversations = JSON.parse(saved).map((c: any) => ({
-        ...c,
-        createdAt: new Date(c.createdAt),
-        updatedAt: new Date(c.updatedAt)
-      }));
-    }
-  }
-
-  private saveConversationsToStorage(): void {
-    localStorage.setItem('admin_chat_conversations', JSON.stringify(this.conversations));
-  }
-
-  private saveMessagesToStorage(): void {
-    if (this.conversationId) {
-      localStorage.setItem(`admin_chat_messages_${this.conversationId}`, JSON.stringify(this.messages));
-    }
+    return conversation.lastMessage || 'Không có tin nhắn';
   }
 
   formatMessageContent(content: string): string {
-    // Basic formatting
+    if (!content) return '';
     return content
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n/g, '<br>');
   }
 
-  formatTime(date: Date): string {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
+  formatTime(date: Date | string): string {
+    const d = new Date(date);
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
   }
 
