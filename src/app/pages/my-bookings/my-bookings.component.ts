@@ -17,8 +17,8 @@ export class MyBookingsComponent implements OnInit {
   filteredBookings: MyBooking[] = [];
   isLoading = false;
   errorMessage = '';
-  
-  statusFilter: 'pending' | 'confirmed' | 'cancelled' | 'completed' | '' = '';
+
+  statusFilter: 'pending' | 'otp_sent' | 'confirmed' | 'cancelled' | 'completed' | '' = '';
   currentPage = 1;
   pageSize = 10;
   total = 0;
@@ -52,6 +52,7 @@ export class MyBookingsComponent implements OnInit {
   stats = {
     total: 0,
     pending: 0,
+    otp_sent: 0,
     confirmed: 0,
     cancelled: 0,
     completed: 0
@@ -60,10 +61,32 @@ export class MyBookingsComponent implements OnInit {
   constructor(
     private bookingService: BookingService,
     private paymentService: PaymentService
-  ) {}
+  ) { }
+
+  // Store all bookings for stats calculation
+  private allBookings: MyBooking[] = [];
 
   ngOnInit(): void {
+    this.loadAllStats(); // Load stats first
     this.loadBookings();
+  }
+
+  // Load all bookings for stats (no filter)
+  loadAllStats(): void {
+    // Call API with high limit to get all bookings for stats
+    this.bookingService.getMyBookings({ limit: 100, offset: 0 }).subscribe({
+      next: (response) => {
+        console.log('loadAllStats response:', response);
+        if (response.EC === 0) {
+          this.allBookings = response.data || [];
+          console.log('allBookings loaded:', this.allBookings.length);
+          this.calculateStats();
+        }
+      },
+      error: (error) => {
+        console.error('Error loading stats:', error);
+      }
+    });
   }
 
   loadBookings(): void {
@@ -85,7 +108,6 @@ export class MyBookingsComponent implements OnInit {
           this.bookings = response.data || [];
           this.total = response.total || 0;
           this.filteredBookings = this.bookings;
-          this.calculateStats();
         } else {
           this.errorMessage = response.EM || 'Có lỗi xảy ra khi tải danh sách đơn hàng';
           this.bookings = [];
@@ -109,15 +131,16 @@ export class MyBookingsComponent implements OnInit {
   }
 
   calculateStats(): void {
-    this.stats.total = this.bookings.length;
-    this.stats.pending = this.bookings.filter(b => b.status === 'pending').length;
-    this.stats.confirmed = this.bookings.filter(b => b.status === 'confirmed').length;
-    this.stats.cancelled = this.bookings.filter(b => b.status === 'cancelled').length;
-    this.stats.completed = this.bookings.filter(b => b.status === 'completed').length;
+    this.stats.total = this.allBookings.length;
+    this.stats.pending = this.allBookings.filter(b => b.status === 'pending').length;
+    this.stats.otp_sent = this.allBookings.filter(b => b.status === 'otp_sent').length;
+    this.stats.confirmed = this.allBookings.filter(b => b.status === 'confirmed').length;
+    this.stats.cancelled = this.allBookings.filter(b => b.status === 'cancelled').length;
+    this.stats.completed = this.allBookings.filter(b => b.status === 'completed').length;
   }
 
   calculateTotalSpent(): number {
-    return this.bookings
+    return this.allBookings
       .filter(b => b.status === 'completed' || b.status === 'confirmed')
       .reduce((sum, b) => sum + b.total_amount, 0);
   }
@@ -126,7 +149,7 @@ export class MyBookingsComponent implements OnInit {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays + 1;
   }
 
@@ -255,12 +278,12 @@ export class MyBookingsComponent implements OnInit {
 
   getDescriptionParts(description: string): { main: string; note: string } {
     if (!description) return { main: '', note: '' };
-    
+
     const noteIndex = description.indexOf('Lưu ý:');
     if (noteIndex === -1) {
       return { main: description, note: '' };
     }
-    
+
     return {
       main: description.substring(0, noteIndex).trim(),
       note: description.substring(noteIndex).trim()
@@ -271,12 +294,12 @@ export class MyBookingsComponent implements OnInit {
     if (this.showDetailModal) {
       this.closeDetailModal();
     }
-    
+
     this.showEditModal = true;
     this.updateErrorMessage = '';
     this.updateSuccessMessage = '';
     this.bookingDetail = null;
-    
+
     this.bookingService.getMyBookingDetail(bookingId).subscribe({
       next: (response) => {
         if (response.EC === 0 && response.data) {

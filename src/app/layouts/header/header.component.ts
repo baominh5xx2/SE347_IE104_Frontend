@@ -4,12 +4,13 @@ import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ChatbotService } from '../../services/chatbot.service';
 import { AiChatbotComponent } from '../../components/ai-chatbot/ai-chatbot.component';
+import { NotificationBellComponent } from '../../components/notification-bell/notification-bell.component';
 import { Subscription } from 'rxjs';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, CommonModule, AiChatbotComponent, ClickOutsideDirective],
+  imports: [RouterLink, CommonModule, AiChatbotComponent, ClickOutsideDirective, NotificationBellComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
@@ -45,12 +46,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private router: Router,
     private authStateService: AuthStateService,
     private chatbotService: ChatbotService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.checkIfHomePage();
     this.checkAuthState();
-    
+
     this.router.events.subscribe((ev) => {
       if (ev instanceof NavigationEnd) {
         this.checkIfHomePage();
@@ -89,7 +90,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   checkIfHomePage(): void {
     const url = this.router.url;
     this.isHomePage = url === '/' || url.startsWith('/home');
-    
+
     if (this.isHomePage) {
       const offset = window.pageYOffset || document.documentElement.scrollTop;
       this.isScrolled = offset > 50;

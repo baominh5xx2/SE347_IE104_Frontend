@@ -11,7 +11,7 @@ export interface MyBooking {
   end_date: string;
   number_of_people: number;
   total_amount: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'otp_sent' | 'confirmed' | 'cancelled' | 'completed';
   created_at: string;
 }
 
@@ -23,7 +23,7 @@ export interface MyBookingListResponse {
 }
 
 export interface MyBookingParams {
-  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status?: 'pending' | 'otp_sent' | 'confirmed' | 'cancelled' | 'completed';
   limit?: number;
   offset?: number;
 }
@@ -42,7 +42,7 @@ export interface TourPackage {
 
 export interface MyBookingDetail {
   booking_id: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'otp_sent' | 'confirmed' | 'cancelled' | 'completed';
   number_of_people: number;
   total_amount: number;
   contact_name: string;
@@ -153,7 +153,7 @@ export class BookingService {
   constructor(
     private http: HttpClient,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   private get apiBaseUrl(): string {
     return this.configService.getApiUrl();
@@ -169,7 +169,7 @@ export class BookingService {
 
   getMyBookings(params?: MyBookingParams): Observable<MyBookingListResponse> {
     let httpParams = new HttpParams();
-    
+
     if (params?.status) {
       httpParams = httpParams.set('status', params.status);
     }
