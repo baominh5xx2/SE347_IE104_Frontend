@@ -64,7 +64,7 @@ export class BookingPagesComponent implements OnInit {
     private tourService: TourService,
     private authStateService: AuthStateService,
     private promotionService: PromotionService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
@@ -108,7 +108,7 @@ export class BookingPagesComponent implements OnInit {
     if (this.tourPackage) {
       const basePrice = this.tourPackage.price || 0;
       const totalPrice = basePrice * this.numberOfPeople;
-      
+
       // Calculate discount if promotion is applied
       let finalPrice = totalPrice;
       if (this.selectedPromotion) {
@@ -121,7 +121,7 @@ export class BookingPagesComponent implements OnInit {
       } else {
         this.discountAmount = 0;
       }
-      
+
       this.priceBreakdown = {
         roomDescription: `${this.tourPackage.package_name} - ${this.numberOfPeople} người`,
         roomPrice: totalPrice,
@@ -178,7 +178,7 @@ export class BookingPagesComponent implements OnInit {
 
     // Get email from user or form
     const contactEmail = this.email || this.currentUser?.email || '';
-    
+
     if (!contactEmail) {
       this.errorMessage = 'Vui lòng nhập email để nhận mã OTP xác nhận.';
       this.isLoading = false;
@@ -203,7 +203,7 @@ export class BookingPagesComponent implements OnInit {
           // Handle both structured object and dict
           const data = response.data as any;
           const bookingId = data.booking_id || (typeof data === 'object' && 'booking_id' in data ? data.booking_id : null);
-          
+
           // Always show OTP form for create-with-otp endpoint
           if (bookingId) {
             this.bookingIdForOTP = bookingId;
@@ -217,11 +217,11 @@ export class BookingPagesComponent implements OnInit {
             this.successMessage = 'Đặt tour thành công! Đang chuyển đến trang đơn hàng của bạn...';
             this.errorMessage = '';
             this.isLoading = false;
-            
+
             setTimeout(() => {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }, 100);
-            
+
             setTimeout(() => {
               this.router.navigate(['/my-bookings']);
             }, 3000);
@@ -260,6 +260,17 @@ export class BookingPagesComponent implements OnInit {
       this.errorMessage = 'Số người phải lớn hơn 0';
       return false;
     }
+    // Check available slots
+    if (this.tourPackage?.available_slots !== undefined) {
+      if (this.tourPackage.available_slots <= 0) {
+        this.errorMessage = 'Tour đã hết chỗ trống. Vui lòng chọn tour khác.';
+        return false;
+      }
+      if (this.numberOfPeople > this.tourPackage.available_slots) {
+        this.errorMessage = `Số người (${this.numberOfPeople}) vượt quá số chỗ còn lại (${this.tourPackage.available_slots}). Vui lòng giảm số người.`;
+        return false;
+      }
+    }
     return true;
   }
 
@@ -295,7 +306,7 @@ export class BookingPagesComponent implements OnInit {
           this.otpSuccessMessage = 'Xác nhận OTP thành công! Đặt tour của bạn đã được xác nhận.';
           this.otpErrorMessage = '';
           this.isVerifyingOTP = false;
-          
+
           // Hide OTP form and show success
           setTimeout(() => {
             this.showOTPForm = false;

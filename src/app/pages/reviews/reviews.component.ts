@@ -49,11 +49,23 @@ export class ReviewsComponent implements OnInit {
   // My Reviews Tab
   myReviews: Review[] = [];
 
+  // Edit Review State
+  editingReview: Review | null = null;
+  editForm = {
+    rating: 5,
+    comment: ''
+  };
+
+  // Delete Confirmation
+  deletingReviewId: string | null = null;
+
   // Loading states
   loading = {
     bookings: false,
     reviews: false,
-    submitting: false
+    submitting: false,
+    editing: false,
+    deleting: false
   };
 
   error: string | null = null;
@@ -258,9 +270,9 @@ export class ReviewsComponent implements OnInit {
 
   getReviewStatusText(isApproved: boolean | undefined): string {
     if (isApproved === undefined || isApproved === null) {
-      return 'Đang chờ duyệt';
+      return 'Chờ duyệt';
     }
-    return isApproved ? 'Đã duyệt' : 'Chưa duyệt';
+    return isApproved ? 'Đã duyệt' : 'Chờ duyệt';
   }
 
   getReviewStatusClass(isApproved: boolean | undefined): string {
@@ -268,5 +280,94 @@ export class ReviewsComponent implements OnInit {
       return 'pending';
     }
     return isApproved ? 'approved' : 'pending';
+  }
+
+  // ========== Edit Review Methods ==========
+  editReview(review: Review): void {
+    this.editingReview = review;
+    this.editForm = {
+      rating: review.rating,
+      comment: review.comment
+    };
+    this.error = null;
+    this.successMessage = null;
+  }
+
+  cancelEdit(): void {
+    this.editingReview = null;
+    this.editForm = { rating: 5, comment: '' };
+  }
+
+  async saveEditReview(): Promise<void> {
+    if (!this.editingReview?.review_id) return;
+    if (this.editForm.comment.length < 10) {
+      this.error = 'Nội dung đánh giá phải có ít nhất 10 ký tự';
+      return;
+    }
+
+    this.loading.editing = true;
+    this.error = null;
+
+    try {
+      const response = await this.reviewService.updateReview(
+        this.editingReview.review_id,
+        {
+          rating: this.editForm.rating,
+          comment: this.editForm.comment
+        }
+      ).toPromise();
+
+      if (response?.EC === 0) {
+        this.successMessage = 'Đánh giá đã được cập nhật thành công!';
+        this.cancelEdit();
+        await this.loadMyReviews();
+      } else {
+        this.error = response?.EM || 'Không thể cập nhật đánh giá. Vui lòng thử lại.';
+      }
+    } catch (error: any) {
+      console.error('Error updating review:', error);
+      this.error = error.error?.EM || 'Đã xảy ra lỗi khi cập nhật đánh giá.';
+    } finally {
+      this.loading.editing = false;
+    }
+  }
+
+  setEditRating(star: number): void {
+    this.editForm.rating = star;
+  }
+
+  // ========== Delete Review Methods ==========
+  confirmDelete(reviewId: string): void {
+    this.deletingReviewId = reviewId;
+    this.error = null;
+    this.successMessage = null;
+  }
+
+  cancelDelete(): void {
+    this.deletingReviewId = null;
+  }
+
+  async deleteReview(): Promise<void> {
+    if (!this.deletingReviewId) return;
+
+    this.loading.deleting = true;
+    this.error = null;
+
+    try {
+      const response = await this.reviewService.deleteReview(this.deletingReviewId).toPromise();
+
+      if (response?.EC === 0) {
+        this.successMessage = 'Đánh giá đã được xóa thành công!';
+        this.cancelDelete();
+        await this.loadMyReviews();
+      } else {
+        this.error = response?.EM || 'Không thể xóa đánh giá. Vui lòng thử lại.';
+      }
+    } catch (error: any) {
+      console.error('Error deleting review:', error);
+      this.error = error.error?.EM || 'Đã xảy ra lỗi khi xóa đánh giá.';
+    } finally {
+      this.loading.deleting = false;
+    }
   }
 }
