@@ -44,8 +44,15 @@ $bg-white: #ffffff;
 
 // Animations
 @keyframes gradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 @keyframes fadeInUp {
@@ -53,6 +60,7 @@ $bg-white: #ffffff;
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -60,8 +68,13 @@ $bg-white: #ffffff;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInRight {
@@ -69,6 +82,7 @@ $bg-white: #ffffff;
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -76,23 +90,50 @@ $bg-white: #ffffff;
 }
 
 @keyframes shimmer {
-  0% { left: -100%; }
-  50%, 100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+
+  50%,
+  100% {
+    left: 100%;
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.8; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 // Utility Classes
@@ -143,6 +184,7 @@ $bg-white: #ffffff;
   background: linear-gradient(180deg, $bg-light 0%, $bg-white 100%);
   position: relative;
   overflow: hidden;
+  padding-top: 150px; // Account for fixed header height
 
   &::before {
     content: '';
@@ -156,7 +198,7 @@ $bg-white: #ffffff;
     z-index: 0;
   }
 
-  > * {
+  >* {
     position: relative;
     z-index: 1;
   }
@@ -441,7 +483,7 @@ $bg-white: #ffffff;
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
         animation: shimmer 3s ease-in-out infinite;
       }
 
@@ -670,7 +712,10 @@ $bg-white: #ffffff;
           ::ng-deep {
             p {
               margin-bottom: 1rem;
-              &:last-child { margin-bottom: 0; }
+
+              &:last-child {
+                margin-bottom: 0;
+              }
             }
 
             .day-header {
@@ -724,7 +769,10 @@ $bg-white: #ffffff;
           ::ng-deep {
             p {
               margin-bottom: 1rem;
-              &:last-child { margin-bottom: 0; }
+
+              &:last-child {
+                margin-bottom: 0;
+              }
             }
 
             .day-header {
@@ -1296,9 +1344,17 @@ $bg-white: #ffffff;
   }
 }
 
-.best-season-section .section-title i { color: #f59e0b; }
-.photo-spots-section .section-title i { color: $primary-pink; }
-.food-section .section-title i { color: #22c55e; }
+.best-season-section .section-title i {
+  color: #f59e0b;
+}
+
+.photo-spots-section .section-title i {
+  color: $primary-pink;
+}
+
+.food-section .section-title i {
+  color: #22c55e;
+}
 
 // Related Tours Section
 .related-tours-section {
@@ -1484,6 +1540,7 @@ $bg-white: #ffffff;
 .warpper-content {
   @media only screen and (max-width: 600px) {
     flex-wrap: wrap;
+
     .m-img {
       width: 100%;
     }
