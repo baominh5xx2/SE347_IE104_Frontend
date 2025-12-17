@@ -4,9 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { AdminBookingService, AdminBookingItem, AdminBookingDetail } from '../../../services/admin/admin-booking.service';
 import { AdminUserService } from '../../../services/admin/admin-user.service';
 import { AdminTourService } from '../../../services/admin/admin-tour.service';
+import { AdminDialogService } from '../../../services/admin/admin-dialog.service';
 
 interface Booking {
   id: string;
+  booking_id: string;
   customerName: string;
   customerPhone: string;
   tourName: string;
@@ -77,7 +79,8 @@ export class BookingListComponent implements OnInit {
   constructor(
     private adminBookingService: AdminBookingService,
     private adminUserService: AdminUserService,
-    private adminTourService: AdminTourService
+    private adminTourService: AdminTourService,
+    private dialogService: AdminDialogService
   ) {}
 
   ngOnInit() {
@@ -121,8 +124,9 @@ export class BookingListComponent implements OnInit {
   private mapAdminBookingItemToBooking(item: AdminBookingItem): Booking {
     return {
       id: item.booking_id,
+      booking_id: item.booking_id,
       customerName: item.user_full_name,
-      customerPhone: '', // Không có trong AdminBookingItem
+      customerPhone: '', 
       tourName: item.tour_name,
       destination: item.destination,
       numberOfPeople: item.number_of_people,
@@ -231,21 +235,32 @@ export class BookingListComponent implements OnInit {
   async deleteBooking() {
     if (!this.deleteId) return;
     
+    console.log('🗑️ Deleting booking with ID:', this.deleteId);
     this.isLoading = true;
     try {
       const response = await this.adminBookingService.deleteBooking(this.deleteId).toPromise();
+      console.log('✅ Delete response:', response);
       
       if (response && response.EC === 0) {
-        this.bookings = this.bookings.filter(b => b.id !== this.deleteId);
-        this.calculateStats();
-        this.applyFilters();
+        console.log('Booking deleted successfully, updating UI and reloading data');
+        
+        // Reload toàn bộ danh sách bookings để đảm bảo dữ liệu mới nhất
+        await this.loadBookings();
+        
         this.closeDeleteModal();
+        
+        // Thông báo thành công qua dialog (tránh dùng alert gây khó chịu)
+        await this.dialogService.alert(
+          'Thành công',
+          'Đã xóa booking thành công! Slots của tour đã được cập nhật.'
+        );
       } else {
+        console.error('❌ Delete failed:', response);
         this.errorMessage = response?.EM || 'Không thể xóa booking';
         this.closeDeleteModal();
       }
     } catch (error: any) {
-      console.error('Error deleting booking:', error);
+      console.error('❌ Error deleting booking:', error);
       this.errorMessage = error?.error?.EM || 'Lỗi khi xóa booking';
       this.closeDeleteModal();
     } finally {
@@ -426,19 +441,40 @@ export class BookingListComponent implements OnInit {
     this.errorMessage = '';
 
     try {
-      const response = await this.adminBookingService.createBooking(this.newBooking).toPromise();
+      console.log('📝 Creating booking:', this.newBooking);
+      const response = await this.adminBookingService.createBookingWithOTP(this.newBooking).toPromise();
+      
+      console.log('✅ Create booking response:', response);
       
       if (response && response.EC === 0) {
+        // Admin tạo booking thành công - Backend tự động xử lý OTP hoặc skip OTP
         await this.loadBookings();
         this.closeAddModal();
+        await this.dialogService.alert(
+          'Thành công', 
+          'Đã tạo booking thành công! Booking ID: ' + response.data.booking_id
+        );
       } else {
         this.errorMessage = response?.EM || 'Không thể tạo booking';
       }
     } catch (error: any) {
-      console.error('Error creating booking:', error);
+      console.error('❌ Error creating booking:', error);
       this.errorMessage = error?.error?.EM || 'Lỗi khi tạo booking';
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  /**
+   * Copy text to clipboard
+   */
+  async copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      await this.dialogService.alert('Thành công', 'Đã copy Booking ID vào clipboard!');
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard');
     }
   }
 }

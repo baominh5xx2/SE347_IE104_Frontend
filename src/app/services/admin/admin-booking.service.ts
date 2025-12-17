@@ -91,6 +91,7 @@ export interface BookingListResponse {
 export interface BookingCreateRequest {
   contact_name: string;
   contact_phone: string;
+  contact_email: string;
   number_of_people: number;
   package_id: string;
   promotion_code?: string;
@@ -98,6 +99,29 @@ export interface BookingCreateRequest {
   user_id: string;
 }
 
+// Response cho OTP flow
+export interface BookingOTPResponse {
+  EC: number;
+  EM: string;
+  data: {
+    booking_id: string;
+    awaiting_otp?: boolean;
+    booking?: BookingItem;
+  };
+}
+
+// Request verify OTP
+export interface BookingVerifyOTPRequest {
+  booking_id: string;
+  otp_code: string;
+}
+
+// Request resend OTP
+export interface BookingResendOTPRequest {
+  booking_id: string;
+}
+
+// Legacy response (deprecated)
 export interface BookingCreateResponse {
   EC: number;
   EM: string;
@@ -245,16 +269,79 @@ export class AdminBookingService {
 
   /**
    * POST /api/v1/bookings/create-with-otp
-   * Tạo booking mới với OTP flow
+   * Tạo booking mới với OTP verification flow
+   * 
+   * Flow:
+   * 1. Validate package & check slots
+   * 2. Create booking với status="otp_sent"
+   * 3. Generate OTP (6 số)
+   * 4. Store OTP vào database
+   * 5. Send OTP qua email
+   * 6. Update package slots
+   * 7. Return booking_id và awaiting_otp=True
    */
-  createBooking(booking: BookingCreateRequest): Observable<BookingCreateResponse> {
-    return this.http.post<BookingCreateResponse>(
+  createBookingWithOTP(booking: BookingCreateRequest): Observable<BookingOTPResponse> {
+    return this.http.post<BookingOTPResponse>(
       `${this.apiBaseUrl}/bookings/create-with-otp`,
       booking,
       {
         headers: this.getHeaders()
       }
     );
+  }
+
+  /**
+   * POST /api/v1/bookings/verify-otp
+   * Verify OTP code và confirm booking
+   * 
+   * Flow:
+   * 1. Get OTP record từ database
+   * 2. Validate OTP code
+   * 3. Check expiry (5 minutes)
+   * 4. Check attempts (max 3)
+   * 5. Mark OTP as verified
+   * 6. Update booking status: "otp_sent" → "pending"
+   * 7. Return booking confirmation
+   */
+  verifyOTP(request: BookingVerifyOTPRequest): Observable<BookingOTPResponse> {
+    return this.http.post<BookingOTPResponse>(
+      `${this.apiBaseUrl}/bookings/verify-otp`,
+      request,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  /**
+   * POST /api/v1/bookings/resend-otp
+   * Gửi lại OTP khi mã cũ hết hạn hoặc không nhận được
+   * 
+   * Flow:
+   * 1. Get booking info và validate status (phải là "otp_sent")
+   * 2. Get email từ OTP record cũ
+   * 3. Delete OTP records cũ
+   * 4. Generate OTP mới
+   * 5. Store OTP mới vào database
+   * 6. Send OTP qua email
+   * 7. Return confirmation
+   */
+  resendOTP(request: BookingResendOTPRequest): Observable<BookingOTPResponse> {
+    return this.http.post<BookingOTPResponse>(
+      `${this.apiBaseUrl}/bookings/resend-otp`,
+      request,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  /**
+   * @deprecated Sử dụng createBookingWithOTP() thay thế
+   * Legacy method for backward compatibility
+   */
+  createBooking(booking: BookingCreateRequest): Observable<BookingOTPResponse> {
+    return this.createBookingWithOTP(booking);
   }
 
   /**

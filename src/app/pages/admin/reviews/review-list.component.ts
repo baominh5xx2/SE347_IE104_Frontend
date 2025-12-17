@@ -2,6 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminReviewService, Review, ReviewDetail } from '../../../services/admin/admin-review.service';
+import { AdminDialogService } from '../../../services/admin/admin-dialog.service';
+import { AdminBookingService, AdminBookingDetail } from '../../../services/admin/admin-booking.service';
+import { AdminTourService, TourPackage } from '../../../services/admin/admin-tour.service';
 
 @Component({
   selector: 'app-review-list',
@@ -39,6 +42,22 @@ export class ReviewListComponent implements OnInit {
   showDetailModal: boolean = false;
   showDeleteConfirmModal: boolean = false;
   
+  // Add review modal
+  showAddModal: boolean = false;
+  isCreating: boolean = false;
+  newReview: any = {
+    booking_id: '',
+    package_id: '',
+    rating: 5,
+    comment: ''
+  };
+  
+  // Fetched info for creating review
+  selectedBookingInfo: AdminBookingDetail | null = null;
+  selectedPackageInfo: TourPackage | null = null;
+  isFetchingBooking: boolean = false;
+  isFetchingPackage: boolean = false;
+  
   // Messages
   errorMessage: string = '';
   successMessage: string = '';
@@ -50,7 +69,10 @@ export class ReviewListComponent implements OnInit {
   Math = Math;
 
   constructor(
-    private reviewService: AdminReviewService
+    private reviewService: AdminReviewService,
+    private dialogService: AdminDialogService,
+    private bookingService: AdminBookingService,
+    private tourService: AdminTourService
   ) {}
 
   ngOnInit() {
@@ -212,7 +234,14 @@ export class ReviewListComponent implements OnInit {
    * Approve review
    */
   async approveReview(review: Review, approve: boolean) {
-    if (!confirm(`Bạn có chắc chắn muốn ${approve ? 'phê duyệt' : 'từ chối'} review này?`)) {
+    const confirmed = await this.dialogService.confirm({
+      title: approve ? 'Phê duyệt review' : 'Từ chối review',
+      message: `Bạn có chắc chắn muốn ${approve ? 'phê duyệt' : 'từ chối'} review này?`,
+      confirmText: approve ? 'Phê duyệt' : 'Từ chối',
+      cancelText: 'Hủy'
+    });
+    
+    if (!confirmed) {
       return;
     }
     
@@ -309,6 +338,62 @@ export class ReviewListComponent implements OnInit {
   }
 
   /**
+   * Open add modal
+   */
+  openAddModal() {
+    this.newReview = {
+      booking_id: '',
+      package_id: '',
+      rating: 5,
+      comment: ''
+    };
+    this.showAddModal = true;
+  }
+
+  /**
+   * Close add modal
+   */
+  closeAddModal() {
+    this.showAddModal = false;
+    this.newReview = {
+      booking_id: '',
+      package_id: '',
+      rating: 5,
+      comment: ''
+    };    this.selectedBookingInfo = null;
+    this.selectedPackageInfo = null;  }
+
+  /**
+   * Create review
+   */
+  async createReview() {
+    if (!this.newReview.booking_id || !this.newReview.package_id || !this.newReview.comment) {
+      await this.dialogService.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin!');
+      return;
+    }
+
+    this.isCreating = true;
+    this.errorMessage = '';
+
+    try {
+      const response = await this.reviewService.createReview(this.newReview).toPromise();
+
+      if (response?.EC === 0) {
+        await this.dialogService.alert('Thành công', 'Tạo review mới thành công!');
+        this.closeAddModal();
+        await this.loadAllReviews();
+        await this.loadPendingReviews();
+      } else {
+        this.errorMessage = response?.EM || 'Không thể tạo review';
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.error?.EM || 'Lỗi khi tạo review';
+    } finally {
+      this.isCreating = false;
+    }
+  }
+
+  /**
    * Get status text
    */
   getStatusText(isApproved: boolean): string {
@@ -358,5 +443,80 @@ export class ReviewListComponent implements OnInit {
     if (this.allReviews.length === 0) return '0.0';
     const sum = this.allReviews.reduce((acc, r) => acc + r.rating, 0);
     return (sum / this.allReviews.length).toFixed(1);
+  }
+
+  /**
+   * Fetch booking info when booking_id is entered
+   */
+  async onBookingIdChange() {
+    const bookingId = this.newReview.booking_id?.trim();
+    
+    if (!bookingId) {
+      this.selectedBookingInfo = null;
+      return;
+    }
+
+    this.isFetchingBooking = true;
+    
+    try {
+      const response = await this.bookingService.getBookingDetailAdmin(bookingId).toPromise();
+      
+      if (response?.EC === 0 && response.data) {
+        this.selectedBookingInfo = response.data;
+        // Auto-fill package_id from booking
+        if (response.data.tour_package?.package_id) {
+          this.newReview.package_id = response.data.tour_package.package_id;
+          await this.onPackageIdChange();
+        }
+      } else {
+        this.selectedBookingInfo = null;
+        await this.dialogService.alert('Thông báo', 'Không tìm thấy booking với ID này');
+      }
+    } catch (error: any) {
+      this.selectedBookingInfo = null;
+      console.error('Error fetching booking:', error);
+    } finally {
+      this.isFetchingBooking = false;
+    }
+  }
+
+  /**
+   * Fetch package info when package_id is entered
+   */
+  async onPackageIdChange() {
+    const packageId = this.newReview.package_id?.trim();
+    
+    if (!packageId) {
+      this.selectedPackageInfo = null;
+      return;
+    }
+
+    this.isFetchingPackage = true;
+    
+    try {
+      const response = await this.tourService.getTourPackageById(packageId);
+      
+      if (response?.EC === 0 && response.package) {
+        this.selectedPackageInfo = response.package;
+      } else {
+        this.selectedPackageInfo = null;
+        await this.dialogService.alert('Thông báo', 'Không tìm thấy tour package với ID này');
+      }
+    } catch (error: any) {
+      this.selectedPackageInfo = null;
+      console.error('Error fetching package:', error);
+    } finally {
+      this.isFetchingPackage = false;
+    }
+  }
+
+  /**
+   * Format price for display
+   */
+  formatPrice(price: number): string {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
   }
 }
