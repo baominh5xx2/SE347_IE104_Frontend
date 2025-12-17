@@ -29,18 +29,30 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     ) { }
 
     ngOnInit(): void {
-        this.loadUnreadCount();
-        this.loadNotifications();
-
-        // Set up polling for new notifications
-        const pollSub = interval(this.pollInterval).subscribe(() => {
+        // Only load notifications if user is logged in
+        if (this.isLoggedIn()) {
             this.loadUnreadCount();
-        });
-        this.subscriptions.push(pollSub);
+            this.loadNotifications();
+
+            // Set up polling for new notifications
+            const pollSub = interval(this.pollInterval).subscribe(() => {
+                if (this.isLoggedIn()) {
+                    this.loadUnreadCount();
+                }
+            });
+            this.subscriptions.push(pollSub);
+        }
     }
 
     ngOnDestroy(): void {
         this.subscriptions.forEach(sub => sub.unsubscribe());
+    }
+
+    /**
+     * Check if user is logged in
+     */
+    private isLoggedIn(): boolean {
+        return !!localStorage.getItem('access_token');
     }
 
     @HostListener('document:click', ['$event'])
@@ -51,6 +63,12 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     }
 
     toggleDropdown(): void {
+        if (!this.isLoggedIn()) {
+            // Redirect to login if not logged in
+            this.router.navigate(['/login']);
+            return;
+        }
+
         this.isDropdownOpen = !this.isDropdownOpen;
         if (this.isDropdownOpen) {
             this.loadNotifications();
@@ -58,17 +76,23 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     }
 
     loadUnreadCount(): void {
+        if (!this.isLoggedIn()) return;
+
         this.notificationService.getUnreadCount().subscribe({
             next: (response) => {
                 if (response.EC === 0) {
                     this.unreadCount = response.count;
                 }
             },
-            error: (err) => console.error('Error loading unread count:', err)
+            error: () => {
+                // Silent fail - user might not be logged in
+            }
         });
     }
 
     loadNotifications(): void {
+        if (!this.isLoggedIn()) return;
+
         this.isLoading = true;
         this.notificationService.getNotifications(false, 20).subscribe({
             next: (response) => {
@@ -77,8 +101,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
                 }
                 this.isLoading = false;
             },
-            error: (err) => {
-                console.error('Error loading notifications:', err);
+            error: () => {
                 this.isLoading = false;
             }
         });
