@@ -97,6 +97,7 @@ export interface BookingCreateRequest {
   promotion_code?: string;
   special_requests?: string;
   user_id: string;
+  skip_otp?: boolean; // Admin/trusted flow
 }
 
 // Response cho OTP flow
@@ -137,6 +138,7 @@ export interface BookingDetailResponse {
 export interface BookingUpdateRequest {
   contact_phone?: string;
   contact_name?: string;
+  contact_email?: string;
   number_of_people?: number;
   promotion_code?: string;
   special_requests?: string;
@@ -144,6 +146,16 @@ export interface BookingUpdateRequest {
 }
 
 export interface BookingUpdateResponse {
+  EC: number;
+  EM: string;
+  data: BookingItem;
+}
+
+export interface BookingCancelRequest {
+  reason?: string;
+}
+
+export interface BookingCancelResponse {
   EC: number;
   EM: string;
   data: BookingItem;
@@ -373,15 +385,24 @@ export class AdminBookingService {
   }
 
   /**
-   * DELETE /api/v1/bookings/{booking_id}
-   * Xóa booking
+   * POST /api/v1/bookings/{booking_id}/cancel
+   * Soft-cancel booking và hoàn slot tour
    */
-  deleteBooking(bookingId: string): Observable<BookingDeleteResponse> {
-    return this.http.delete<BookingDeleteResponse>(
-      `${this.apiBaseUrl}/bookings/${bookingId}`,
+  cancelBooking(bookingId: string, data?: BookingCancelRequest): Observable<BookingCancelResponse> {
+    return this.http.post<BookingCancelResponse>(
+      `${this.apiBaseUrl}/bookings/${bookingId}/cancel`,
+      data || {},
       {
         headers: this.getHeaders()
       }
     );
+  }
+
+  /**
+   * DELETE /api/v1/bookings/{booking_id}
+   * Xóa booking (deprecated trên server, nên ưu tiên cancelBooking)
+   */
+  deleteBooking(bookingId: string): Observable<BookingDeleteResponse> {
+    return this.cancelBooking(bookingId);
   }
 }

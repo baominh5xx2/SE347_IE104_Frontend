@@ -11,6 +11,7 @@ interface Booking {
   booking_id: string;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   tourName: string;
   destination: string;
   numberOfPeople: number;
@@ -46,6 +47,7 @@ export class BookingListComponent implements OnInit {
   currentBooking: Booking | null = null;
   deleteId: string = '';
   editingBooking: Booking | null = null;
+  selectedStatusForEdit: Booking['status'] | '' = '';
   newBooking: any = {
     contact_name: '',
     contact_phone: '',
@@ -53,7 +55,8 @@ export class BookingListComponent implements OnInit {
     number_of_people: 1,
     package_id: '',
     special_requests: '',
-    user_id: ''
+    user_id: '',
+    skip_otp: true
   };
   
   // Thông tin hiển thị khi nhập ID
@@ -179,6 +182,7 @@ export class BookingListComponent implements OnInit {
           ...booking,
           customerPhone: detail.contact_phone,
           customerName: detail.contact_name,
+          customerEmail: detail.contact_email,
           specialRequests: detail.special_requests
         };
         this.showDetailModal = true;
@@ -238,11 +242,13 @@ export class BookingListComponent implements OnInit {
     console.log('🗑️ Deleting booking with ID:', this.deleteId);
     this.isLoading = true;
     try {
-      const response = await this.adminBookingService.deleteBooking(this.deleteId).toPromise();
-      console.log('✅ Delete response:', response);
+      const response = await this.adminBookingService.cancelBooking(this.deleteId, {
+        reason: 'Admin cancelled booking from dashboard'
+      }).toPromise();
+      console.log('✅ Cancel response:', response);
       
       if (response && response.EC === 0) {
-        console.log('Booking deleted successfully, updating UI and reloading data');
+        console.log('Booking cancelled successfully, updating UI and reloading data');
         
         // Reload toàn bộ danh sách bookings để đảm bảo dữ liệu mới nhất
         await this.loadBookings();
@@ -252,53 +258,97 @@ export class BookingListComponent implements OnInit {
         // Thông báo thành công qua dialog (tránh dùng alert gây khó chịu)
         await this.dialogService.alert(
           'Thành công',
-          'Đã xóa booking thành công! Slots của tour đã được cập nhật.'
+          'Đã hủy booking thành công! Slots của tour đã được cập nhật.'
         );
       } else {
-        console.error('❌ Delete failed:', response);
-        this.errorMessage = response?.EM || 'Không thể xóa booking';
+        console.error('❌ Cancel failed:', response);
+        this.errorMessage = response?.EM || 'Không thể hủy booking';
         this.closeDeleteModal();
       }
     } catch (error: any) {
-      console.error('❌ Error deleting booking:', error);
-      this.errorMessage = error?.error?.EM || 'Lỗi khi xóa booking';
+      console.error('❌ Error cancelling booking:', error);
+      this.errorMessage = error?.error?.EM || 'Lỗi khi hủy booking';
       this.closeDeleteModal();
     } finally {
       this.isLoading = false;
     }
   }
 
-  openEditModal(booking: Booking) {
-    // Create a deep copy to avoid modifying original data while editing
-    this.editingBooking = JSON.parse(JSON.stringify(booking));
-    this.showEditModal = true;
+  async openEditModal(booking: Booking) {
+    this.isLoading = true;
+    try {
+      // Ưu tiên lấy detail để không mất dữ liệu khi lưu lại
+      const response = await this.adminBookingService.getBookingDetailAdmin(booking.id).toPromise();
+      if (response && response.EC === 0) {
+        const detail = response.data;
+        this.editingBooking = {
+          ...booking,
+          customerPhone: detail.contact_phone,
+          customerName: detail.contact_name,
+          customerEmail: detail.contact_email,
+          specialRequests: detail.special_requests,
+          numberOfPeople: detail.number_of_people,
+          totalAmount: detail.total_amount
+        } as Booking;
+      } else {
+        // Fallback dùng dữ liệu đang có
+        this.editingBooking = JSON.parse(JSON.stringify(booking));
+      }
+      this.selectedStatusForEdit = this.editingBooking ? this.editingBooking.status : '';
+      this.showEditModal = true;
+    } catch (error) {
+      console.error('Error loading booking detail before edit:', error);
+      this.editingBooking = JSON.parse(JSON.stringify(booking));
+      this.selectedStatusForEdit = this.editingBooking ? this.editingBooking.status : '';
+      this.showEditModal = true;
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   closeEditModal() {
     this.showEditModal = false;
     this.editingBooking = null;
+    this.selectedStatusForEdit = '';
   }
 
   async saveBooking() {
     if (!this.editingBooking) return;
+    if (!this.selectedStatusForEdit) {
+      this.selectedStatusForEdit = this.editingBooking.status;
+    }
+    const targetStatus = this.selectedStatusForEdit;
+    if (targetStatus === this.editingBooking.status) {
+      this.closeEditModal();
+      this.closeDetailModal();
+      return;
+    }
     
     this.isLoading = true;
     try {
-      const updateData = {
-        number_of_people: this.editingBooking.numberOfPeople,
-        status: this.editingBooking.status,
-        contact_phone: this.editingBooking.customerPhone
-      };
-      
-      const response = await this.adminBookingService.updateBooking(this.editingBooking.id, updateData).toPromise();
+      let response;
+
+      if (targetStatus === 'cancelled') {
+        // Dùng API cancel khi chuyển sang hủy
+        response = await this.adminBookingService.cancelBooking(this.editingBooking.id, {
+          reason: 'Admin cập nhật trạng thái sang hủy'
+        }).toPromise();
+      } else {
+        // Các trạng thái khác dùng update
+        const updateData = {
+          status: targetStatus
+        };
+        response = await this.adminBookingService.updateBooking(this.editingBooking.id, updateData).toPromise();
+      }
       
       if (response && response.EC === 0) {
         const index = this.bookings.findIndex(b => b.id === this.editingBooking!.id);
         if (index !== -1) {
-          this.bookings[index] = { ...this.editingBooking };
+          this.bookings[index] = { ...this.editingBooking, status: targetStatus };
           this.calculateStats();
           this.applyFilters();
         }
+        this.editingBooking.status = targetStatus;
         this.closeEditModal();
         this.closeDetailModal();
       } else {

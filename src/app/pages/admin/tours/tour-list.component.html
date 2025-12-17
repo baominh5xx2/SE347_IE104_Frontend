@@ -507,16 +507,16 @@
             <div class="flex items-center">
               <img [src]="getImageUrl(tour.image_urls)" alt="{{ tour.package_name }}" class="w-16 h-16 rounded-lg object-cover mr-4">
               <div>
-                <div class="text-sm font-medium text-gray-900">{{ tour.package_name }}</div>
-                <div class="text-sm text-gray-500">{{ tour.cuisine }}</div>
+                <div class="text-sm font-medium text-gray-900 truncate max-w-[260px]" [title]="tour.package_name">{{ tour.package_name }}</div>
+                <div class="text-sm text-gray-500 truncate max-w-[240px]" [title]="tour.cuisine">{{ tour.cuisine }}</div>
               </div>
             </div>
           </td>
-          <td class="px-6 py-4 text-sm text-gray-600">{{ tour.destination }}</td>
-          <td class="px-6 py-4 text-sm font-semibold text-green-600">{{ formatPrice(tour.price) }}</td>
-          <td class="px-6 py-4 text-sm text-gray-600">{{ tour.duration_days }} ngày</td>
-          <td class="px-6 py-4 text-sm text-gray-600">{{ tour.available_slots }}</td>
-          <td class="px-6 py-4">
+          <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-[220px]" [title]="tour.destination">{{ tour.destination }}</td>
+          <td class="px-6 py-4 text-sm font-semibold text-green-600 whitespace-nowrap">{{ formatPrice(tour.price) }}</td>
+          <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ tour.duration_days }} ngày</td>
+          <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ tour.available_slots }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
             <button
               (click)="toggleStatus(tour)"
               [class]="tour.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
@@ -524,7 +524,7 @@
               {{ tour.is_active ? 'Hoạt động' : 'Tạm dừng' }}
             </button>
           </td>
-          <td class="px-6 py-4 text-sm font-medium">
+          <td class="px-6 py-4 text-sm font-medium whitespace-nowrap">
             <div class="flex space-x-2">
               <button 
                 (click)="openDetailModal(tour)"
