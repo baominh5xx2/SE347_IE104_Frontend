@@ -55,6 +55,10 @@
 
     <!-- Revenue Chart -->
     <div *ngIf="!isLoadingRevenue && revenueData.length > 0" class="mt-6">
+      <div *ngIf="revenueData.length < 6" class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+        ⚠️ Hiện tại chỉ có dữ liệu từ {{ revenueData.length }} kỳ. Hệ thống sẽ hiển thị đầy đủ hơn khi có thêm bookings.
+      </div>
+      
       <div class="flex items-end gap-2 h-64">
         <div *ngFor="let item of revenueData" class="flex-1 flex flex-col items-center">
           <div class="w-full bg-blue-500 rounded-t-lg hover:bg-blue-600 transition-colors relative group"

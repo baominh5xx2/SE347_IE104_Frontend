@@ -400,9 +400,14 @@ export class AdminBookingService {
 
   /**
    * DELETE /api/v1/bookings/{booking_id}
-   * Xóa booking (deprecated trên server, nên ưu tiên cancelBooking)
+   * Xóa booking (hard delete)
    */
   deleteBooking(bookingId: string): Observable<BookingDeleteResponse> {
-    return this.cancelBooking(bookingId);
+    return this.http.delete<BookingDeleteResponse>(
+      `${this.apiBaseUrl}/bookings/${bookingId}`,
+      {
+        headers: this.getHeaders()
+      }
+    );
   }
 }

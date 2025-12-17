@@ -47,7 +47,7 @@
         <div>
           <p class="text-orange-100 text-sm">Booking chờ duyệt</p>
           <p class="text-3xl font-bold mt-2 text-white">{{ formatNumber(pendingBookings) }}</p>
-          <a routerLink="/admin/bookings" class="text-sm mt-2 inline-block hover:underline">
+          <a routerLink="/admin/bookings" class="text-sm mt-2 inline-block hover:underline tex-white">
             Xem chi tiết →
           </a>
         </div>
@@ -63,8 +63,8 @@
     <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
       <div class="flex justify-between items-start">
         <div>
-          <p class="text-green-100 text-sm">Tổng Bookings</p>
-          <p class="text-3xl font-bold mt-2">{{ formatNumber(totalBookings) }}</p>
+          <p class="text-green-100 text-white">Tổng Bookings</p>
+          <p class="text-3xl font-bold mt-2 text-white">{{ formatNumber(totalBookings) }}</p>
           <p class="text-sm mt-2 text-green-200">
             {{ formatNumber(confirmedBookings) }} đã xác nhận
           </p>
@@ -77,14 +77,14 @@
       </div>
     </div>
 
-    <!-- Stats Card 4: Revenue Chart Link -->
+    <!-- Stats Card 4: Reports -->
     <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
       <div class="flex justify-between items-start">
         <div>
           <p class="text-purple-100 text-sm">Báo cáo & Thống kê</p>
-          <p class="text-lg font-semibold mt-2">Xem chi tiết</p>
-          <a routerLink="/admin/reports" class="text-sm mt-2 inline-block hover:underline">
-            Đi đến báo cáo →
+          <p class="text-xl font-bold mt-2 text-white">Xem chi tiết</p>
+          <a routerLink="/admin/reports" class="text-sm mt-2 inline-block hover:underline text-white">
+            Truy cập báo cáo →
           </a>
         </div>
         <div class="bg-white bg-opacity-20 rounded-full p-3">
@@ -97,23 +97,35 @@
   </div>
 
   <!-- Revenue Chart -->
-  <div *ngIf="!isLoading && revenueChartData.length > 0" class="bg-white rounded-lg shadow-lg p-6">
+  <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-lg p-6">
     <div class="flex justify-between items-center mb-6">
       <h3 class="text-xl font-semibold text-gray-800">Doanh thu 12 tháng gần đây</h3>
       <span class="text-sm text-gray-500">Tổng: {{ formatPrice(totalRevenue) }}</span>
     </div>
     
-    <div class="h-64 flex items-end justify-between gap-2">
+    <div *ngIf="revenueChartData.length > 0 && revenueChartData.length < 6" class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+      ⚠️ Hiện tại chỉ có dữ liệu từ {{ revenueChartData.length }} kỳ. Hệ thống sẽ hiển thị đầy đủ hơn khi có thêm bookings.
+    </div>
+    
+    <div *ngIf="revenueChartData.length > 0" class="h-64 flex items-end justify-between gap-2">
       <div *ngFor="let item of revenueChartData" class="flex-1 flex flex-col items-center group">
         <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 rounded-t transition-all cursor-pointer relative"
              [style.height]="getRevenueBarHeight(item.revenue)"
              [title]="item.period + ': ' + formatPrice(item.revenue)">
           <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-            {{ formatPrice(item.revenue) }}
+            {{ formatPrice(item.revenue) }}<br>
+            <span class="text-xs">{{ item.bookings }} bookings</span>
           </div>
         </div>
         <span class="text-xs text-gray-600 mt-2 text-center">{{ item.period }}</span>
       </div>
+    </div>
+    
+    <div *ngIf="revenueChartData.length === 0" class="text-center py-8 text-gray-500">
+      <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      <p class="font-medium">Chưa có dữ liệu doanh thu</p>
     </div>
   </div>
 
@@ -129,6 +141,24 @@
           <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" stroke-width="20"/>
             
+            <!-- Pending (Yellow) -->
+            <circle 
+              *ngIf="totalBookings > 0"
+              cx="50" cy="50" r="40" fill="none" 
+              stroke="#f59e0b" 
+              stroke-width="20"
+              [attr.stroke-dasharray]="(pendingBookings/totalBookings * 251) + ' 251'"
+              stroke-dashoffset="0"/>
+            
+            <!-- OTP Sent (Cyan) -->
+            <circle 
+              *ngIf="totalBookings > 0"
+              cx="50" cy="50" r="40" fill="none" 
+              stroke="#06b6d4" 
+              stroke-width="20"
+              [attr.stroke-dasharray]="(otpSentBookings/totalBookings * 251) + ' 251'"
+              [attr.stroke-dashoffset]="-(pendingBookings/totalBookings * 251)"/>
+            
             <!-- Confirmed (Green) -->
             <circle 
               *ngIf="totalBookings > 0"
@@ -136,7 +166,7 @@
               stroke="#10b981" 
               stroke-width="20"
               [attr.stroke-dasharray]="(confirmedBookings/totalBookings * 251) + ' 251'"
-              stroke-dashoffset="0"/>
+              [attr.stroke-dashoffset]="-((pendingBookings + otpSentBookings)/totalBookings * 251)"/>
             
             <!-- Completed (Blue) -->
             <circle 
@@ -145,16 +175,16 @@
               stroke="#3b82f6" 
               stroke-width="20"
               [attr.stroke-dasharray]="(completedBookings/totalBookings * 251) + ' 251'"
-              [attr.stroke-dashoffset]="-(confirmedBookings/totalBookings * 251)"/>
+              [attr.stroke-dashoffset]="-((pendingBookings + otpSentBookings + confirmedBookings)/totalBookings * 251)"/>
             
-            <!-- Pending (Yellow) -->
+            <!-- Cancelled (Red) -->
             <circle 
               *ngIf="totalBookings > 0"
               cx="50" cy="50" r="40" fill="none" 
-              stroke="#f59e0b" 
+              stroke="#ef4444" 
               stroke-width="20"
-              [attr.stroke-dasharray]="(pendingBookings/totalBookings * 251) + ' 251'"
-              [attr.stroke-dashoffset]="-((confirmedBookings + completedBookings)/totalBookings * 251)"/>
+              [attr.stroke-dasharray]="(cancelledBookings/totalBookings * 251) + ' 251'"
+              [attr.stroke-dashoffset]="-((pendingBookings + otpSentBookings + confirmedBookings + completedBookings)/totalBookings * 251)"/>
           </svg>
           <div class="absolute inset-0 flex flex-col items-center justify-center">
             <span class="text-3xl font-bold text-gray-800">{{ totalBookings }}</span>
