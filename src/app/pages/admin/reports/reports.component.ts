@@ -42,23 +42,41 @@ export class ReportsComponent implements OnInit {
     this.isLoadingRevenue = true;
     this.errorMessage = '';
 
+    console.log('📈 Loading revenue report...');
+    console.log('📈 Period type:', this.revenuePeriodType, 'Num periods:', this.revenueNumPeriods);
+
     this.reportService.getRevenueReport({
       period_type: this.revenuePeriodType,
       num_periods: this.revenueNumPeriods
     }).subscribe({
       next: (response) => {
+        console.log('📈 Revenue report API response:', response);
         if (response.EC === 0) {
-          this.revenueData = response.data || [];
+          this.revenueData = (response.data || []).map(item => ({
+            period: this.formatPeriodToMonth(item.period || ''),
+            revenue: item.revenue || 0,
+            bookings: item.bookings || 0
+          }));
           this.totalRevenue = response.total_revenue || 0;
           this.totalBookings = response.total_bookings || 0;
+          
+          console.log('📈 Processed revenue data:', this.revenueData);
+          console.log('📈 Total:', this.totalRevenue, 'Bookings:', this.totalBookings);
         } else {
+          console.error('❌ Revenue report API error:', response.EM);
           this.errorMessage = response.EM || 'Không thể tải báo cáo doanh thu';
+          this.revenueData = [];
+          this.totalRevenue = 0;
+          this.totalBookings = 0;
         }
         this.isLoadingRevenue = false;
       },
       error: (error) => {
-        console.error('Error loading revenue report:', error);
+        console.error('❌ Error loading revenue report:', error);
         this.errorMessage = 'Lỗi khi tải báo cáo doanh thu';
+        this.revenueData = [];
+        this.totalRevenue = 0;
+        this.totalBookings = 0;
         this.isLoadingRevenue = false;
       }
     });
@@ -109,11 +127,19 @@ export class ReportsComponent implements OnInit {
   }
 
   formatPrice(price: number): string {
+    if (price === null || price === undefined || isNaN(price)) {
+      return '0 VNĐ';
+    }
     return new Intl.NumberFormat('vi-VN').format(price) + ' VNĐ';
   }
 
   formatDate(date: string): string {
-    return new Date(date).toLocaleDateString('vi-VN');
+    if (!date) return '';
+    try {
+      return new Date(date).toLocaleDateString('vi-VN');
+    } catch {
+      return date;
+    }
   }
 
   getPriceRangeLabel(range: string): string {
@@ -144,8 +170,28 @@ export class ReportsComponent implements OnInit {
   }
 
   getRevenueBarHeight(revenue: number): string {
+    if (revenue === null || revenue === undefined || isNaN(revenue)) return '20px';
     const max = this.getRevenueMax();
-    if (max === 0) return '0%';
-    return `${(revenue / max) * 100}%`;
+    if (max === 0) return '20px';
+    
+    const percentage = (revenue / max) * 100;
+    // Minimum 20px height for visibility
+    const minHeight = 20;
+    const calculatedHeight = Math.max(minHeight, (percentage / 100) * 256); // 256px = max height
+    return `${Math.min(256, calculatedHeight)}px`;
+  }
+
+  formatPeriodToMonth(period: string): string {
+    // Convert "2024-W52" to "12/2024" or "2024-12" to "12/2024"
+    if (period.includes('-W')) {
+      // Week format: extract year and approximate month
+      const [year] = period.split('-W');
+      return `${year}`;
+    } else if (period.includes('-')) {
+      // Month format: 2024-12 -> 12/2024
+      const [year, month] = period.split('-');
+      return `Tháng ${month}/${year}`;
+    }
+    return period;
   }
 }

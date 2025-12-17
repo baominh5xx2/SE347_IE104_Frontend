@@ -91,9 +91,11 @@
           (change)="onFilterChange()"
           class="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white">
           <option value="">Tất cả trạng thái</option>
-          <option value="pending">Chờ xử lý</option>
+          <option value="pending">Chờ thanh toán</option>
+          <option value="otp_sent">OTP đã gửi</option>
           <option value="confirmed">Đã xác nhận</option>
           <option value="cancelled">Đã hủy</option>
+          <option value="completed">Hoàn thành</option>
         </select>
         
         <input 
@@ -226,9 +228,17 @@
                   </svg>
                 </button>
                 <button 
+                  (click)="confirmCancel(booking.id)"
+                  class="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all"
+                  title="Hủy booking (chuyển sang trạng thái cancelled)">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                  </svg>
+                </button>
+                <button 
                   (click)="confirmDelete(booking.id)"
                   class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                  title="Xóa">
+                  title="Xóa hẳn (hard delete)">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                   </svg>
@@ -575,9 +585,11 @@
               name="status"
               [disabled]="editingBooking.status === 'cancelled'"
               class="w-44 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 disabled:text-gray-500">
-              <option value="pending">Chờ xử lý</option>
+              <option value="pending">Chờ thanh toán</option>
+              <option value="otp_sent">OTP đã gửi</option>
               <option value="confirmed">Đã xác nhận</option>
               <option value="cancelled">Đã hủy</option>
+              <option value="completed">Hoàn thành</option>
             </select>
           </div>
           <p *ngIf="editingBooking.status === 'cancelled'" class="text-sm text-gray-500 mt-2">Booking đã hủy không thể đổi trạng thái.</p>
@@ -606,11 +618,53 @@
   </div>
 </div>
 
+<!-- Cancel Confirmation Modal -->
+<div *ngIf="showCancelModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" (click)="closeCancelModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" (click)="$event.stopPropagation()">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-xl font-bold text-yellow-600">Xác nhận hủy booking</h3>
+    </div>
+    
+    <div class="p-6">
+      <div class="flex items-start space-x-4">
+        <div class="flex-shrink-0">
+          <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <p class="text-gray-700 font-medium mb-2">
+            Bạn có chắc chắn muốn hủy booking này không?
+          </p>
+          <p class="text-sm text-gray-500">
+            Booking sẽ chuyển sang trạng thái "Đã hủy" và slots của tour sẽ được hoàn lại.
+          </p>
+        </div>
+      </div>
+      
+      <div class="flex space-x-3 mt-6">
+        <button 
+          (click)="closeCancelModal()"
+          class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all">
+          Đóng
+        </button>
+        <button 
+          (click)="cancelBooking()"
+          class="flex-1 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg">
+          Hủy Booking
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div *ngIf="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" (click)="closeDeleteModal()">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" (click)="$event.stopPropagation()">
     <div class="px-6 py-4 border-b border-gray-200">
-      <h3 class="text-xl font-bold text-red-600">Xác nhận xóa</h3>
+      <h3 class="text-xl font-bold text-red-600">Xác nhận xóa vĩnh viễn</h3>
     </div>
     
     <div class="p-6">
@@ -624,10 +678,10 @@
         </div>
         <div>
           <p class="text-gray-700 font-medium mb-2">
-            Bạn có chắc chắn muốn xóa booking này không?
+            Bạn có chắc chắn muốn XÓA VĨNH VIỄN booking này không?
           </p>
           <p class="text-sm text-gray-500">
-            Hành động này không thể hoàn tác. Tất cả thông tin liên quan sẽ bị xóa vĩnh viễn.
+            Hành động này không thể hoàn tác. Tất cả thông tin liên quan sẽ bị xóa vĩnh viễn khỏi database.
           </p>
         </div>
       </div>
@@ -641,7 +695,7 @@
         <button 
           (click)="deleteBooking()"
           class="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg">
-          Xóa Booking
+          Xóa vĩnh viễn
         </button>
       </div>
     </div>

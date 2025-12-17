@@ -42,10 +42,12 @@ export class BookingListComponent implements OnInit {
   // Modal states
   showDetailModal: boolean = false;
   showDeleteModal: boolean = false;
+  showCancelModal: boolean = false;
   showEditModal: boolean = false;
   showAddModal: boolean = false;
   currentBooking: Booking | null = null;
   deleteId: string = '';
+  cancelId: string = '';
   editingBooking: Booking | null = null;
   selectedStatusForEdit: Booking['status'] | '' = '';
   newBooking: any = {
@@ -236,14 +238,25 @@ export class BookingListComponent implements OnInit {
     this.deleteId = '';
   }
 
-  async deleteBooking() {
-    if (!this.deleteId) return;
+  confirmCancel(bookingId: string) {
+    this.cancelId = bookingId;
+    this.showCancelModal = true;
+  }
+
+  closeCancelModal() {
+    this.showCancelModal = false;
+    this.cancelId = '';
+  }
+
+  async cancelBooking() {
+    if (!this.cancelId) return;
     
-    console.log('🗑️ Deleting booking with ID:', this.deleteId);
+    console.log('🟡 Cancelling booking with ID:', this.cancelId);
     this.isLoading = true;
     try {
-      const response = await this.adminBookingService.cancelBooking(this.deleteId, {
-        reason: 'Admin cancelled booking from dashboard'
+      // Workaround: Gọi update status thay vì cancel endpoint vì backend chưa có cancel_booking method
+      const response = await this.adminBookingService.updateBooking(this.cancelId, {
+        status: 'cancelled'
       }).toPromise();
       console.log('✅ Cancel response:', response);
       
@@ -253,22 +266,66 @@ export class BookingListComponent implements OnInit {
         // Reload toàn bộ danh sách bookings để đảm bảo dữ liệu mới nhất
         await this.loadBookings();
         
-        this.closeDeleteModal();
+        this.closeCancelModal();
         
-        // Thông báo thành công qua dialog (tránh dùng alert gây khó chịu)
+        // Thông báo thành công qua dialog
         await this.dialogService.alert(
           'Thành công',
-          'Đã hủy booking thành công! Slots của tour đã được cập nhật.'
+          'Đã hủy booking thành công!'
         );
       } else {
         console.error('❌ Cancel failed:', response);
-        this.errorMessage = response?.EM || 'Không thể hủy booking';
-        this.closeDeleteModal();
+        const errorMsg = response?.EM || 'Không thể hủy booking';
+        this.errorMessage = errorMsg;
+        this.closeCancelModal();
+        await this.dialogService.alert('Lỗi', errorMsg);
       }
     } catch (error: any) {
       console.error('❌ Error cancelling booking:', error);
-      this.errorMessage = error?.error?.EM || 'Lỗi khi hủy booking';
+      const errorMsg = error?.error?.EM || 'Lỗi khi hủy booking';
+      this.errorMessage = errorMsg;
+      this.closeCancelModal();
+      await this.dialogService.alert('Lỗi', errorMsg);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteBooking() {
+    if (!this.deleteId) return;
+    
+    console.log('🔴 Hard deleting booking with ID:', this.deleteId);
+    this.isLoading = true;
+    try {
+      const response = await this.adminBookingService.deleteBooking(this.deleteId).toPromise();
+      console.log('✅ Delete response:', response);
+      
+      if (response && response.EC === 0) {
+        console.log('Booking deleted successfully, updating UI and reloading data');
+        
+        // Reload toàn bộ danh sách bookings để đảm bảo dữ liệu mới nhất
+        await this.loadBookings();
+        
+        this.closeDeleteModal();
+        
+        // Thông báo thành công qua dialog
+        await this.dialogService.alert(
+          'Thành công',
+          'Đã xóa booking thành công!'
+        );
+      } else {
+        console.error('❌ Delete failed:', response);
+        const errorMsg = response?.EM || 'Không thể xóa booking';
+        this.errorMessage = errorMsg;
+        this.closeDeleteModal();
+        await this.dialogService.alert('Lỗi', errorMsg);
+      }
+    } catch (error: any) {
+      console.error('❌ Error deleting booking:', error);
+      const errorMsg = error?.error?.EM || 'Lỗi khi xóa booking';
+      this.errorMessage = errorMsg;
       this.closeDeleteModal();
+      await this.dialogService.alert('Lỗi', errorMsg);
     } finally {
       this.isLoading = false;
     }
