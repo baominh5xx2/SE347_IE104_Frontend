@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { BookingCardComponent } from '../../components/booking-card/booking-card.component';
 import { FormsModule } from '@angular/forms';
-import { CancellationPolicyComponent } from '../../components/cancellation-policy/cancellation-policy.component';
 import { Router, ActivatedRoute } from '@angular/router';
 import { BookingService } from '../../services/booking.service';
 import { TourService } from '../../services/tour.service';
@@ -13,7 +12,6 @@ import { CommonModule } from '@angular/common';
   selector: 'app-booking-pages',
   imports: [
     BookingCardComponent,
-    CancellationPolicyComponent,
     FormsModule,
     CommonModule],
   templateUrl: './booking-pages.component.html',
