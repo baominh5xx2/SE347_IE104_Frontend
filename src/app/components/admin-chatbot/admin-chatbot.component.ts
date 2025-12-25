@@ -2,6 +2,7 @@ import { Component, ElementRef, EventEmitter, Output, ViewChild, OnInit, OnDestr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { ConfigService } from '../../services/config.service';
 
 interface Message {
   content: string;
@@ -45,11 +46,15 @@ export class AdminChatbotComponent implements OnInit {
   isLoadingMessages = false;
   isDeletingConversation: string | null = null;
 
-  private apiUrl = 'http://localhost:8000/api/v1/admin/agent';
+  private apiUrl = '';
 
   constructor(
-    private router: Router
-  ) { }
+    private router: Router,
+    private configService: ConfigService
+  ) {
+    // Initialize API URL from ConfigService
+    this.apiUrl = `${this.configService.getApiUrl()}/admin/agent`;
+  }
 
   ngOnInit(): void {
     // Load conversations from API
