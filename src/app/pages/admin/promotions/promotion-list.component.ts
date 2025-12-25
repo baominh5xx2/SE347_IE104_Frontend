@@ -191,16 +191,21 @@ export class PromotionListComponent implements OnInit {
       next: (response) => {
         if (response.EC === 0) {
           this.successMessage = 'Xóa mã khuyến mãi thành công';
-          this.loadPromotions();
           this.closeDeleteModal();
+          // Reload sau khi đóng modal để tránh lỗi UI
+          setTimeout(() => {
+            this.loadPromotions();
+          }, 100);
           setTimeout(() => this.successMessage = '', 3000);
         } else {
-          this.errorMessage = response.EM || 'Không thể xóa mã khuyến mãi';
+          this.errorMessage = response.EM || 'Không thể xóa mã khuyến mãi. Có thể mã này đã được sử dụng.';
+          this.closeDeleteModal();
         }
         this.isLoading = false;
       },
       error: (error) => {
-        this.errorMessage = 'Lỗi khi xóa mã khuyến mãi';
+        const errorMsg = error?.error?.EM || error?.message || 'Lỗi khi xóa mã khuyến mãi. Mã này có thể đã được sử dụng bởi người dùng.';
+        this.errorMessage = errorMsg;
         console.error('Delete promotion error:', error);
         this.isLoading = false;
         this.closeDeleteModal();

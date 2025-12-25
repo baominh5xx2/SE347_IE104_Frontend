@@ -102,7 +102,6 @@ export class CustomerListComponent implements OnInit {
       full_name: ['', Validators.required],
       phone_number: ['', Validators.required],
       password: [''],
-      role: ['user', Validators.required],
       is_active: [true]
     });
   }
@@ -118,7 +117,8 @@ export class CustomerListComponent implements OnInit {
     try {
       const response = await this.adminUserService.getAllUsers().toPromise();
       if (response?.EC === 0 && response?.data) {
-        this.allUsers = response.data.users;
+        // Chỉ lấy những user có role là 'user', loại bỏ admin
+        this.allUsers = response.data.users.filter((user: UserProfile) => user.role === 'user');
         this.filteredUsers = [...this.allUsers];
       } else {
         this.errorMessage = response?.EM || 'Không thể tải danh sách users';
@@ -395,7 +395,6 @@ export class CustomerListComponent implements OnInit {
       email: user.email,
       full_name: user.full_name,
       phone_number: user.phone_number,
-      role: user.role,
       is_active: user.is_active,
       password: ''
     });
@@ -420,9 +419,17 @@ export class CustomerListComponent implements OnInit {
     this.errorMessage = '';
     
     try {
-      const request: UpdateUserRequest = this.editUserForm.value;
-      if (!request.password) {
-        delete request.password;
+      // Không gửi role trong request, chỉ cập nhật các trường khác
+      const formValue = this.editUserForm.value;
+      const request: UpdateUserRequest = {
+        email: formValue.email,
+        full_name: formValue.full_name,
+        phone_number: formValue.phone_number,
+        is_active: formValue.is_active
+      };
+      
+      if (formValue.password) {
+        request.password = formValue.password;
       }
       
       const response = await this.adminUserService.updateUser(this.selectedUser.user_id, request).toPromise();
@@ -478,6 +485,10 @@ export class CustomerListComponent implements OnInit {
     } finally {
       this.isDeleting = false;
     }
+  }
+
+  reloadData() {
+    this.loadAllUsers();
   }
 
   resetFilters() {

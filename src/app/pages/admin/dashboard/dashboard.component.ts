@@ -68,24 +68,92 @@ export class DashboardComponent implements OnInit {
 
   async loadRevenueData() {
     try {
-      console.log('📈 Loading revenue data...');
-      const response = await this.reportService.getRevenueReport({
-        period_type: 'month',
-        num_periods: 12
-      }).toPromise();
+      console.log('📈 ========== LOADING REVENUE DATA FROM BOOKINGS ==========');
+      
+      // Lấy tất cả bookings - backend limit max 100, nên lấy nhiều lần
+      let allBookings: any[] = [];
+      let offset = 0;
+      const limit = 100;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await this.bookingService.getAllBookingsAdmin({
+          limit: limit,
+          offset: offset
+        }).toPromise();
 
-      console.log('📈 Revenue API response:', response);
+        console.log(`📈 Fetching bookings: offset=${offset}, limit=${limit}`);
+        console.log('📈 Response:', response);
 
-      if (response && response.EC === 0) {
-        this.totalRevenue = response.total_revenue || 0;
-        this.revenueChartData = (response.data || []).map(item => ({
-          period: this.formatPeriodToMonth(item.period || ''),
-          revenue: item.revenue || 0,
-          bookings: item.bookings || 0
-        }));
+        if (response && response.EC === 0 && response.data) {
+          allBookings = allBookings.concat(response.data);
+          console.log(`📈 Fetched ${response.data.length} bookings, total so far: ${allBookings.length}`);
+          
+          // Nếu lấy được ít hơn limit, nghĩa là hết data
+          if (response.data.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+          
+          // Safety: không lấy quá 500 bookings để tránh vòng lặp vô hạn
+          if (allBookings.length >= 500) {
+            console.log('📈 Reached 500 bookings limit, stopping fetch');
+            hasMore = false;
+          }
+        } else {
+          console.error('❌ Failed to fetch bookings at offset', offset);
+          hasMore = false;
+        }
+      }
+
+      console.log('📈 Total bookings fetched:', allBookings.length);
+      
+      if (allBookings.length > 0) {
+        // Filter bookings: loại bỏ cancelled
+        const validBookings = allBookings.filter(b => b.status !== 'cancelled');
+        console.log('📈 Valid bookings (not cancelled):', validBookings.length);
         
-        console.log('📈 Processed revenue data:', this.revenueChartData);
-        console.log('📈 Total revenue:', this.totalRevenue);
+        // Nhóm bookings theo tháng và tính doanh thu
+        const monthlyData = new Map<string, { revenue: number; bookings: number }>();
+        
+        validBookings.forEach(booking => {
+          const date = new Date(booking.created_at);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (!monthlyData.has(monthKey)) {
+            monthlyData.set(monthKey, { revenue: 0, bookings: 0 });
+          }
+          
+          const data = monthlyData.get(monthKey)!;
+          data.revenue += booking.total_amount || 0;
+          data.bookings += 1;
+        });
+        
+        console.log('📈 Monthly data map:', monthlyData);
+        
+        // Tạo array cho 12 tháng gần nhất
+        const now = new Date();
+        const chartData: { period: string; revenue: number; bookings: number }[] = [];
+        
+        for (let i = 11; i >= 0; i--) {
+          const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
+          const data = monthlyData.get(monthKey) || { revenue: 0, bookings: 0 };
+          
+          chartData.push({
+            period: `Tháng ${targetDate.getMonth() + 1}`,
+            revenue: data.revenue,
+            bookings: data.bookings
+          });
+        }
+        
+        this.revenueChartData = chartData;
+        this.totalRevenue = validBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+        
+        console.log('📈 ✅ Final revenue chart data:', this.revenueChartData);
+        console.log('📈 ✅ Chart data length:', this.revenueChartData.length);
+        console.log('📈 ✅ Total revenue:', this.totalRevenue);
         
         // Calculate growth (compare last 2 months)
         if (this.revenueChartData.length >= 2) {
@@ -94,18 +162,25 @@ export class DashboardComponent implements OnInit {
           if (previousMonth > 0) {
             this.revenueGrowth = ((lastMonth - previousMonth) / previousMonth) * 100;
           } else {
-            this.revenueGrowth = 0;
+            this.revenueGrowth = lastMonth > 0 ? 100 : 0;
           }
+          console.log('📈 Revenue growth:', this.revenueGrowth);
         }
       } else {
-        console.error('❌ Revenue API returned error:', response?.EM);
+        console.log('📈 No bookings found, showing empty chart');
+        this.totalRevenue = 0;
+        this.revenueChartData = [];
+        this.revenueGrowth = 0;
       }
-    } catch (error) {
-      console.error('❌ Error loading revenue:', error);
+    } catch (error: any) {
+      console.error('❌ ========== ERROR LOADING REVENUE ==========');
+      console.error('❌ Error:', error);
+      console.error('❌ Error message:', error?.message);
       this.totalRevenue = 0;
       this.revenueChartData = [];
       this.revenueGrowth = 0;
     }
+    console.log('📈 ========== END LOADING REVENUE DATA ==========');
   }
 
   async loadBookingStats() {
@@ -172,7 +247,8 @@ export class DashboardComponent implements OnInit {
         console.log('⭐ Review stats loaded:', this.totalReviews, 'avg:', this.averageRating);
       }
     } catch (error) {
-      console.error('Error loading reviews:', error);
+      // Bỏ qua lỗi review vì endpoint có thể chưa có hoặc không cần thiết cho dashboard
+      console.warn('⚠️ Review endpoint not available, skipping review stats:', error);
       this.totalReviews = 0;
       this.averageRating = 0;
     }
@@ -216,6 +292,26 @@ export class DashboardComponent implements OnInit {
 
   getStatusWidth(count: number): string {
     return `${this.getStatusPercentage(count)}%`;
+  }
+
+  // Line chart helpers
+  getMaxRevenue(): number {
+    if (!this.revenueChartData || this.revenueChartData.length === 0) return 1;
+    const max = Math.max(...this.revenueChartData.map(d => d.revenue || 0));
+    return max > 0 ? max : 1;
+  }
+
+  getRevenueLinePath(): string {
+    if (!this.revenueChartData || this.revenueChartData.length === 0) return '';
+    
+    const maxRevenue = this.getMaxRevenue();
+    const points = this.revenueChartData.map((item, index) => {
+      const x = 50 + (index * (730 / (this.revenueChartData.length - 1 || 1)));
+      const y = 250 - ((item.revenue || 0) / maxRevenue * 230);
+      return `${x},${y}`;
+    });
+    
+    return 'M ' + points.join(' L ');
   }
 
   formatPeriodToMonth(period: string): string {

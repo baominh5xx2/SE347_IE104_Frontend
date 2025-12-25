@@ -103,7 +103,30 @@ export class TourListComponent implements OnInit {
     }
   }
 
-  applyFilters() {
+  async applyFilters() {
+    // Check if any advanced filters are active
+    const hasDateFilter = this.startDateFilter && this.endDateFilter;
+    const hasPeriodFilter = this.periodMonthFilter || this.periodYearFilter;
+    const hasPriceFilter = this.priceSegmentFilter;
+    const hasSlotFilter = this.minSlotFilter || this.maxSlotFilter;
+
+    // If advanced filters are set, apply them via API calls
+    if (hasDateFilter) {
+      await this.applyDateFilter();
+      return; // Date filter already calls applyFilters recursively
+    }
+
+    if (hasPeriodFilter) {
+      await this.applyPeriodFilter();
+      return; // Period filter already calls applyFilters recursively
+    }
+
+    if (hasPriceFilter) {
+      await this.applyPriceFilter();
+      return; // Price filter already calls applyFilters recursively
+    }
+
+    // Apply basic filters (search, status, destination) and slot filter
     this.filteredTours = this.tours.filter(tour => {
       const matchesSearch = !this.searchTerm ||
         tour.package_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
@@ -116,8 +139,18 @@ export class TourListComponent implements OnInit {
       const matchesDestination = !this.destinationFilter ||
         tour.destination.toLowerCase().includes(this.destinationFilter.toLowerCase());
 
-      return matchesSearch && matchesStatus && matchesDestination;
+      // Slot filter (client-side)
+      const matchesSlot = !hasSlotFilter || (() => {
+        const min = this.minSlotFilter ? Number(this.minSlotFilter) : 0;
+        const max = this.maxSlotFilter ? Number(this.maxSlotFilter) : Infinity;
+        return tour.available_slots >= min && tour.available_slots <= max;
+      })();
+
+      return matchesSearch && matchesStatus && matchesDestination && matchesSlot;
     });
+
+    // Update slot filter active state
+    this.isSlotFilterActive = !!hasSlotFilter;
   }
 
   onFilterChange() {
@@ -205,8 +238,10 @@ export class TourListComponent implements OnInit {
       await this.tourService.createTourPackageWithImages(data, this.selectedFiles);
       await this.loadTours();
       this.closeAddModal();
+      await this.dialogService.alert('Thành công', 'Thêm tour thành công!');
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể tạo tour';
+      await this.dialogService.alert('Lỗi', this.errorMessage);
       console.error('Create tour error:', error);
     } finally {
       this.isLoading = false;
@@ -328,8 +363,10 @@ export class TourListComponent implements OnInit {
       await this.tourService.updateTourPackage(packageId, updateData);
       await this.loadTours();
       this.closeEditModal();
+      await this.dialogService.alert('Thành công', 'Cập nhật tour thành công!');
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể cập nhật tour';
+      await this.dialogService.alert('Lỗi', this.errorMessage);
       console.error('Update tour error:', error);
     } finally {
       this.isLoading = false;
@@ -357,8 +394,10 @@ export class TourListComponent implements OnInit {
       await this.tourService.deleteTourPackage(this.deleteId);
       await this.loadTours();
       this.closeDeleteModal();
+      await this.dialogService.alert('Thành công', 'Xóa tour thành công!');
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể xóa tour';
+      await this.dialogService.alert('Lỗi', this.errorMessage);
       console.error('Delete tour error:', error);
     } finally {
       this.isLoading = false;
@@ -371,12 +410,15 @@ export class TourListComponent implements OnInit {
       if (!tour.package_id) return;
 
       this.isLoading = true;
+      const newStatus = !tour.is_active;
       await this.tourService.updateTourPackage(tour.package_id, {
-        is_active: !tour.is_active
+        is_active: newStatus
       });
       await this.loadTours();
+      await this.dialogService.alert('Thành công', `Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} tour thành công!`);
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể cập nhật trạng thái';
+      await this.dialogService.alert('Lỗi', this.errorMessage);
       console.error('Toggle status error:', error);
     } finally {
       this.isLoading = false;
@@ -426,13 +468,22 @@ export class TourListComponent implements OnInit {
   }
 
   removeImage(index: number) {
-    // If it's a new file (has corresponding selectedFile)
-    const newFileStartIndex = this.imageUrls.length - this.selectedFiles.length;
-    if (index >= newFileStartIndex) {
-      const fileIndex = index - newFileStartIndex;
-      this.selectedFiles.splice(fileIndex, 1);
+    // Xác định số ảnh cũ từ server (không phải ảnh mới upload)
+    const oldImagesCount = this.originalImageUrls.length;
+    
+    // Nếu xóa ảnh cũ từ server
+    if (index < oldImagesCount) {
+      // Chỉ xóa khỏi imageUrls, không xóa khỏi selectedFiles
+      this.imageUrls.splice(index, 1);
+    } else {
+      // Nếu xóa ảnh mới (vừa upload)
+      const newFileIndex = index - oldImagesCount;
+      if (newFileIndex >= 0 && newFileIndex < this.selectedFiles.length) {
+        this.selectedFiles.splice(newFileIndex, 1);
+      }
+      this.imageUrls.splice(index, 1);
     }
-    this.imageUrls.splice(index, 1);
+    
     this.hasImageChanges = true; // Đánh dấu có thay đổi
   }
 
@@ -626,8 +677,19 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
       );
 
       this.tours = response.packages || [];
-      this.applyFilters();
       this.isDateFilterActive = true;
+      
+      // Apply basic filters on the result
+      this.filteredTours = this.tours.filter(tour => {
+        const matchesSearch = !this.searchTerm ||
+          tour.package_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+          tour.destination.toLowerCase().includes(this.searchTerm.toLowerCase());
+
+        const matchesDestination = !this.destinationFilter ||
+          tour.destination.toLowerCase().includes(this.destinationFilter.toLowerCase());
+
+        return matchesSearch && matchesDestination;
+      });
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể áp dụng bộ lọc theo ngày';
       console.error('Apply date filter error:', error);
@@ -676,8 +738,19 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
       }
 
       this.tours = response.packages || [];
-      this.applyFilters();
       this.isPeriodFilterActive = true;
+      
+      // Apply basic filters on the result
+      this.filteredTours = this.tours.filter(tour => {
+        const matchesSearch = !this.searchTerm ||
+          tour.package_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+          tour.destination.toLowerCase().includes(this.searchTerm.toLowerCase());
+
+        const matchesDestination = !this.destinationFilter ||
+          tour.destination.toLowerCase().includes(this.destinationFilter.toLowerCase());
+
+        return matchesSearch && matchesDestination;
+      });
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể áp dụng bộ lọc';
       console.error('Apply period filter error:', error);
@@ -729,8 +802,19 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
       );
 
       this.tours = response.packages || [];
-      this.applyFilters();
       this.isPriceFilterActive = true;
+      
+      // Apply basic filters on the result
+      this.filteredTours = this.tours.filter(tour => {
+        const matchesSearch = !this.searchTerm ||
+          tour.package_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+          tour.destination.toLowerCase().includes(this.searchTerm.toLowerCase());
+
+        const matchesDestination = !this.destinationFilter ||
+          tour.destination.toLowerCase().includes(this.destinationFilter.toLowerCase());
+
+        return matchesSearch && matchesDestination;
+      });
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể áp dụng bộ lọc theo giá';
       console.error('Apply price filter error:', error);
@@ -761,15 +845,6 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
       return;
     }
 
-    const min = this.minSlotFilter ? Number(this.minSlotFilter) : 0;
-    const max = this.maxSlotFilter ? Number(this.maxSlotFilter) : Infinity;
-
-    this.tours = this.tours.filter(tour => {
-      const slots = tour.available_slots;
-      return slots >= min && slots <= max;
-    });
-
-    this.applyFilters();
     this.isSlotFilterActive = true;
   }
 
