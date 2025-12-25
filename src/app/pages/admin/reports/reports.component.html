@@ -13,7 +13,8 @@
   <div class="bg-white rounded-xl shadow-lg p-6">
     <div class="flex justify-between items-center mb-6">
       <h3 class="text-xl font-bold text-gray-800">Báo cáo doanh thu</h3>
-      <div class="flex gap-4">
+      <div class="flex gap-3">
+        <!-- Period Type -->
         <select 
           [(ngModel)]="revenuePeriodType" 
           (change)="onRevenuePeriodChange()"
@@ -21,15 +22,22 @@
           <option value="week">Theo tuần</option>
           <option value="month">Theo tháng</option>
         </select>
-        <select 
-          [(ngModel)]="revenueNumPeriods" 
-          (change)="onRevenuePeriodsChange()"
-          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-          <option [value]="6">6 kỳ</option>
-          <option [value]="12">12 kỳ</option>
-          <option [value]="24">24 kỳ</option>
-          <option [value]="52">52 kỳ</option>
-        </select>
+        
+        <!-- Start Date -->
+        <input 
+          type="date" 
+          [(ngModel)]="revenueStartDate"
+          (change)="onRevenueDateChange()"
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          placeholder="Từ ngày">
+        
+        <!-- End Date -->
+        <input 
+          type="date" 
+          [(ngModel)]="revenueEndDate"
+          (change)="onRevenueDateChange()"
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          placeholder="Đến ngày">
       </div>
     </div>
 
@@ -59,16 +67,92 @@
         ⚠️ Hiện tại chỉ có dữ liệu từ {{ revenueData.length }} kỳ. Hệ thống sẽ hiển thị đầy đủ hơn khi có thêm bookings.
       </div>
       
-      <div class="flex items-end gap-2 h-64">
-        <div *ngFor="let item of revenueData" class="flex-1 flex flex-col items-center">
-          <div class="w-full bg-blue-500 rounded-t-lg hover:bg-blue-600 transition-colors relative group"
-               [style.height]="getRevenueBarHeight(item.revenue)">
-            <div class="absolute -top-16 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-              {{ formatPrice(item.revenue) }}<br>{{ item.bookings }} bookings
-            </div>
-          </div>
-          <div class="text-xs text-gray-600 mt-2 text-center">{{ item.period }}</div>
-        </div>
+      <!-- SVG Line Chart -->
+      <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+        <svg viewBox="0 0 800 300" class="w-full" style="height: 350px;">
+          <defs>
+            <!-- Gradient for area fill -->
+            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.4" />
+              <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.05" />
+            </linearGradient>
+            
+            <!-- Gradient for line -->
+            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#3b82f6" />
+              <stop offset="50%" style="stop-color:#6366f1" />
+              <stop offset="100%" style="stop-color:#8b5cf6" />
+            </linearGradient>
+          </defs>
+          
+          <!-- Grid lines -->
+          <line *ngFor="let i of [0,1,2,3,4,5]" 
+                [attr.x1]="50" 
+                [attr.y1]="20 + i * 40" 
+                [attr.x2]="750" 
+                [attr.y2]="20 + i * 40" 
+                stroke="#e5e7eb" 
+                stroke-width="1" 
+                stroke-dasharray="5,5" />
+          
+          <!-- Area fill -->
+          <path [attr.d]="getAreaPath()" 
+                fill="url(#areaGradient)" 
+                opacity="0.6"
+                style="animation: fadeIn 1s ease-in-out;" />
+          
+          <!-- Main line -->
+          <path [attr.d]="getLineChartPath()" 
+                fill="none" 
+                stroke="url(#lineGradient)" 
+                stroke-width="3" 
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style="animation: drawLine 1.5s ease-in-out;" />
+          
+          <!-- Data points and labels -->
+          <g *ngFor="let point of getLineChartPoints(); let i = index">
+            <!-- Outer glow circle -->
+            <circle [attr.cx]="point.x" 
+                    [attr.cy]="point.y" 
+                    r="8" 
+                    fill="#3b82f6" 
+                    opacity="0.3"
+                    class="animate-pulse" />
+            
+            <!-- Main circle -->
+            <circle [attr.cx]="point.x" 
+                    [attr.cy]="point.y" 
+                    r="5" 
+                    fill="white" 
+                    stroke="#3b82f6" 
+                    stroke-width="3"
+                    style="cursor: pointer;"
+                    class="hover:r-7 transition-all" />
+            
+            <!-- Value label above point -->
+            <text [attr.x]="point.x" 
+                  [attr.y]="point.y - 15" 
+                  text-anchor="middle" 
+                  class="text-xs font-bold fill-blue-700">
+              {{ formatShortPrice(point.revenue) }}
+            </text>
+            
+            <!-- Period label below chart -->
+            <text [attr.x]="point.x" 
+                  [attr.y]="270" 
+                  text-anchor="middle" 
+                  class="text-xs fill-gray-600">
+              {{ point.label }}
+            </text>
+          </g>
+          
+          <!-- Legend -->
+          <g transform="translate(650, 20)">
+            <rect x="0" y="0" width="12" height="12" fill="url(#lineGradient)" rx="2" />
+            <text x="18" y="10" class="text-xs fill-gray-700 font-medium">Doanh thu</text>
+          </g>
+        </svg>
       </div>
     </div>
 
@@ -84,9 +168,9 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <tr *ngFor="let item of revenueData" class="hover:bg-gray-50">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.period }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-green-600">{{ formatPrice(item.revenue) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{{ item.bookings }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ formatPeriodLabel(item) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-green-600">{{ formatPrice(item.total_revenue) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{{ item.total_bookings }}</td>
           </tr>
         </tbody>
       </table>
@@ -156,7 +240,7 @@
         <div class="space-y-2 mb-4">
           <div class="text-sm text-gray-600">Khoảng giá:</div>
           <div class="text-sm font-medium text-gray-900">
-            {{ formatPrice(range.min_price) }} - {{ formatPrice(range.max_price) }}
+            {{ getPriceRangeText(range.price_range) }}
           </div>
         </div>
 

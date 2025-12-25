@@ -184,6 +184,14 @@ export class ReviewListComponent implements OnInit {
   }
 
   /**
+   * Reload data from API
+   */
+  reloadData() {
+    this.loadAllReviews();
+    this.loadPendingReviews();
+  }
+
+  /**
    * Clear filters
    */
   clearFilters() {

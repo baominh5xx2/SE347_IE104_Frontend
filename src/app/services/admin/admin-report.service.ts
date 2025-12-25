@@ -5,9 +5,10 @@ import { ConfigService } from '../config.service';
 
 // Revenue Report
 export interface RevenuePeriod {
-  period: string;
-  revenue: number;
-  bookings: number;
+  period_start: string;
+  period_end: string;
+  total_revenue: number;
+  total_bookings: number;
 }
 
 export interface RevenueReportResponse {

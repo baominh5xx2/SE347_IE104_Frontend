@@ -96,7 +96,7 @@
     </div>
   </div>
 
-  <!-- Revenue Chart -->
+  <!-- Revenue Chart - Line Chart -->
   <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-lg p-6">
     <div class="flex justify-between items-center mb-6">
       <h3 class="text-xl font-semibold text-gray-800">Doanh thu 12 tháng gần đây</h3>
@@ -107,17 +107,72 @@
       ⚠️ Hiện tại chỉ có dữ liệu từ {{ revenueChartData.length }} kỳ. Hệ thống sẽ hiển thị đầy đủ hơn khi có thêm bookings.
     </div>
     
-    <div *ngIf="revenueChartData.length > 0" class="h-64 flex items-end justify-between gap-2">
-      <div *ngFor="let item of revenueChartData" class="flex-1 flex flex-col items-center group">
-        <div class="w-full bg-gradient-to-t from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 rounded-t transition-all cursor-pointer relative"
-             [style.height]="getRevenueBarHeight(item.revenue)"
-             [title]="item.period + ': ' + formatPrice(item.revenue)">
-          <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-            {{ formatPrice(item.revenue) }}<br>
-            <span class="text-xs">{{ item.bookings }} bookings</span>
-          </div>
+    <!-- Line Chart SVG -->
+    <div *ngIf="revenueChartData.length > 0" class="relative">
+      <svg class="w-full" viewBox="0 0 800 300" preserveAspectRatio="xMidYMid meet">
+        <!-- Grid lines -->
+        <line x1="50" y1="20" x2="50" y2="250" stroke="#e5e7eb" stroke-width="2"/>
+        <line x1="50" y1="250" x2="780" y2="250" stroke="#e5e7eb" stroke-width="2"/>
+        
+        <!-- Horizontal grid lines -->
+        <line x1="50" y1="70" x2="780" y2="70" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        <line x1="50" y1="120" x2="780" y2="120" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        <line x1="50" y1="170" x2="780" y2="170" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        <line x1="50" y1="220" x2="780" y2="220" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        
+        <!-- Line path -->
+        <ng-container *ngIf="getRevenueLinePath() as linePath">
+          <!-- Area under line (gradient fill) -->
+          <defs>
+            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+              <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.05" />
+            </linearGradient>
+          </defs>
+          <path [attr.d]="linePath + ' L780,250 L50,250 Z'" fill="url(#areaGradient)" />
+          
+          <!-- Main line -->
+          <path [attr.d]="linePath" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          
+          <!-- Data points -->
+          <g *ngFor="let item of revenueChartData; let i = index">
+            <circle 
+              [attr.cx]="50 + (i * (730 / (revenueChartData.length - 1 || 1)))" 
+              [attr.cy]="250 - (item.revenue / getMaxRevenue() * 230)"
+              r="5" 
+              fill="#3b82f6" 
+              stroke="white" 
+              stroke-width="2"
+              class="hover:r-7 transition-all cursor-pointer"
+              [attr.data-tooltip]="item.period + ': ' + formatPrice(item.revenue)">
+              <title>{{ item.period }}: {{ formatPrice(item.revenue) }} ({{ item.bookings }} bookings)</title>
+            </circle>
+          </g>
+        </ng-container>
+        
+        <!-- X-axis labels -->
+        <g *ngFor="let item of revenueChartData; let i = index">
+          <text 
+            [attr.x]="50 + (i * (730 / (revenueChartData.length - 1 || 1)))" 
+            y="270" 
+            text-anchor="middle" 
+            class="text-xs fill-gray-600"
+            font-size="11">
+            {{ item.period }}
+          </text>
+        </g>
+      </svg>
+      
+      <!-- Legend -->
+      <div class="mt-4 flex items-center justify-center gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-1 bg-blue-500 rounded"></div>
+          <span class="text-gray-600">Doanh thu</span>
         </div>
-        <span class="text-xs text-gray-600 mt-2 text-center">{{ item.period }}</span>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 rounded-full bg-blue-500 border-2 border-white"></div>
+          <span class="text-gray-600">Điểm dữ liệu</span>
+        </div>
       </div>
     </div>
     

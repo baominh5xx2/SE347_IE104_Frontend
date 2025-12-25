@@ -13,13 +13,16 @@ interface Booking {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
+  contact_phone?: string;
+  contact_email?: string;
   tourName: string;
   destination: string;
   numberOfPeople: number;
   totalAmount: number;
   bookingDate: Date;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'otp_sent';
   specialRequests?: string;
+  promotion_code?: string;
   userId?: string;
   userEmail?: string;
 }
@@ -39,6 +42,14 @@ export class BookingListComponent implements OnInit {
   searchTerm: string = '';
   statusFilter: string = '';
   phoneFilter: string = '';
+  minAmount: number | null = null;
+  maxAmount: number | null = null;
+  minAmountDisplay: string = '';
+  maxAmountDisplay: string = '';
+  minPeople: number | null = null;
+  maxPeople: number | null = null;
+  startDate: string = '';
+  endDate: string = '';
 
   // Modal states
   showDetailModal: boolean = false;
@@ -165,13 +176,52 @@ export class BookingListComponent implements OnInit {
 
       const matchesStatus = !this.statusFilter || booking.status === this.statusFilter;
       const matchesPhone = !this.phoneFilter || booking.customerPhone.includes(this.phoneFilter);
+      
+      const matchesMinAmount = this.minAmount === null || booking.totalAmount >= this.minAmount;
+      const matchesMaxAmount = this.maxAmount === null || booking.totalAmount <= this.maxAmount;
+      
+      const matchesMinPeople = this.minPeople === null || booking.numberOfPeople >= this.minPeople;
+      const matchesMaxPeople = this.maxPeople === null || booking.numberOfPeople <= this.maxPeople;
+      
+      const matchesStartDate = !this.startDate || new Date(booking.bookingDate) >= new Date(this.startDate);
+      const matchesEndDate = !this.endDate || new Date(booking.bookingDate) <= new Date(this.endDate);
 
-      return matchesSearch && matchesStatus && matchesPhone;
+      return matchesSearch && matchesStatus && matchesPhone && 
+             matchesMinAmount && matchesMaxAmount &&
+             matchesMinPeople && matchesMaxPeople &&
+             matchesStartDate && matchesEndDate;
     });
   }
 
   onFilterChange() {
     this.applyFilters();
+  }
+
+  formatNumberInput(event: any, type: 'min' | 'max') {
+    let value = event.target.value.replace(/\./g, '');
+    
+    if (value === '') {
+      if (type === 'min') {
+        this.minAmount = null;
+        this.minAmountDisplay = '';
+      } else {
+        this.maxAmount = null;
+        this.maxAmountDisplay = '';
+      }
+      return;
+    }
+    
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue)) {
+      const formatted = numValue.toLocaleString('vi-VN');
+      if (type === 'min') {
+        this.minAmount = numValue;
+        this.minAmountDisplay = formatted;
+      } else {
+        this.maxAmount = numValue;
+        this.maxAmountDisplay = formatted;
+      }
+    }
   }
 
   async openDetailModal(booking: Booking) {
@@ -377,15 +427,20 @@ export class BookingListComponent implements OnInit {
       this.selectedStatusForEdit = this.editingBooking.status;
     }
     const targetStatus = this.selectedStatusForEdit;
-    if (targetStatus === this.editingBooking.status) {
-      this.closeEditModal();
-      this.closeDetailModal();
-      return;
-    }
 
     this.isLoading = true;
     try {
       let response;
+
+      // Chuẩn bị dữ liệu cập nhật với tất cả các trường
+      const updateData: any = {
+        status: targetStatus,
+        contact_name: this.editingBooking.customerName,
+        contact_phone: this.editingBooking.customerPhone,
+        contact_email: this.editingBooking.customerEmail,
+        number_of_people: this.editingBooking.numberOfPeople,
+        special_requests: this.editingBooking.specialRequests
+      };
 
       if (targetStatus === 'cancelled') {
         // Dùng API cancel khi chuyển sang hủy
@@ -393,10 +448,7 @@ export class BookingListComponent implements OnInit {
           reason: 'Admin cập nhật trạng thái sang hủy'
         }).toPromise();
       } else {
-        // Các trạng thái khác dùng update
-        const updateData = {
-          status: targetStatus
-        };
+        // Các trạng thái khác dùng update với đầy đủ thông tin
         response = await this.adminBookingService.updateBooking(this.editingBooking.id, updateData).toPromise();
       }
 

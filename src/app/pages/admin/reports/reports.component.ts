@@ -13,7 +13,8 @@ import { ReportService, RevenuePeriod, PriceRangeData } from '../../../services/
 export class ReportsComponent implements OnInit {
   // Revenue Report
   revenuePeriodType: 'week' | 'month' = 'month';
-  revenueNumPeriods: number = 12;
+  revenueStartDate: string = '';
+  revenueEndDate: string = '';
   revenueData: RevenuePeriod[] = [];
   totalRevenue: number = 0;
   totalBookings: number = 0;
@@ -31,7 +32,14 @@ export class ReportsComponent implements OnInit {
 
   errorMessage: string = '';
 
-  constructor(private reportService: ReportService) {}
+  constructor(private reportService: ReportService) {
+    // Mặc định: tháng hiện tại
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    this.revenueStartDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    this.revenueEndDate = `${year}-${String(month).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
 
   ngOnInit() {
     this.loadRevenueReport();
@@ -43,27 +51,21 @@ export class ReportsComponent implements OnInit {
     this.errorMessage = '';
 
     console.log('📈 Loading revenue report...');
-    console.log('📈 Period type:', this.revenuePeriodType, 'Num periods:', this.revenueNumPeriods);
+    console.log('📈 Period:', this.revenuePeriodType, 'Start:', this.revenueStartDate, 'End:', this.revenueEndDate);
 
     this.reportService.getRevenueReport({
       period_type: this.revenuePeriodType,
-      num_periods: this.revenueNumPeriods
+      start_date: this.revenueStartDate || undefined,
+      end_date: this.revenueEndDate || undefined
     }).subscribe({
       next: (response) => {
-        console.log('📈 Revenue report API response:', response);
+        console.log('📈 Revenue report response:', response);
         if (response.EC === 0) {
-          this.revenueData = (response.data || []).map(item => ({
-            period: this.formatPeriodToMonth(item.period || ''),
-            revenue: item.revenue || 0,
-            bookings: item.bookings || 0
-          }));
+          this.revenueData = response.data || [];
           this.totalRevenue = response.total_revenue || 0;
           this.totalBookings = response.total_bookings || 0;
-          
-          console.log('📈 Processed revenue data:', this.revenueData);
-          console.log('📈 Total:', this.totalRevenue, 'Bookings:', this.totalBookings);
         } else {
-          console.error('❌ Revenue report API error:', response.EM);
+          console.error('❌ Revenue report error:', response.EM);
           this.errorMessage = response.EM || 'Không thể tải báo cáo doanh thu';
           this.revenueData = [];
           this.totalRevenue = 0;
@@ -80,6 +82,10 @@ export class ReportsComponent implements OnInit {
         this.isLoadingRevenue = false;
       }
     });
+  }
+
+  onRevenueDateChange() {
+    this.loadRevenueReport();
   }
 
   loadPriceRangeReport() {
@@ -111,10 +117,6 @@ export class ReportsComponent implements OnInit {
   }
 
   onRevenuePeriodChange() {
-    this.loadRevenueReport();
-  }
-
-  onRevenuePeriodsChange() {
     this.loadRevenueReport();
   }
 
@@ -151,6 +153,15 @@ export class ReportsComponent implements OnInit {
     return labels[range] || range;
   }
 
+  getPriceRangeText(range: string): string {
+    const ranges: { [key: string]: string } = {
+      'budget': '< 5,000,000 VNĐ',
+      'medium': '5,000,000 - 15,000,000 VNĐ',
+      'premium': '> 15,000,000 VNĐ'
+    };
+    return ranges[range] || 'N/A';
+  }
+
   getPriceRangeColor(range: string): string {
     const colors: { [key: string]: string } = {
       'budget': 'bg-blue-100 text-blue-800',
@@ -166,32 +177,111 @@ export class ReportsComponent implements OnInit {
 
   getRevenueMax(): number {
     if (this.revenueData.length === 0) return 0;
-    return Math.max(...this.revenueData.map(d => d.revenue));
+    return Math.max(...this.revenueData.map(d => d.total_revenue));
   }
 
   getRevenueBarHeight(revenue: number): string {
-    if (revenue === null || revenue === undefined || isNaN(revenue)) return '20px';
+    if (revenue === null || revenue === undefined || isNaN(revenue) || revenue < 0) {
+      return '20px';
+    }
+    
     const max = this.getRevenueMax();
-    if (max === 0) return '20px';
+    if (max === 0 || max === null || max === undefined || isNaN(max)) {
+      return '20px';
+    }
     
     const percentage = (revenue / max) * 100;
-    // Minimum 20px height for visibility
     const minHeight = 20;
-    const calculatedHeight = Math.max(minHeight, (percentage / 100) * 256); // 256px = max height
-    return `${Math.min(256, calculatedHeight)}px`;
+    const maxHeight = 256;
+    const calculatedHeight = Math.max(minHeight, (percentage / 100) * maxHeight);
+    return `${Math.min(maxHeight, Math.round(calculatedHeight))}px`;
   }
 
-  formatPeriodToMonth(period: string): string {
-    // Convert "2024-W52" to "12/2024" or "2024-12" to "12/2024"
-    if (period.includes('-W')) {
-      // Week format: extract year and approximate month
-      const [year] = period.split('-W');
-      return `${year}`;
-    } else if (period.includes('-')) {
-      // Month format: 2024-12 -> 12/2024
-      const [year, month] = period.split('-');
-      return `Tháng ${month}/${year}`;
+  formatPeriodLabel(item: RevenuePeriod): string {
+    // Format period_start to readable label
+    const start = new Date(item.period_start);
+    const end = new Date(item.period_end);
+    
+    if (this.revenuePeriodType === 'month') {
+      return `T${start.getMonth() + 1}/${start.getFullYear()}`;
+    } else {
+      // Week format
+      return `${start.getDate()}/${start.getMonth() + 1} - ${end.getDate()}/${end.getMonth() + 1}`;
     }
-    return period;
   }
+
+  formatShortPrice(price: number): string {
+    if (price >= 1000000000) {
+      return `${(price / 1000000000).toFixed(1)}B`;
+    } else if (price >= 1000000) {
+      return `${(price / 1000000).toFixed(0)}M`;
+    } else if (price >= 1000) {
+      return `${(price / 1000).toFixed(0)}K`;
+    }
+    return price.toString();
+  }
+
+  getLineChartPath(): string {
+    if (this.revenueData.length === 0) return '';
+    
+    const width = 800;
+    const height = 250;
+    const padding = 50;
+    const maxRevenue = this.getRevenueMax();
+    
+    if (maxRevenue === 0) return '';
+    
+    const points = this.revenueData.map((item, index) => {
+      const x = padding + (index * (width - padding * 2) / (this.revenueData.length - 1 || 1));
+      const y = height - padding - ((item.total_revenue / maxRevenue) * (height - padding * 2));
+      return { x, y };
+    });
+    
+    let path = `M ${points[0].x},${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      path += ` L ${points[i].x},${points[i].y}`;
+    }
+    
+    return path;
+  }
+
+  getLineChartPoints(): Array<{x: number, y: number, revenue: number, label: string}> {
+    if (this.revenueData.length === 0) return [];
+    
+    const width = 800;
+    const height = 250;
+    const padding = 50;
+    const maxRevenue = this.getRevenueMax();
+    
+    if (maxRevenue === 0) return [];
+    
+    return this.revenueData.map((item, index) => {
+      const x = padding + (index * (width - padding * 2) / (this.revenueData.length - 1 || 1));
+      const y = height - padding - ((item.total_revenue / maxRevenue) * (height - padding * 2));
+      return {
+        x,
+        y,
+        revenue: item.total_revenue,
+        label: this.formatPeriodLabel(item)
+      };
+    });
+  }
+
+  getAreaPath(): string {
+    if (this.revenueData.length === 0) return '';
+    
+    const linePath = this.getLineChartPath();
+    const width = 800;
+    const height = 250;
+    const padding = 50;
+    
+    const points = this.getLineChartPoints();
+    if (points.length === 0) return '';
+    
+    const lastPoint = points[points.length - 1];
+    const firstPoint = points[0];
+    
+    return `${linePath} L ${lastPoint.x},${height - padding} L ${firstPoint.x},${height - padding} Z`;
+  }
+
 }

@@ -44,6 +44,8 @@ export class PaymentManagementComponent implements OnInit {
   tourFilter = '';
   minAmount: number | null = null;
   maxAmount: number | null = null;
+  minAmountDisplay: string = '';
+  maxAmountDisplay: string = '';
   paidFrom: string = '';
   paidTo: string = '';
 
@@ -68,23 +70,30 @@ export class PaymentManagementComponent implements OnInit {
   ) { }
 
   ngOnInit() {
+    this.initializeDefaultOptions();
     this.loadStatusOptions();
     this.loadPayments();
   }
 
+  initializeDefaultOptions() {
+    // Default payment status options
+    this.paymentStatusOptions = [
+      { value: 'pending', label: 'Chờ thanh toán' },
+      { value: 'completed', label: 'Đã thanh toán' },
+      { value: 'refunded', label: 'Đã hoàn tiền' }
+    ];
+
+    // Default payment method options
+    this.paymentMethodOptions = [
+      { value: 'bank_transfer', label: 'Chuyển khoản ngân hàng' },
+      { value: 'vnpay', label: 'VNPay' }
+    ];
+  }
+
   async loadStatusOptions() {
     try {
-      const response: any = await this.http.get('/api/v1/config/booking-statuses').toPromise();
-      if (response?.data) {
-        this.bookingStatusOptions = response.data;
-      }
-    } catch (error) {
-      console.error('Error loading booking statuses:', error);
-    }
-
-    try {
       const response: any = await this.http.get('/api/v1/config/payment-statuses').toPromise();
-      if (response?.data) {
+      if (response?.data && response.data.length > 0) {
         this.paymentStatusOptions = response.data;
       }
     } catch (error) {
@@ -93,7 +102,7 @@ export class PaymentManagementComponent implements OnInit {
 
     try {
       const response: any = await this.http.get('/api/v1/config/payment-methods').toPromise();
-      if (response?.data) {
+      if (response?.data && response.data.length > 0) {
         this.paymentMethodOptions = response.data;
       }
     } catch (error) {
@@ -257,6 +266,37 @@ export class PaymentManagementComponent implements OnInit {
     this.computeStats();
   }
 
+  reloadData() {
+    this.loadPayments();
+  }
+
+  formatNumberInput(event: any, type: 'min' | 'max') {
+    let value = event.target.value.replace(/\./g, '');
+    
+    if (value === '') {
+      if (type === 'min') {
+        this.minAmount = null;
+        this.minAmountDisplay = '';
+      } else {
+        this.maxAmount = null;
+        this.maxAmountDisplay = '';
+      }
+      return;
+    }
+    
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue)) {
+      const formatted = numValue.toLocaleString('vi-VN');
+      if (type === 'min') {
+        this.minAmount = numValue;
+        this.minAmountDisplay = formatted;
+      } else {
+        this.maxAmount = numValue;
+        this.maxAmountDisplay = formatted;
+      }
+    }
+  }
+
   resetFilters() {
     this.statusFilter = '';
     this.userFilter = '';
@@ -266,6 +306,7 @@ export class PaymentManagementComponent implements OnInit {
     this.maxAmount = null;
     this.paidFrom = '';
     this.paidTo = '';
+    this.bookingStatusFilter = '';
     this.applyFilters();
   }
 
@@ -275,7 +316,10 @@ export class PaymentManagementComponent implements OnInit {
     this.stats.pending = this.payments.filter(p => p.payment_status === 'pending').length;
     this.stats.refunded = this.payments.filter(p => p.payment_status === 'refunded').length;
     this.stats.failed = this.payments.filter(p => p.payment_status === 'failed').length;
-    this.stats.totalAmount = this.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    // Chỉ tính tổng tiền từ các payment đã completed
+    this.stats.totalAmount = this.payments
+      .filter(p => p.payment_status === 'completed')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
   }
 
   formatDate(value?: string): string {
@@ -330,6 +374,7 @@ export class PaymentManagementComponent implements OnInit {
 
       if (response && response.EC === 0) {
         await this.dialogService.alert('Thành công', 'Đã xác nhận thanh toán thành công!');
+        this.closeDetail(); // Close modal after success
         await this.loadPayments();
       } else {
         await this.dialogService.alert('Lỗi', response?.EM || 'Không thể xác nhận thanh toán');
