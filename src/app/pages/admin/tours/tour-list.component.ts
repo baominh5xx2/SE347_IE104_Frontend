@@ -3,6 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminTourService, TourPackage, TourPackageCreateRequest, TourPackageUpdateRequest } from '../../../services/admin/admin-tour.service';
 import { AdminDialogService } from '../../../services/admin/admin-dialog.service';
+import { AdminBookingService } from '../../../services/admin/admin-booking.service';
+
+// Extended interface to include booking count
+interface TourPackageWithBookings extends TourPackage {
+  bookings_count?: number;
+  has_bookings?: boolean;
+}
 
 @Component({
   selector: 'app-tour-list',
@@ -12,8 +19,8 @@ import { AdminDialogService } from '../../../services/admin/admin-dialog.service
   styleUrl: './tour-list.component.scss'
 })
 export class TourListComponent implements OnInit {
-  tours: TourPackage[] = [];
-  filteredTours: TourPackage[] = [];
+  tours: TourPackageWithBookings[] = [];
+  filteredTours: TourPackageWithBookings[] = [];
 
   // Filters
   searchTerm = '';
@@ -79,9 +86,29 @@ export class TourListComponent implements OnInit {
   // Formatted price for display
   formattedPrice: string = '';
 
+  // Copy state
+  copiedPackageId: boolean = false;
+
+  // Cancel tour modal
+  showCancelTourModal: boolean = false;
+  cancelTourReason: string = '';
+  tourToCancelId: string = '';
+
+  // Track original tour status
+  originalTourStatus: boolean = true;
+
+  // Track original tour data for change detection
+  originalTourData: TourPackage | null = null;
+
+  // Upload progress
+  uploadProgress: number = 0;
+  uploadStatus: string = '';
+  isUploading: boolean = false;
+
   constructor(
     private tourService: AdminTourService,
-    private dialogService: AdminDialogService
+    private dialogService: AdminDialogService,
+    private bookingService: AdminBookingService
   ) { }
 
   ngOnInit() {
@@ -94,12 +121,47 @@ export class TourListComponent implements OnInit {
       this.errorMessage = '';
       const response = await this.tourService.getTourPackages();
       this.tours = response.packages || [];
+      
+      // Load booking counts for all tours
+      await this.loadBookingCounts();
+      
       this.applyFilters();
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể tải danh sách tours';
       console.error('Load tours error:', error);
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  async loadBookingCounts() {
+    try {
+      // Get all bookings
+      const bookingsResponse = await this.bookingService.getBookings({}).toPromise();
+      
+      if (bookingsResponse && bookingsResponse.EC === 0) {
+        const bookings = bookingsResponse.data || [];
+        
+        // Count bookings per tour package
+        const bookingCountMap = new Map<string, number>();
+        
+        bookings.forEach((booking: any) => {
+          const packageId = booking.package_id;
+          if (packageId) {
+            bookingCountMap.set(packageId, (bookingCountMap.get(packageId) || 0) + 1);
+          }
+        });
+        
+        // Update tours with booking counts
+        this.tours.forEach(tour => {
+          const count = bookingCountMap.get(tour.package_id || '') || 0;
+          tour.bookings_count = count;
+          tour.has_bookings = count > 0;
+        });
+      }
+    } catch (error) {
+      console.error('Error loading booking counts:', error);
+      // Don't throw error, just log it
     }
   }
 
@@ -110,20 +172,20 @@ export class TourListComponent implements OnInit {
     const hasPriceFilter = this.priceSegmentFilter;
     const hasSlotFilter = this.minSlotFilter || this.maxSlotFilter;
 
-    // If advanced filters are set, apply them via API calls
+    // If advanced filters are set, apply them via API calls first
     if (hasDateFilter) {
       await this.applyDateFilter();
-      return; // Date filter already calls applyFilters recursively
+      return; // Date filter already handles everything
     }
 
     if (hasPeriodFilter) {
       await this.applyPeriodFilter();
-      return; // Period filter already calls applyFilters recursively
+      return; // Period filter already handles everything
     }
 
     if (hasPriceFilter) {
       await this.applyPriceFilter();
-      return; // Price filter already calls applyFilters recursively
+      return; // Price filter already handles everything
     }
 
     // Apply basic filters (search, status, destination) and slot filter
@@ -149,7 +211,10 @@ export class TourListComponent implements OnInit {
       return matchesSearch && matchesStatus && matchesDestination && matchesSlot;
     });
 
-    // Update slot filter active state
+    // Update filter active states
+    this.isDateFilterActive = false;
+    this.isPeriodFilterActive = false;
+    this.isPriceFilterActive = false;
     this.isSlotFilterActive = !!hasSlotFilter;
   }
 
@@ -189,7 +254,7 @@ export class TourListComponent implements OnInit {
   // Detail Modal
   openDetailModal(tour: TourPackage) {
     this.currentTour = { ...tour };
-    this.imageUrls = tour.image_urls ? tour.image_urls.split(',') : [];
+    this.imageUrls = tour.image_urls ? tour.image_urls.split('|').filter(url => url.trim()) : [];
     this.showDetailModal = true;
     this.showPreview = true;
   }
@@ -204,21 +269,59 @@ export class TourListComponent implements OnInit {
     this.showPreview = !this.showPreview;
   }
 
+  // Check if tour has any changes
+  hasChanges(): boolean {
+    if (!this.originalTourData) return false;
+
+    // So sánh các trường cơ bản
+    const fieldsToCompare: (keyof TourPackage)[] = [
+      'package_name', 'destination', 'description', 'duration_days',
+      'price', 'available_slots', 'start_date', 'end_date',
+      'cuisine', 'suitable_for', 'is_active'
+    ];
+
+    const hasFieldChanges = fieldsToCompare.some(field => {
+      const current = this.currentTour[field];
+      const original = this.originalTourData![field];
+      return current !== original;
+    });
+
+    if (hasFieldChanges) return true;
+
+    // Kiểm tra thay đổi ảnh
+    if (this.hasImageChanges || this.selectedFiles.length > 0) return true;
+
+    // So sánh thứ tự ảnh hiện tại với ảnh gốc
+    const currentImageString = this.imageUrls.join('|');
+    const originalImageString = this.originalImageUrls.join('|');
+    if (currentImageString !== originalImageString) return true;
+
+    return false;
+  }
+
   async saveTour() {
     try {
       this.isLoading = true;
+      this.isUploading = true;
+      this.uploadProgress = 0;
+      this.uploadStatus = 'Đang chuẩn bị...';
       this.errorMessage = '';
 
       // Validate required fields
       if (!this.currentTour.package_name || !this.currentTour.destination || !this.currentTour.description) {
         this.errorMessage = 'Vui lòng điền đầy đủ thông tin bắt buộc';
+        this.isUploading = false;
         return;
       }
 
       if (this.selectedFiles.length === 0 && this.imageUrls.length === 0) {
         this.errorMessage = 'Vui lòng chọn ít nhất một hình ảnh';
+        this.isUploading = false;
         return;
       }
+
+      this.uploadProgress = 20;
+      this.uploadStatus = 'Đang xử lý thông tin tour...';
 
       const data = {
         package_name: this.currentTour.package_name!,
@@ -234,13 +337,30 @@ export class TourListComponent implements OnInit {
         is_active: this.currentTour.is_active!
       };
 
+      this.uploadProgress = 40;
+      this.uploadStatus = `Đang tải lên ${this.selectedFiles.length} ảnh...`;
+
+      // Simulate progress for image upload
+      const progressInterval = setInterval(() => {
+        if (this.uploadProgress < 90) {
+          this.uploadProgress += 5;
+        }
+      }, 200);
+
       // Create tour with images
       await this.tourService.createTourPackageWithImages(data, this.selectedFiles);
+      
+      clearInterval(progressInterval);
+      this.uploadProgress = 100;
+      this.uploadStatus = 'Hoàn tất!';
+
       await this.loadTours();
       this.closeAddModal();
+      this.isUploading = false;
       await this.dialogService.alert('Thành công', 'Thêm tour thành công!');
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể tạo tour';
+      this.isUploading = false;
       await this.dialogService.alert('Lỗi', this.errorMessage);
       console.error('Create tour error:', error);
     } finally {
@@ -251,6 +371,7 @@ export class TourListComponent implements OnInit {
   // Edit Modal
   openEditModal(tour: TourPackage) {
     this.currentTour = { ...tour };
+    this.originalTourData = { ...tour }; // Lưu snapshot của tour gốc
     // Parse existing images
     this.imageUrls = tour.image_urls ? tour.image_urls.split('|').filter(url => url.trim()) : [];
     this.originalImageUrls = [...this.imageUrls]; // Lưu URL gốc
@@ -258,12 +379,14 @@ export class TourListComponent implements OnInit {
     this.selectedFiles = [];
     this.hasImageChanges = false;
     this.formattedPrice = this.formatNumberWithCommas(tour.price);
+    this.originalTourStatus = tour.is_active ?? true; // Lưu trạng thái ban đầu
     this.showEditModal = true;
   }
 
   closeEditModal() {
     this.showEditModal = false;
     this.currentTour = {};
+    this.originalTourData = null;
   }
 
   async updateTour() {
@@ -409,13 +532,32 @@ export class TourListComponent implements OnInit {
     try {
       if (!tour.package_id) return;
 
+      // Không cho phép kích hoạt lại tour đã tạm dừng
+      if (!tour.is_active) {
+        await this.dialogService.warning(
+          'Không thể kích hoạt lại',
+          'Tour đã tạm dừng không thể chuyển về trạng thái hoạt động. Vui lòng tạo tour mới nếu cần.'
+        );
+        return;
+      }
+
+      // Xác nhận tạm dừng tour
+      const confirmed = await this.dialogService.confirm({
+        title: 'Tạm dừng tour',
+        message: 'Bạn có chắc chắn muốn tạm dừng tour này? Tour sẽ không thể kích hoạt lại.',
+        confirmText: 'Tạm dừng',
+        cancelText: 'Hủy',
+        type: 'warning'
+      });
+
+      if (!confirmed) return;
+
       this.isLoading = true;
-      const newStatus = !tour.is_active;
       await this.tourService.updateTourPackage(tour.package_id, {
-        is_active: newStatus
+        is_active: false
       });
       await this.loadTours();
-      await this.dialogService.alert('Thành công', `Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} tour thành công!`);
+      await this.dialogService.alert('Thành công', 'Đã tạm dừng tour thành công!');
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể cập nhật trạng thái';
       await this.dialogService.alert('Lỗi', this.errorMessage);
@@ -434,6 +576,17 @@ export class TourListComponent implements OnInit {
     return new Date(dateString).toLocaleDateString('vi-VN');
   }
 
+  formatDateTime(dateString: string): string {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
   getImageUrl(imageUrls: string): string {
     return imageUrls.split('|')[0] || 'https://via.placeholder.com/300x200';
   }
@@ -443,6 +596,24 @@ export class TourListComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (input.files) {
       const files = Array.from(input.files);
+      
+      // Kiểm tra số lượng ảnh hiện tại + ảnh mới
+      const currentImageCount = this.imageUrls.length;
+      const newImageCount = files.length;
+      const totalImages = currentImageCount + newImageCount;
+      
+      if (totalImages > 10) {
+        const remainingSlots = 10 - currentImageCount;
+        if (remainingSlots <= 0) {
+          this.dialogService.warning('Đã đủ 10 ảnh', 'Bạn chỉ được tải tối đa 10 ảnh. Vui lòng xóa bớt ảnh cũ để tải thêm ảnh mới.');
+        } else {
+          this.dialogService.warning('Vượt quá giới hạn', `Bản chỉ có thể tải thêm ${remainingSlots} ảnh nữa. Hiện tại có ${currentImageCount} ảnh.`);
+        }
+        // Reset input
+        input.value = '';
+        return;
+      }
+      
       const validFiles = files.filter(file => {
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
         return validTypes.includes(file.type);
@@ -450,6 +621,8 @@ export class TourListComponent implements OnInit {
 
       if (validFiles.length !== files.length) {
         this.dialogService.warning('File không hợp lệ', 'Chỉ chấp nhận file ảnh định dạng JPEG, JPG, PNG, WebP');
+        input.value = '';
+        return;
       }
 
       // Add new files
@@ -464,6 +637,9 @@ export class TourListComponent implements OnInit {
         };
         reader.readAsDataURL(file);
       });
+      
+      // Reset input
+      input.value = '';
     }
   }
 
@@ -553,8 +729,101 @@ export class TourListComponent implements OnInit {
   // Format price input with thousand separator
   onPriceInput(event: any) {
     const input = event.target.value.replace(/\D/g, ''); // Remove non-digits
-    this.currentTour.price = parseInt(input) || 0;
-    this.formattedPrice = this.formatNumberWithCommas(this.currentTour.price);
+    let price = parseInt(input) || 0;
+    
+    // Giới hạn giá tối đa 1 tỷ (1,000,000,000)
+    if (price > 1000000000) {
+      price = 1000000000;
+    }
+    
+    this.currentTour.price = price;
+    this.formattedPrice = this.formatNumberWithCommas(price);
+  }
+
+  // Limit duration input to 1-60 days
+  onDurationInput(event: any) {
+    let value = parseInt(event.target.value) || 0;
+    
+    // Chỉ giới hạn max khi nhập, không giới hạn min để có thể nhập số như 15
+    if (value > 60) {
+      value = 60;
+      this.currentTour.duration_days = value;
+      event.target.value = value;
+    } else {
+      this.currentTour.duration_days = value;
+    }
+  }
+
+  // Validate duration on blur (khi mất focus)
+  onDurationBlur(event: any) {
+    let value = parseInt(event.target.value) || 0;
+    
+    if (value < 1) {
+      value = 1;
+    } else if (value > 60) {
+      value = 60;
+    }
+    
+    this.currentTour.duration_days = value;
+    event.target.value = value;
+  }
+
+  // Limit slots input to 0-200
+  onSlotsInput(event: any) {
+    let value = parseInt(event.target.value) || 0;
+    
+    // Chỉ giới hạn max khi nhập
+    if (value > 200) {
+      value = 200;
+      this.currentTour.available_slots = value;
+      event.target.value = value;
+    } else {
+      this.currentTour.available_slots = value;
+    }
+  }
+
+  // Validate slots on blur (khi mất focus)
+  onSlotsBlur(event: any) {
+    let value = parseInt(event.target.value) || 0;
+    
+    if (value < 0) {
+      value = 0;
+    } else if (value > 200) {
+      value = 200;
+    }
+    
+    this.currentTour.available_slots = value;
+    event.target.value = value;
+  }
+
+  // Auto calculate end date based on start date + duration
+  onStartDateChange() {
+    if (this.currentTour.start_date && this.currentTour.duration_days) {
+      const startDate = new Date(this.currentTour.start_date);
+      const durationDays = this.currentTour.duration_days || 1;
+      
+      // Add duration days to start date
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + durationDays);
+      
+      // Format to YYYY-MM-DD for input date
+      this.currentTour.end_date = endDate.toISOString().split('T')[0];
+    }
+  }
+
+  // Auto calculate start date based on end date - duration
+  onEndDateChange() {
+    if (this.currentTour.end_date && this.currentTour.duration_days) {
+      const endDate = new Date(this.currentTour.end_date);
+      const durationDays = this.currentTour.duration_days || 1;
+      
+      // Subtract duration days from end date
+      const startDate = new Date(endDate);
+      startDate.setDate(endDate.getDate() - durationDays);
+      
+      // Format to YYYY-MM-DD for input date
+      this.currentTour.start_date = startDate.toISOString().split('T')[0];
+    }
   }
 
   formatNumberWithCommas(value: number): string {
@@ -562,24 +831,16 @@ export class TourListComponent implements OnInit {
     return new Intl.NumberFormat('vi-VN').format(value);
   }
 
-  // Format datetime for display
-  formatDateTime(datetime: string): string {
-    if (!datetime) return 'N/A';
-    return new Intl.DateTimeFormat('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }).format(new Date(datetime));
-  }
+
 
   // Copy to clipboard
   async copyToClipboard(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      await this.dialogService.alert('Thành công', 'Đã copy vào clipboard!');
+      this.copiedPackageId = true;
+      setTimeout(() => {
+        this.copiedPackageId = false;
+      }, 10000);
     } catch (err) {
       console.error('Failed to copy:', err);
       await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard!');
@@ -678,8 +939,11 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
 
       this.tours = response.packages || [];
       this.isDateFilterActive = true;
+      this.isPeriodFilterActive = false;
+      this.isPriceFilterActive = false;
       
-      // Apply basic filters on the result
+      // Apply basic filters and slot filter on the result
+      const hasSlotFilter = this.minSlotFilter || this.maxSlotFilter;
       this.filteredTours = this.tours.filter(tour => {
         const matchesSearch = !this.searchTerm ||
           tour.package_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
@@ -688,8 +952,16 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
         const matchesDestination = !this.destinationFilter ||
           tour.destination.toLowerCase().includes(this.destinationFilter.toLowerCase());
 
-        return matchesSearch && matchesDestination;
+        const matchesSlot = !hasSlotFilter || (() => {
+          const min = this.minSlotFilter ? Number(this.minSlotFilter) : 0;
+          const max = this.maxSlotFilter ? Number(this.maxSlotFilter) : Infinity;
+          return tour.available_slots >= min && tour.available_slots <= max;
+        })();
+
+        return matchesSearch && matchesDestination && matchesSlot;
       });
+      
+      this.isSlotFilterActive = !!hasSlotFilter;
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể áp dụng bộ lọc theo ngày';
       console.error('Apply date filter error:', error);
@@ -738,9 +1010,12 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
       }
 
       this.tours = response.packages || [];
+      this.isDateFilterActive = false;
       this.isPeriodFilterActive = true;
+      this.isPriceFilterActive = false;
       
-      // Apply basic filters on the result
+      // Apply basic filters and slot filter on the result
+      const hasSlotFilter = this.minSlotFilter || this.maxSlotFilter;
       this.filteredTours = this.tours.filter(tour => {
         const matchesSearch = !this.searchTerm ||
           tour.package_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
@@ -749,8 +1024,16 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
         const matchesDestination = !this.destinationFilter ||
           tour.destination.toLowerCase().includes(this.destinationFilter.toLowerCase());
 
-        return matchesSearch && matchesDestination;
+        const matchesSlot = !hasSlotFilter || (() => {
+          const min = this.minSlotFilter ? Number(this.minSlotFilter) : 0;
+          const max = this.maxSlotFilter ? Number(this.maxSlotFilter) : Infinity;
+          return tour.available_slots >= min && tour.available_slots <= max;
+        })();
+
+        return matchesSearch && matchesDestination && matchesSlot;
       });
+      
+      this.isSlotFilterActive = !!hasSlotFilter;
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể áp dụng bộ lọc';
       console.error('Apply period filter error:', error);
@@ -802,9 +1085,12 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
       );
 
       this.tours = response.packages || [];
+      this.isDateFilterActive = false;
+      this.isPeriodFilterActive = false;
       this.isPriceFilterActive = true;
       
-      // Apply basic filters on the result
+      // Apply basic filters and slot filter on the result
+      const hasSlotFilter = this.minSlotFilter || this.maxSlotFilter;
       this.filteredTours = this.tours.filter(tour => {
         const matchesSearch = !this.searchTerm ||
           tour.package_name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
@@ -813,8 +1099,16 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
         const matchesDestination = !this.destinationFilter ||
           tour.destination.toLowerCase().includes(this.destinationFilter.toLowerCase());
 
-        return matchesSearch && matchesDestination;
+        const matchesSlot = !hasSlotFilter || (() => {
+          const min = this.minSlotFilter ? Number(this.minSlotFilter) : 0;
+          const max = this.maxSlotFilter ? Number(this.maxSlotFilter) : Infinity;
+          return tour.available_slots >= min && tour.available_slots <= max;
+        })();
+
+        return matchesSearch && matchesDestination && matchesSlot;
       });
+      
+      this.isSlotFilterActive = !!hasSlotFilter;
     } catch (error: any) {
       this.errorMessage = error.message || 'Không thể áp dụng bộ lọc theo giá';
       console.error('Apply price filter error:', error);
@@ -887,27 +1181,32 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
    * This will cancel all related bookings and notify users
    */
   async confirmCancelTour(packageId: string) {
-    const confirmed = await this.dialogService.confirm({
-      title: 'Hủy Tour Package',
-      message: 'Bạn có chắc chắn muốn HỦY tour này?\n\n⚠️ Lưu ý:\n- Tất cả bookings (pending/confirmed) sẽ bị hủy\n- Các khách hàng sẽ nhận thông báo\n- Tour sẽ bị tạm dừng (is_active = false)',
-      confirmText: 'Hủy Tour',
-      cancelText: 'Không',
-      type: 'warning'
-    });
+    this.tourToCancelId = packageId;
+    this.cancelTourReason = '';
+    this.showCancelTourModal = true;
+  }
 
-    if (!confirmed) return;
+  closeCancelTourModal() {
+    this.showCancelTourModal = false;
+    this.cancelTourReason = '';
+    this.tourToCancelId = '';
+  }
 
-    // Ask for reason
-    const reason = prompt('Nhập lý do hủy tour (ví dụ: Thiên tai, Hết chỗ, v.v.):');
-    if (reason === null) return; // User clicked cancel
+  async submitCancelTour() {
+    if (!this.cancelTourReason.trim()) {
+      await this.dialogService.warning('Thiếu thông tin', 'Vui lòng nhập lý do hủy tour');
+      return;
+    }
 
+    this.showCancelTourModal = false;
     this.isLoading = true;
+    
     try {
-      const result = await this.tourService.cancelTourPackage(packageId, reason || undefined);
+      const result = await this.tourService.cancelTourPackage(this.tourToCancelId, this.cancelTourReason);
 
       await this.dialogService.alert(
         'Hủy Tour Thành Công',
-        `✅ Tour đã bị hủy\n📋 Số bookings đã hủy: ${result.cancelled_bookings}\n🔔 Thông báo đã gửi: ${result.notifications_sent}`
+        `Tour đã bị hủy\n Số bookings đã hủy: ${result.cancelled_bookings}\n Thông báo đã gửi: ${result.notifications_sent}`
       );
 
       await this.loadTours();
@@ -916,6 +1215,8 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
       await this.dialogService.alert('Lỗi', error.message || 'Không thể hủy tour');
     } finally {
       this.isLoading = false;
+      this.cancelTourReason = '';
+      this.tourToCancelId = '';
     }
   }
 }

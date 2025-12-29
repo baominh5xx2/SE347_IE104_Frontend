@@ -67,6 +67,8 @@ export class AdminDialogService {
     return this.confirm({
       title,
       message,
+      confirmText: 'OK',
+      cancelText: '',
       type: 'warning'
     });
   }
