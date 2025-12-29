@@ -243,7 +243,10 @@ export class CustomerListComponent implements OnInit {
     this.errorMessage = '';
     
     try {
-      const request: CreateUserRequest = this.createUserForm.value;
+      const request: CreateUserRequest = {
+        ...this.createUserForm.value,
+        role: 'user' // Force role to be 'user'
+      };
       const response = await this.adminUserService.createUser(request).toPromise();
       
       if (response?.EC === 0) {
@@ -258,8 +261,27 @@ export class CustomerListComponent implements OnInit {
         this.errorMessage = response?.EM || 'Không thể tạo user';
       }
     } catch (error: any) {
-      this.errorMessage = error?.error?.EM || 'Lỗi khi tạo user';
       console.error('Error creating user:', error);
+      
+      // Get error message from various sources
+      const errorMessage = error?.error?.EM || error?.error?.message || error?.message || '';
+      const errorStatus = error?.status || error?.error?.EC;
+      
+      // Check for duplicate email error (HTTP 400 or specific message)
+      const isDuplicateEmail = 
+        errorStatus === 400 || 
+        errorMessage.toLowerCase().includes('email') && 
+        (errorMessage.toLowerCase().includes('exists') || 
+         errorMessage.toLowerCase().includes('already') ||
+         errorMessage.toLowerCase().includes('tồn tại') || 
+         errorMessage.toLowerCase().includes('trùng') ||
+         errorMessage.toLowerCase().includes('duplicate'));
+      
+      if (isDuplicateEmail) {
+        this.errorMessage = `Email "${this.createUserForm.value.email}" đã tồn tại trong hệ thống. Vui lòng sử dụng email khác.`;
+      } else {
+        this.errorMessage = errorMessage || 'Lỗi khi tạo user. Vui lòng thử lại.';
+      }
     } finally {
       this.isCreating = false;
     }
