@@ -186,6 +186,16 @@ export class ReviewsComponent implements OnInit {
     this.successMessage = null;
   }
 
+  onTabChange(tab: 'create' | 'my-reviews'): void {
+    this.activeTab = tab;
+    // Refresh data when switching to create tab to ensure bookings list is up-to-date
+    if (tab === 'create') {
+      this.loadAvailableBookings();
+    } else if (tab === 'my-reviews') {
+      this.loadMyReviews();
+    }
+  }
+
   setRating(rating: number): void {
     this.newReview.rating = rating;
   }
@@ -359,7 +369,8 @@ export class ReviewsComponent implements OnInit {
       if (response?.EC === 0) {
         this.successMessage = 'Đánh giá đã được xóa thành công!';
         this.cancelDelete();
-        await this.loadMyReviews();
+        // Refresh both tabs to ensure data consistency
+        await this.loadData();
       } else {
         this.error = response?.EM || 'Không thể xóa đánh giá. Vui lòng thử lại.';
       }

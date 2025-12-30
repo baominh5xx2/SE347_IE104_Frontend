@@ -27,7 +27,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   topMenuPublic: Menu[] = [
     { label: 'Trang chủ', url: '/home' },
     { label: 'Tour du lịch', url: '/tours' },
-    { label: 'Khuyến mãi', url: '/promotions' },
     { label: 'Tin tức & Cẩm nang', url: '/travel-news' },
     { label: 'Đánh giá', url: '/reviews' },
   ]

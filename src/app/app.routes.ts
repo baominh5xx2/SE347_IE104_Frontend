@@ -13,6 +13,7 @@ import { MyBookingsComponent } from './pages/my-bookings/my-bookings.component';
 import { MyPaymentsComponent } from './pages/my-payments/my-payments.component';
 import { VnpayCallbackComponent } from './pages/payment/vnpay-callback.component';
 import { PromotionsComponent } from './pages/promotions/promotions.component';
+import { MyFavoritesComponent } from './pages/my-favorites/my-favorites.component';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 
@@ -63,6 +64,9 @@ export const routes: Routes = [
   },
   {
     path: 'my-payments', component: MyPaymentsComponent, canActivate: [authGuard]
+  },
+  {
+    path: 'my-favorites', component: MyFavoritesComponent, canActivate: [authGuard]
   },
   {
     path: 'chat-room/:roomId',

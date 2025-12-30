@@ -6,11 +6,11 @@
 
   <!-- Tab Navigation -->
   <div class="tab-navigation">
-    <button class="tab-btn" [class.active]="activeTab === 'create'" (click)="activeTab = 'create'">
+    <button class="tab-btn" [class.active]="activeTab === 'create'" (click)="onTabChange('create')">
       <i class="fas fa-plus-circle"></i>
       Tạo đánh giá
     </button>
-    <button class="tab-btn" [class.active]="activeTab === 'my-reviews'" (click)="activeTab = 'my-reviews'">
+    <button class="tab-btn" [class.active]="activeTab === 'my-reviews'" (click)="onTabChange('my-reviews')">
       <i class="fas fa-list"></i>
       Đánh giá của tôi
     </button>

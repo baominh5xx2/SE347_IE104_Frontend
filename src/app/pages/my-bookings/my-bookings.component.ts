@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink, NavigationEnd } from '@angular/router';
+import { filter, Subscription } from 'rxjs';
 import { BookingService, MyBooking, MyBookingDetail, BookingUpdateRequest } from '../../services/booking.service';
 import { PaymentService, PaymentData } from '../../services/payment.service';
 
@@ -12,7 +13,7 @@ import { PaymentService, PaymentData } from '../../services/payment.service';
   templateUrl: './my-bookings.component.html',
   styleUrl: './my-bookings.component.scss'
 })
-export class MyBookingsComponent implements OnInit {
+export class MyBookingsComponent implements OnInit, OnDestroy {
   bookings: MyBooking[] = [];
   filteredBookings: MyBooking[] = [];
   isLoading = false;
@@ -38,8 +39,8 @@ export class MyBookingsComponent implements OnInit {
   updateErrorMessage = '';
   updateSuccessMessage = '';
 
-  isProcessingPayment = false;
-  paymentErrorMessage = '';
+  isProcessingPayment: Set<string> = new Set();
+  paymentErrorMessage: Map<string, string> = new Map();
 
   editForm: BookingUpdateRequest = {
     number_of_people: 0,
@@ -58,17 +59,35 @@ export class MyBookingsComponent implements OnInit {
     completed: 0
   };
 
-  constructor(
-    private bookingService: BookingService,
-    private paymentService: PaymentService
-  ) { }
-
   // Store all bookings for stats calculation
   private allBookings: MyBooking[] = [];
+  private routerSubscription?: Subscription;
+
+  constructor(
+    private bookingService: BookingService,
+    private paymentService: PaymentService,
+    private router: Router
+  ) { }
 
   ngOnInit(): void {
     this.loadAllStats(); // Load stats first
     this.loadBookings();
+
+    // Subscribe to router events to refresh data when navigating to this page
+    this.routerSubscription = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: any) => {
+        // Only refresh if we're on the my-bookings route
+        if (event.url === '/my-bookings' || event.urlAfterRedirects === '/my-bookings') {
+          this.refreshAll();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+    }
   }
 
   // Load all bookings for stats (no filter)
@@ -202,6 +221,13 @@ export class MyBookingsComponent implements OnInit {
 
   refresh(): void {
     this.loadBookings();
+    this.loadAllStats();
+  }
+
+  // Helper method to refresh both bookings list and stats
+  refreshAll(): void {
+    this.loadBookings();
+    this.loadAllStats();
   }
 
   getPageNumbers(): number[] {
@@ -337,11 +363,6 @@ export class MyBookingsComponent implements OnInit {
   updateBooking(): void {
     if (!this.bookingDetail) return;
 
-    if (!this.editForm.number_of_people || this.editForm.number_of_people < 1) {
-      this.updateErrorMessage = 'Số người phải lớn hơn 0';
-      return;
-    }
-
     if (!this.editForm.contact_phone?.trim()) {
       this.updateErrorMessage = 'Vui lòng nhập số điện thoại';
       return;
@@ -357,7 +378,7 @@ export class MyBookingsComponent implements OnInit {
     this.updateSuccessMessage = '';
 
     const updateData: BookingUpdateRequest = {
-      number_of_people: this.editForm.number_of_people,
+      // number_of_people is not included - users cannot change the number of slots after booking
       contact_phone: this.editForm.contact_phone,
       contact_name: this.editForm.contact_name,
       special_requests: this.editForm.special_requests || undefined
@@ -374,7 +395,7 @@ export class MyBookingsComponent implements OnInit {
           setTimeout(() => {
             const bookingId = this.bookingDetail!.booking_id;
             this.closeEditModal();
-            this.loadBookings();
+            this.refreshAll(); // Refresh both bookings and stats
           }, 1500);
         } else {
           this.updateErrorMessage = response.EM || 'Không thể cập nhật đơn hàng';
@@ -410,7 +431,7 @@ export class MyBookingsComponent implements OnInit {
         if (response.EC === 0) {
           this.showDeleteConfirm = false;
           this.bookingToDelete = null;
-          this.loadBookings();
+          this.refreshAll(); // Refresh both bookings and stats
           if (this.showDetailModal) {
             this.closeDetailModal();
           }
@@ -440,12 +461,12 @@ export class MyBookingsComponent implements OnInit {
   }
 
   processPayment(bookingId: string): void {
-    if (this.isProcessingPayment) {
+    if (this.isProcessingPayment.has(bookingId)) {
       return;
     }
 
-    this.isProcessingPayment = true;
-    this.paymentErrorMessage = '';
+    this.isProcessingPayment.add(bookingId);
+    this.paymentErrorMessage.delete(bookingId);
 
     const paymentRequest = {
       booking_id: bookingId,
@@ -459,17 +480,24 @@ export class MyBookingsComponent implements OnInit {
           console.log('Payment data:', response.data);
           window.location.href = response.data.payment_url;
         } else {
-          this.paymentErrorMessage = response.EM || 'Không thể tạo yêu cầu thanh toán';
-          this.isProcessingPayment = false;
+          this.paymentErrorMessage.set(bookingId, response.EM || 'Không thể tạo yêu cầu thanh toán');
+          this.isProcessingPayment.delete(bookingId);
         }
       },
       error: (error) => {
         console.error('Error creating payment:', error);
         console.error('Error details:', error.error);
-        this.paymentErrorMessage = 'Có lỗi xảy ra khi tạo yêu cầu thanh toán. Vui lòng thử lại sau.';
-        this.isProcessingPayment = false;
+        this.paymentErrorMessage.set(bookingId, 'Có lỗi xảy ra khi tạo yêu cầu thanh toán. Vui lòng thử lại sau.');
+        this.isProcessingPayment.delete(bookingId);
       }
     });
   }
-}
 
+  isBookingProcessingPayment(bookingId: string): boolean {
+    return this.isProcessingPayment.has(bookingId);
+  }
+
+  getPaymentErrorMessage(bookingId: string): string {
+    return this.paymentErrorMessage.get(bookingId) || '';
+  }
+}

@@ -1,18 +1,58 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Tour } from '../../shared/models/tour.model';
+import { FavoriteService } from '../../services/favorite.service';
+import { AuthStateService } from '../../services/auth-state.service';
+import { Subscription } from 'rxjs';
+import { MessageService } from 'primeng/api';
 
 @Component({
   selector: 'app-tour-card',
   imports: [CommonModule, RouterLink],
+  providers: [MessageService],
   templateUrl: './tour-card.component.html',
   styleUrl: './tour-card.component.scss'
 })
-export class TourCardComponent {
+export class TourCardComponent implements OnInit, OnDestroy {
   @Input() tour!: Tour;
   @Input() showDetails: boolean = true;
+
+  // These are now handled internally but kept as inputs for override if needed
+  @Input() isAuthenticated: boolean = false;
+  @Input() isFavorite: boolean = false;
+  @Input() isLoadingFavorite: boolean = false;
+
   @Output() viewDetails = new EventEmitter<string>();
+  @Output() toggleFavorite = new EventEmitter<string>();
+
+  private favoriteSub?: Subscription;
+
+  constructor(
+    private favoriteService: FavoriteService,
+    private authStateService: AuthStateService,
+    private messageService: MessageService
+  ) { }
+
+  ngOnInit() {
+    this.isAuthenticated = this.authStateService.getIsAuthenticated();
+
+    // Subscribe to auth state
+    this.authStateService.isAuthenticated$.subscribe(isAuth => {
+      this.isAuthenticated = isAuth;
+    });
+
+    // Subscribe to global favorite state
+    this.favoriteSub = this.favoriteService.favoriteStatus$.subscribe(statusMap => {
+      if (this.tour && this.tour.package_id) {
+        this.isFavorite = statusMap.get(this.tour.package_id) || false;
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.favoriteSub?.unsubscribe();
+  }
 
   // Parse image_urls (pipe-separated) into array
   getImageUrls(): string[] {
@@ -105,5 +145,46 @@ export class TourCardComponent {
       this.viewDetails.emit(this.tour.package_id);
     }
     // Nếu không có listener, để RouterLink hoạt động bình thường
+  }
+
+  async onFavoriteClick(event: Event): Promise<void> {
+    console.log('=== Favorite button clicked! ===', this.tour.package_id);
+
+    // Prevent all default behaviors and stop propagation
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    if (!this.isAuthenticated) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Cần đăng nhập',
+        detail: 'Vui lòng đăng nhập để thêm tour vào yêu thích',
+        life: 3000
+      });
+      return;
+    }
+
+    try {
+      const newState = await this.favoriteService.toggleFavorite(this.tour.package_id);
+
+      // Emit event as well for components that might want to react (like MyFavorites list removal)
+      this.toggleFavorite.emit(this.tour.package_id);
+
+      this.messageService.add({
+        severity: 'success',
+        summary: newState ? 'Đã thêm' : 'Đã xóa',
+        detail: newState ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích',
+        life: 2000
+      });
+    } catch (error: any) {
+      console.error('Error toggling favorite:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Lỗi',
+        detail: error?.message || 'Không thể cập nhật trạng thái yêu thích',
+        life: 3000
+      });
+    }
   }
 }

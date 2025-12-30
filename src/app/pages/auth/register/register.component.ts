@@ -24,6 +24,17 @@ export class RegisterComponent {
     agreeTerms: false
   };
 
+  passwordValidation = {
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false
+  };
+
+  showPasswordRequirements = false;
+  passwordError = '';
+
   phoneRegisterForm = {
     fullName: '',
     phone: '',
@@ -34,11 +45,32 @@ export class RegisterComponent {
   constructor(
     private router: Router,
     private authService: AuthService
-  ) {}
+  ) { }
+
+  onPasswordChange() {
+    const p = this.registerForm.password;
+    this.passwordValidation.length = p.length >= 8;
+    this.passwordValidation.uppercase = /[A-Z]/.test(p);
+    this.passwordValidation.lowercase = /[a-z]/.test(p);
+    this.passwordValidation.number = /[0-9]/.test(p);
+    this.passwordValidation.special = /[@$!%*?&]/.test(p);
+    this.showPasswordRequirements = true;
+    this.passwordError = '';
+  }
+
+  isPasswordValid(): boolean {
+    return Object.values(this.passwordValidation).every(v => v);
+  }
 
   onRegister() {
     if (this.registerMethod === 'email') {
+      if (!this.isPasswordValid()) {
+        this.passwordError = 'Mật khẩu không đáp ứng yêu cầu bảo mật';
+        return;
+      }
+
       if (this.registerForm.password !== this.registerForm.confirmPassword) {
+        this.passwordError = 'Mật khẩu xác nhận không khớp';
         return;
       }
 

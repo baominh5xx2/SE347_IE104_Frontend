@@ -60,8 +60,12 @@ export class ProfileComponent implements OnInit {
     });
 
     this.passwordForm = this.fb.group({
-      current_password: ['', [Validators.required, Validators.minLength(6)]],
-      new_password: ['', [Validators.required, Validators.minLength(6)]],
+      current_password: ['', [Validators.required]],
+      new_password: ['', [
+        Validators.required,
+        Validators.minLength(8),
+        Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+      ]],
       confirm_password: ['', [Validators.required]]
     });
   }
@@ -118,7 +122,7 @@ export class ProfileComponent implements OnInit {
 
     this.isSubmitting = true;
     const formValue = this.profileForm.value;
-    
+
     // Only send changed fields
     const updateData: any = {};
     if (formValue.full_name !== this.userProfile?.full_name) {
@@ -297,6 +301,18 @@ export class ProfileComponent implements OnInit {
     this.showPasswordForm = !this.showPasswordForm;
     if (!this.showPasswordForm) {
       this.passwordForm.reset();
+    }
+  }
+
+  checkPasswordReq(type: 'length' | 'upper' | 'lower' | 'number' | 'special'): boolean {
+    const value = this.passwordForm.get('new_password')?.value || '';
+    switch (type) {
+      case 'length': return value.length >= 8;
+      case 'upper': return /[A-Z]/.test(value);
+      case 'lower': return /[a-z]/.test(value);
+      case 'number': return /[0-9]/.test(value);
+      case 'special': return /[@$!%*?&]/.test(value);
+      default: return false;
     }
   }
 

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { BookingCardComponent } from '../../components/booking-card/booking-card.component';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -61,7 +61,8 @@ export class BookingPagesComponent implements OnInit {
     private bookingService: BookingService,
     private tourService: TourService,
     private authStateService: AuthStateService,
-    private promotionService: PromotionService
+    private promotionService: PromotionService,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit(): void {
@@ -155,8 +156,56 @@ export class BookingPagesComponent implements OnInit {
     this.updatePriceBreakdown();
   }
 
-  onNumberOfPeopleChange(): void {
+  onNumberOfPeopleInput(event: any): void {
+    let value = parseInt(event.target.value, 10);
+    
+    // Handle empty or invalid input
+    if (isNaN(value) || value < 1) {
+      value = 1;
+    }
+    
+    // Enforce max value (available slots)
+    if (this.tourPackage?.available_slots !== undefined && this.tourPackage.available_slots > 0) {
+      if (value > this.tourPackage.available_slots) {
+        value = this.tourPackage.available_slots;
+      }
+    }
+    
+    // Update the value immediately
+    this.numberOfPeople = value;
+    event.target.value = value;
+    this.cdr.detectChanges();
+    
     this.updatePriceBreakdown();
+  }
+
+  onNumberOfPeopleChange(): void {
+    // Enforce min value (1)
+    if (this.numberOfPeople < 1) {
+      this.numberOfPeople = 1;
+    }
+    
+    // Enforce max value (available slots)
+    if (this.tourPackage?.available_slots !== undefined && this.tourPackage.available_slots > 0) {
+      if (this.numberOfPeople > this.tourPackage.available_slots) {
+        this.numberOfPeople = this.tourPackage.available_slots;
+      }
+    }
+    
+    this.updatePriceBreakdown();
+  }
+
+  onPhoneNumberInput(event: any): void {
+    // Only allow digits
+    let value = event.target.value.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    if (value.length > 10) {
+      value = value.substring(0, 10);
+    }
+    
+    this.phoneNumber = value;
+    event.target.value = value;
   }
 
   submitForm() {
@@ -252,6 +301,12 @@ export class BookingPagesComponent implements OnInit {
     }
     if (!this.phoneNumber.trim()) {
       this.errorMessage = 'Vui lòng nhập số điện thoại';
+      return false;
+    }
+    // Validate phone number must be exactly 10 digits
+    const phoneDigits = this.phoneNumber.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+      this.errorMessage = 'Số điện thoại phải có đúng 10 số';
       return false;
     }
     if (this.numberOfPeople < 1) {
@@ -384,4 +439,3 @@ interface PriceBreakdown {
   taxAndFees: number;
   totalPrice: number;
 }
-
