@@ -192,30 +192,44 @@
     </div>
   </section>
 
-
-
-
-
-  <!-- <main class="container mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-4">Selamat Datang di Traveloka</h1>
-    <p class="text-gray-700">
-      Temukan penawaran terbaik untuk perjalanan dan gaya hidup Anda.
-    </p>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-      <div class="p-4 bg-white shadow rounded">
-        <h2 class="font-bold">Tiket Pesawat</h2>
-        <p>Pesan tiket pesawat dengan harga terbaik.</p>
+  <section class="customer-reviews section-animate">
+    <div class="section-background"></div>
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrapper">
+          <div class="title-bg-glow"></div>
+          <h2 class="section-title">
+            <span class="title-text">Đánh giá từ khách hàng</span>
+            <span class="title-shimmer"></span>
+          </h2>
+          <div class="title-underline">
+            <div class="underline-glow"></div>
+          </div>
+        </div>
+        <p class="section-subtitle">Trải nghiệm thực tế từ những khách hàng đã sử dụng dịch vụ</p>
       </div>
-      <div class="p-4 bg-white shadow rounded">
-        <h2 class="font-bold">Hotel</h2>
-        <p>Booking hotel dengan penawaran menarik.</p>
+
+      @if (isLoadingReviews) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải...</p>
       </div>
-      <div class="p-4 bg-white shadow rounded">
-        <h2 class="font-bold">Aktivitas & Rekreasi</h2>
-        <p>Jelajahi aktivitas seru untuk liburan Anda.</p>
+      } @else if (approvedReviews.length > 0) {
+      <div class="reviews-scroll-container">
+        <div class="reviews-scroll">
+          @for (review of approvedReviews; track review.review_id) {
+          <div class="review-card-wrapper">
+            <app-review-card [review]="review"></app-review-card>
+          </div>
+          }
+        </div>
       </div>
+      } @else {
+      <div class="empty-state">
+        <p>Chưa có đánh giá nào</p>
+      </div>
+      }
     </div>
-  </main> -->
+  </section>
 
 </div>
-<p-toast></p-toast>

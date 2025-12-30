@@ -30,6 +30,13 @@ export interface Review {
   is_approved: boolean;
   created_at: string;
   updated_at: string;
+  // Flat fields from ReviewWithUserInfo
+  user_full_name?: string;
+  user_email?: string;
+  user_profile_picture?: string;
+  package_name?: string;
+  destination?: string;
+  // Nested objects (legacy support)
   package?: {
     package_id: string;
     title: string;
@@ -100,7 +107,7 @@ export class ReviewService {
   constructor(
     private http: HttpClient,
     private configService: ConfigService
-  ) {}
+  ) { }
 
   private get apiBaseUrl(): string {
     return this.configService.getApiUrl();
@@ -120,7 +127,7 @@ export class ReviewService {
    */
   getReviews(params?: ReviewListParams): Observable<ReviewListResponse> {
     let httpParams = new HttpParams();
-    
+
     if (params) {
       if (params.package_id) httpParams = httpParams.set('package_id', params.package_id);
       if (params.user_id) httpParams = httpParams.set('user_id', params.user_id);
@@ -157,7 +164,7 @@ export class ReviewService {
    */
   getReviewableBookings(params?: { limit?: number; offset?: number }): Observable<any> {
     let httpParams = new HttpParams();
-    
+
     if (params) {
       if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
       if (params.offset) httpParams = httpParams.set('offset', params.offset.toString());
