@@ -88,7 +88,7 @@
           (click)="applyFilters()"
           [disabled]="isLoadingUsers"
           class="px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg disabled:opacity-50 text-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
@@ -98,7 +98,7 @@
           (click)="reloadData()"
           [disabled]="isLoadingUsers"
           class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg disabled:opacity-50 text-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
           Tải lại
@@ -134,7 +134,7 @@
           <button 
             (click)="resetFilters()"
             class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3 h-3" fill="none" stroke="white" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
             Xóa bộ lọc
@@ -170,8 +170,8 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bookings</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
           </tr>
@@ -191,10 +191,16 @@
                     <span>ID: {{ user.user_id.substring(0, 8) }}...</span>
                     <button 
                       (click)="copyToClipboard(user.user_id)"
-                      class="text-blue-600 hover:text-blue-800 transition-colors"
+                      class="transition-colors"
+                      [class.text-green-600]="copiedUserId === user.user_id"
+                      [class.text-blue-600]="copiedUserId !== user.user_id"
+                      [class.hover:text-blue-800]="copiedUserId !== user.user_id"
                       title="Copy User ID">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg *ngIf="copiedUserId !== user.user_id" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      </svg>
+                      <svg *ngIf="copiedUserId === user.user_id" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                       </svg>
                     </button>
                   </div>
@@ -208,14 +214,19 @@
               <div class="text-sm text-gray-900">{{ user.phone_number || '-' }}</div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <span [class]="getRoleBadgeClass(user.role)" class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
-                {{ user.role }}
-              </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
               <span [class]="getStatusBadgeClass(user.is_active)" class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
                 {{ user.is_active ? 'Hoạt động' : 'Vô hiệu hóa' }}
               </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium" [class.text-gray-900]="user.total_bookings && user.total_bookings > 0" [class.text-gray-400]="!user.total_bookings || user.total_bookings === 0">
+                  {{ user.total_bookings || 0 }}
+                </span>
+                <span *ngIf="user.total_bookings && user.total_bookings > 0" class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                  có booking
+                </span>
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {{ formatDate(user.created_at) }}
@@ -251,6 +262,7 @@
                   </svg>
                 </button>
                 <button
+                  *ngIf="!user.total_bookings || user.total_bookings === 0"
                   (click)="openDeleteConfirmModal(user)"
                   class="text-red-600 hover:text-red-900"
                   title="Xóa">
@@ -272,7 +284,7 @@
   <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
     <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
       <div class="flex justify-between items-center">
-        <h3 class="text-2xl font-bold text-gray-800">Tạo User Mới</h3>
+        <h3 class="text-2xl font-bold text-gray-800">Tạo user mới</h3>
         <button (click)="closeCreateUserModal()" class="text-gray-400 hover:text-gray-600">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -291,24 +303,62 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
-          <input type="text" formControlName="full_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nguyễn Văn A">
+          <input type="text" formControlName="full_name" maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nguyễn Văn A">
           <p *ngIf="createUserForm.get('full_name')?.invalid && createUserForm.get('full_name')?.touched" class="text-red-500 text-sm mt-1">Vui lòng nhập họ tên</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
-          <input type="tel" formControlName="phone_number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0901234567">
+          <input type="tel" formControlName="phone_number" inputmode="numeric" (input)="onCreatePhoneInput($event)" maxlength="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0901234567">
           <p *ngIf="createUserForm.get('phone_number')?.invalid && createUserForm.get('phone_number')?.touched" class="text-red-500 text-sm mt-1">Vui lòng nhập số điện thoại</p>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu (để trống để tự động tạo)</label>
-          <input type="password" formControlName="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu *</label>
+          <div class="relative">
+            <input 
+              [type]="showPassword ? 'text' : 'password'" 
+              formControlName="password" 
+              class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              placeholder="Mật khẩu tự động">
+            <button 
+              type="button"
+              (click)="showPassword = !showPassword" 
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+              <svg *ngIf="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <svg *ngIf="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+              </svg>
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Mật khẩu được tạo tự động khi bạn mở form</p>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
-          <input type="text" value="User" disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nhập lại mật khẩu *</label>
+          <div class="relative">
+            <input 
+              [type]="showPasswordConfirm ? 'text' : 'password'" 
+              formControlName="passwordConfirm" 
+              class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              placeholder="Nhập lại mật khẩu">
+            <button 
+              type="button"
+              (click)="showPasswordConfirm = !showPasswordConfirm" 
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+              <svg *ngIf="!showPasswordConfirm" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <svg *ngIf="showPasswordConfirm" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+              </svg>
+            </button>
+          </div>
+          <p *ngIf="createUserForm.get('passwordConfirm')?.invalid && createUserForm.get('passwordConfirm')?.touched" class="text-red-500 text-sm mt-1">Mật khẩu không khớp</p>
         </div>
 
         <div class="flex items-center">
@@ -366,17 +416,62 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
-          <input type="text" formControlName="full_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <input type="text" formControlName="full_name" maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nguyễn Văn A">
+          <p *ngIf="editUserForm.get('full_name')?.invalid && editUserForm.get('full_name')?.touched" class="text-red-500 text-sm mt-1">Vui lòng nhập họ tên</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
-          <input type="tel" formControlName="phone_number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+          <input type="tel" formControlName="phone_number" inputmode="numeric" (input)="onEditPhoneInput($event)" maxlength="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0901234567">
+          <p *ngIf="editUserForm.get('phone_number')?.invalid && editUserForm.get('phone_number')?.touched" class="text-red-500 text-sm mt-1">Vui lòng nhập số điện thoại</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới (để trống nếu không đổi)</label>
-          <input type="password" formControlName="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••">
+          <div class="relative">
+            <input 
+              [type]="showEditPassword ? 'text' : 'password'" 
+              formControlName="password" 
+              class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              placeholder="••••••••">
+            <button 
+              type="button"
+              (click)="showEditPassword = !showEditPassword" 
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+              <svg *ngIf="!showEditPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <svg *ngIf="showEditPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+              </svg>
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Để trống nếu không muốn thay đổi mật khẩu</p>
+        </div>
+
+        <div *ngIf="editUserForm.get('password')?.value">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nhập lại mật khẩu mới *</label>
+          <div class="relative">
+            <input 
+              [type]="showEditPasswordConfirm ? 'text' : 'password'" 
+              formControlName="passwordConfirm" 
+              class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              placeholder="Nhập lại mật khẩu mới">
+            <button 
+              type="button"
+              (click)="showEditPasswordConfirm = !showEditPasswordConfirm" 
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+              <svg *ngIf="!showEditPasswordConfirm" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <svg *ngIf="showEditPasswordConfirm" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+              </svg>
+            </button>
+          </div>
+          <p *ngIf="editUserForm.get('passwordConfirm')?.invalid && editUserForm.get('passwordConfirm')?.touched" class="text-red-500 text-sm mt-1">Mật khẩu không khớp</p>
         </div>
 
         <div class="flex items-center">
@@ -385,8 +480,14 @@
         </div>
       </form>
 
-      <div *ngIf="errorMessage" class="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-        {{ errorMessage }}
+      <div *ngIf="errorMessage" class="mt-4 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+        </svg>
+        <div>
+          <p class="font-semibold">Lỗi cập nhật</p>
+          <p class="text-sm">{{ errorMessage }}</p>
+        </div>
       </div>
     </div>
 
@@ -407,7 +508,7 @@
 
 <!-- User Detail Modal (continues in next part due to length limit) -->
 <div *ngIf="showUserDetailModal && selectedUser" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
     <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
       <div class="flex justify-between items-center">
         <div>
@@ -452,10 +553,16 @@
               <p class="text-gray-900 font-mono text-sm flex-1">{{ selectedUser.user_id }}</p>
               <button 
                 (click)="copyToClipboard(selectedUser.user_id)"
-                class="text-blue-600 hover:text-blue-800 transition-colors p-1"
+                class="transition-colors p-1"
+                [class.text-green-600]="copiedUserId === selectedUser.user_id"
+                [class.text-blue-600]="copiedUserId !== selectedUser.user_id"
+                [class.hover:text-blue-800]="copiedUserId !== selectedUser.user_id"
                 title="Copy User ID">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg *ngIf="copiedUserId !== selectedUser.user_id" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <svg *ngIf="copiedUserId === selectedUser.user_id" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                 </svg>
               </button>
             </div>
@@ -546,7 +653,7 @@
                 </div>
                 <div class="text-right">
                   <div class="font-semibold text-gray-900">{{ formatCurrency(booking.total_price) }} ₫</div>
-                  <span [class]="getBookingStatusBadgeClass(booking.status)" class="px-2 py-1 rounded-full text-xs font-medium">{{ booking.status }}</span>
+                  <span [class]="getBookingStatusBadgeClass(booking.status)" class="px-2 py-1 rounded-full text-xs font-medium">{{ getBookingStatusText(booking.status) }}</span>
                 </div>
               </div>
             </div>
@@ -591,7 +698,7 @@
                 <h4 class="font-semibold text-gray-900">{{ booking.package_name }}</h4>
                 <p class="text-sm text-gray-500">Booking ID: {{ booking.booking_id }}</p>
               </div>
-              <span [class]="getBookingStatusBadgeClass(booking.status)" class="px-3 py-1 rounded-full text-xs font-medium">{{ booking.status }}</span>
+              <span [class]="getBookingStatusBadgeClass(booking.status)" class="px-3 py-1 rounded-full text-xs font-medium">{{ getBookingStatusText(booking.status) }}</span>
             </div>
             <div class="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -653,21 +760,54 @@
               </div>
             </div>
 
-            <div *ngIf="selectedChatRoom?.room_id === room.room_id" class="p-4 max-h-96 overflow-y-auto space-y-3">
+            <div *ngIf="selectedChatRoom?.room_id === room.room_id" class="p-4 max-h-96 overflow-y-auto space-y-3 bg-gray-50">
               <div *ngFor="let message of room.messages" class="flex gap-3" [class.flex-row-reverse]="message.role === 'user'">
                 <div class="flex-shrink-0">
-                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-                       [class.bg-blue-500]="message.role === 'user'"
-                       [class.bg-green-500]="message.role === 'assistant'">
-                    {{ message.role === 'user' ? 'U' : 'A' }}
+                  <div *ngIf="message.role === 'user'" class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                    </svg>
+                  </div>
+                  <div *ngIf="message.role === 'assistant'" class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md">
+                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+                      <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
+                    </svg>
                   </div>
                 </div>
-                <div class="flex-1 max-w-md">
-                  <div class="rounded-lg p-3"
-                       [class.bg-blue-100]="message.role === 'user'"
-                       [class.bg-gray-100]="message.role === 'assistant'">
-                    <p class="text-sm text-gray-900">{{ message.content }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ formatDate(message.created_at) }}</p>
+                <div class="flex-1 max-w-2xl">
+                  <div class="mb-1">
+                    <span class="text-xs font-semibold" 
+                          [class.text-blue-600]="message.role === 'user'"
+                          [class.text-green-600]="message.role === 'assistant'">
+                      {{ message.role === 'user' ? 'Người dùng' : 'Chatbot AI' }}
+                    </span>
+                  </div>
+                  <div class="rounded-lg p-3 shadow-sm"
+                       [class.bg-blue-500]="message.role === 'user'"
+                       [class.bg-white]="message.role === 'assistant'"
+                       [class.border]="message.role === 'assistant'"
+                       [class.border-gray-200]="message.role === 'assistant'">
+                    <p class="text-sm whitespace-pre-wrap leading-relaxed"
+                       [class.text-white]="message.role === 'user'"
+                       [class.text-gray-800]="message.role === 'assistant'">{{ getMessageContent(message.content) }}</p>
+                    <div class="flex items-center gap-2 mt-2 pt-2 border-t" 
+                         [class.border-blue-400]="message.role === 'user'"
+                         [class.border-gray-200]="message.role === 'assistant'">
+                      <p class="text-xs" 
+                         [class.text-blue-100]="message.role === 'user'"
+                         [class.text-gray-500]="message.role === 'assistant'">
+                        {{ formatDate(message.created_at) }}
+                      </p>
+                      <span *ngIf="message.intent" 
+                            class="px-2 py-0.5 rounded-full text-xs font-medium"
+                            [class.bg-blue-400]="message.role === 'user'"
+                            [class.text-white]="message.role === 'user'"
+                            [class.bg-gray-100]="message.role === 'assistant'"
+                            [class.text-gray-600]="message.role === 'assistant'">
+                        {{ message.intent }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

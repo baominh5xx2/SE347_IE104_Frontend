@@ -94,18 +94,18 @@
         <input 
           type="text" 
           [(ngModel)]="searchTerm"
-          placeholder="Tìm kiếm mã khuyến mãi..." 
+          placeholder="Tìm theo tên hoặc mô tả..." 
           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
       </div>
       
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
         <select 
-          [(ngModel)]="statusFilter" 
+          [(ngModel)]="statusFilter"
           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white">
           <option value="">Tất cả trạng thái</option>
           <option value="active">Hoạt động</option>
-          <option value="inactive">Không hoạt động</option>
+          <option value="inactive">Tạm dừng</option>
         </select>
       </div>
     </div>
@@ -114,7 +114,7 @@
     <div class="flex justify-end gap-3 pt-3 border-t border-gray-200">
       <button (click)="onFilterChange()"
         class="px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
         </svg>
@@ -152,135 +152,140 @@
       </button>
 
       <!-- Advanced Filters Content -->
-      <div *ngIf="showAdvancedFilters" class="mt-4 space-y-4">
+      <div *ngIf="showAdvancedFilters" class="mt-4 space-y-3">
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <!-- Discount Filter -->
-          <div class="rounded-lg p-4 border border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <div class="bg-white rounded-lg p-3 border border-gray-300 shadow-sm">
+            <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
               <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
-              Lọc theo giá trị giảm giá
+              Giảm giá
             </h4>
-            <div class="space-y-2">
+            <div class="space-y-1.5">
+              <select 
+                [(ngModel)]="discountTypeFilter"
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 text-sm bg-white">
+                <option value="">Tất cả loại</option>
+                <option value="PERCENTAGE">Phần trăm (%)</option>
+                <option value="FIXED_AMOUNT">Cố định (VND)</option>
+              </select>
               <input 
                 type="number" 
                 [(ngModel)]="minDiscountFilter"
-                placeholder="Giảm tối thiểu" 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm">
+                placeholder="Tối thiểu" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 text-sm">
               <input 
                 type="number" 
                 [(ngModel)]="maxDiscountFilter"
-                placeholder="Giảm tối đa" 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm">
+                placeholder="Tối đa" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 text-sm">
             </div>
           </div>
 
           <!-- Date Range Filter -->
-          <div class="rounded-lg p-4 border border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <div class="bg-white rounded-lg p-3 border border-gray-300 shadow-sm">
+            <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
               <svg class="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
               </svg>
-              Lọc theo khoảng thời gian
+              Thời gian
             </h4>
-            <div class="space-y-2">
+            <div class="space-y-1.5">
               <input 
                 type="date" 
                 [(ngModel)]="startDateFilter"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 text-sm">
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-pink-500 text-sm">
               <input 
                 type="date" 
                 [(ngModel)]="endDateFilter"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 text-sm">
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-pink-500 text-sm">
             </div>
           </div>
-        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Quantity Filter -->
-          <div class="rounded-lg p-4 border border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <div class="bg-white rounded-lg p-3 border border-gray-300 shadow-sm">
+            <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
               <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
               </svg>
-              Lọc theo số lượng
+              Số lượng
             </h4>
-            <div class="space-y-2">
+            <div class="space-y-1.5">
               <input 
                 type="number" 
                 [(ngModel)]="minQuantityFilter"
-                placeholder="Số lượng tối thiểu" 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+                placeholder="Tối thiểu" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 text-sm">
               <input 
                 type="number" 
                 [(ngModel)]="maxQuantityFilter"
-                placeholder="Số lượng tối đa" 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+                placeholder="Tối đa" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 text-sm">
             </div>
           </div>
 
           <!-- User Count Filter -->
-          <div class="rounded-lg p-4 border border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <div class="bg-white rounded-lg p-3 border border-gray-300 shadow-sm">
+            <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
               <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
               </svg>
-              Lọc theo số người dùng
+              Đã dùng
             </h4>
-            <div class="space-y-2">
+            <div class="space-y-1.5">
               <input 
                 type="number" 
                 [(ngModel)]="minUserCountFilter"
-                placeholder="Số người dùng tối thiểu" 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                placeholder="Tối thiểu" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm">
               <input 
                 type="number" 
                 [(ngModel)]="maxUserCountFilter"
-                placeholder="Số người dùng tối đa" 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                placeholder="Tối đa" 
+                class="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm">
             </div>
           </div>
         </div>
 
         <!-- Active Filters Indicator -->
         <div *ngIf="searchTerm || statusFilter || isDiscountFilterActive || isDateRangeFilterActive || isQuantityFilterActive || isUserCountFilterActive" 
-             class="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-3 shadow-sm">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 flex-wrap">
-              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+             class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 flex-wrap flex-1">
+              <svg class="w-4 h-4 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
               </svg>
-              <span class="text-sm font-semibold text-purple-700">Đang lọc theo:</span>
-              <div class="flex gap-2 flex-wrap">
-                <span *ngIf="searchTerm" class="px-2 py-1 bg-white border border-purple-300 rounded-md text-xs font-medium text-purple-800">
-                  Tìm kiếm: "{{ searchTerm }}"
+              <span class="text-xs font-semibold text-purple-700">Đang lọc:</span>
+              <div class="flex gap-1.5 flex-wrap">
+                <span *ngIf="searchTerm" class="px-2 py-0.5 bg-white border border-purple-300 rounded text-xs text-purple-800">
+                  "{{ searchTerm }}"
                 </span>
-                <span *ngIf="statusFilter" class="px-2 py-1 bg-white border border-purple-300 rounded-md text-xs font-medium text-purple-800">
-                  Trạng thái: {{ statusFilter === 'active' ? 'Hoạt động' : 'Không hoạt động' }}
+                <span *ngIf="statusFilter" class="px-2 py-0.5 bg-white border border-purple-300 rounded text-xs text-purple-800">
+                  {{ statusFilter === 'active' ? 'Hoạt động' : 'Tạm dừng' }}
                 </span>
-                <span *ngIf="isDiscountFilterActive" class="px-2 py-1 bg-white border border-purple-300 rounded-md text-xs font-medium text-purple-800">
-                  Giảm giá: {{ minDiscountFilter || 0 }} - {{ maxDiscountFilter || '∞' }}
+                <span *ngIf="isDiscountFilterActive" class="px-2 py-0.5 bg-white border border-purple-300 rounded text-xs text-purple-800">
+                  Giảm: {{ minDiscountFilter || 0 }}-{{ maxDiscountFilter || '∞' }}
                 </span>
-                <span *ngIf="isDateRangeFilterActive" class="px-2 py-1 bg-white border border-pink-300 rounded-md text-xs font-medium text-pink-800">
-                  Thời gian: {{ startDateFilter || 'Bắt đầu' }} - {{ endDateFilter || 'Kết thúc' }}
+                <span *ngIf="isDateRangeFilterActive" class="px-2 py-0.5 bg-white border border-pink-300 rounded text-xs text-pink-800">
+                  {{ startDateFilter || '...' }} → {{ endDateFilter || '...' }}
                 </span>
-                <span *ngIf="isQuantityFilterActive" class="px-2 py-1 bg-white border border-orange-300 rounded-md text-xs font-medium text-orange-800">
-                  Số lượng: {{ minQuantityFilter || 0 }} - {{ maxQuantityFilter || '∞' }}
+                <span *ngIf="isQuantityFilterActive" class="px-2 py-0.5 bg-white border border-orange-300 rounded text-xs text-orange-800">
+                  SL: {{ minQuantityFilter || 0 }}-{{ maxQuantityFilter || '∞' }}
                 </span>
-                <span *ngIf="isUserCountFilterActive" class="px-2 py-1 bg-white border border-blue-300 rounded-md text-xs font-medium text-blue-800">
-                  Người dùng: {{ minUserCountFilter || 0 }} - {{ maxUserCountFilter || '∞' }}
+                <span *ngIf="isUserCountFilterActive" class="px-2 py-0.5 bg-white border border-blue-300 rounded text-xs text-blue-800">
+                  Dùng: {{ minUserCountFilter || 0 }}-{{ maxUserCountFilter || '∞' }}
                 </span>
               </div>
             </div>
             <button 
-              (click)="searchTerm = ''; statusFilter = ''; clearDiscountFilter(); clearDateRangeFilter(); clearQuantityFilter(); clearUserCountFilter()"
-              class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1">
+              (click)="searchTerm = ''; statusFilter = ''; clearDiscountFilter(); clearDateRangeFilter(); clearQuantityFilter(); clearUserCountFilter(); onFilterChange()"
+              class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded transition-colors flex items-center gap-1 flex-shrink-0">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
-              Xóa tất cả bộ lọc
+              Xóa
             </button>
           </div>
         </div>
@@ -322,7 +327,7 @@
                 <svg *ngIf="promo.discount_type === 'PERCENTAGE'" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <svg *ngIf="promo.discount_type === 'FIXED'" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg *ngIf="promo.discount_type === 'FIXED_AMOUNT'" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <span class="text-green-700">{{ formatDiscount(promo) }}</span>
@@ -403,7 +408,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
             </svg>
           </div>
@@ -414,7 +419,7 @@
         </div>
         <button (click)="closeAddModal()" 
           class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-all">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
@@ -432,8 +437,11 @@
             [(ngModel)]="currentPromotion.name" 
             name="name"
             required
+            maxlength="20"
+            (input)="onNameInput()"
             placeholder="VD: Sale hè 2024"
             class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+          <span *ngIf="validationErrors.name" class="text-red-500 text-sm mt-1 block">{{ validationErrors.name }}</span>
         </div>
 
         <div class="mb-6">
@@ -445,9 +453,12 @@
             name="description"
             rows="3"
             required
+            maxlength="100"
+            (input)="onDescriptionInput()"
             placeholder="Mô tả chi tiết về mã khuyến mãi..."
             class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none">
           </textarea>
+          <span *ngIf="validationErrors.description" class="text-red-500 text-sm mt-1 block">{{ validationErrors.description }}</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -460,23 +471,40 @@
               name="discount_type"
               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
               <option value="PERCENTAGE">Phần trăm (%)</option>
-              <option value="FIXED">Số tiền cố định</option>
+              <option value="FIXED_AMOUNT">Số tiền cố định</option>
             </select>
           </div>
 
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">
               Giá trị giảm giá <span class="text-red-500">*</span>
+              <span *ngIf="currentPromotion.discount_type === 'PERCENTAGE'" class="text-gray-500 text-xs ml-2">(Tối đa 100%)</span>
+              <span *ngIf="currentPromotion.discount_type === 'FIXED_AMOUNT'" class="text-gray-500 text-xs ml-2">(Tối đa 1 tỷ VNĐ)</span>
             </label>
-            <input 
-              type="number" 
-              [(ngModel)]="currentPromotion.discount_value" 
-              name="discount_value"
-              required
-              min="0"
-              [max]="currentPromotion.discount_type === 'PERCENTAGE' ? 100 : null"
-              placeholder="0"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            <div class="relative">
+              <input 
+                *ngIf="currentPromotion.discount_type === 'PERCENTAGE'"
+                type="number" 
+                [(ngModel)]="currentPromotion.discount_value" 
+                name="discount_value"
+                required
+                min="0"
+                max="100"
+                (input)="onDiscountValueInput($event)"
+                placeholder="0"
+                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+              <input 
+                *ngIf="currentPromotion.discount_type === 'FIXED_AMOUNT'"
+                type="text" 
+                [(ngModel)]="displayDiscountValue" 
+                name="discount_value_display"
+                required
+                (input)="onDiscountValueInput($event)"
+                placeholder="0"
+                class="w-full px-4 py-3 pr-16 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+              <span *ngIf="currentPromotion.discount_type === 'FIXED_AMOUNT'" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">VNĐ</span>
+            </div>
+            <span *ngIf="validationErrors.discount_value" class="text-red-500 text-sm mt-1 block">{{ validationErrors.discount_value }}</span>
           </div>
         </div>
 
@@ -502,7 +530,10 @@
               [(ngModel)]="currentPromotion.end_date" 
               name="end_date"
               required
+              [min]="currentPromotion.start_date"
+              (change)="onEndDateChange()"
               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            <span *ngIf="validationErrors.end_date" class="text-red-500 text-sm mt-1 block">{{ validationErrors.end_date }}</span>
           </div>
         </div>
 
@@ -510,6 +541,7 @@
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">
               Số lượng <span class="text-red-500">*</span>
+              <span class="text-gray-500 text-xs ml-2">(Tối đa 1,000,000)</span>
             </label>
             <input 
               type="number" 
@@ -517,8 +549,11 @@
               name="quantity"
               required
               min="1"
+              max="1000000"
+              (input)="onQuantityInput()"
               placeholder="100"
               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            <span *ngIf="validationErrors.quantity" class="text-red-500 text-sm mt-1 block">{{ validationErrors.quantity }}</span>
           </div>
 
           <div>
@@ -552,12 +587,27 @@
           <button 
             type="button"
             (click)="savePromotion()"
-            [disabled]="isLoading"
-            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2 disabled:opacity-50">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            [disabled]="isLoading || !isCreatePromotionFormValid()"
+            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <!-- Success Popup Modal -->
+              <div *ngIf="showSuccessModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+                <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 transform transition-all animate-bounce-in">
+                  <div class="text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                      <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-900 mb-2">Thành công!</h3>
+                    <p class="text-gray-600 text-lg">Tạo mã khuyến mãi thành công</p>
+                    <button (click)="showSuccessModal = false" class="mt-6 px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all">OK</button>
+                  </div>
+                </div>
+              </div>
+            <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
             </svg>
-            <span>Tạo mã khuyến mãi</span>
+            <span class="text-white">Tạo mã khuyến mãi</span>
           </button>
         </div>
       </div>
@@ -617,7 +667,7 @@
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-3">
           <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
             </svg>
           </div>
@@ -628,7 +678,7 @@
         </div>
         <button (click)="closeEditModal()" 
           class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-all">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
@@ -652,57 +702,90 @@
         <div class="mb-6">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Tên mã khuyến mãi <span class="text-red-500">*</span>
+            <span class="text-gray-500 text-xs ml-2">(Tối đa 20 ký tự)</span>
+            <span *ngIf="isPromotionUsed()" class="text-orange-600 text-xs ml-2">(Không thể sửa - đã có người sử dụng)</span>
           </label>
           <input 
             type="text" 
             [(ngModel)]="editPromotion.name" 
             name="editName"
             required
+            maxlength="20"
+            [disabled]="isPromotionUsed()"
+            (input)="onEditNameInput()"
             placeholder="VD: Sale hè 2024"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed">
+          <span *ngIf="editValidationErrors.name" class="text-red-500 text-sm mt-1 block">{{ editValidationErrors.name }}</span>
         </div>
 
         <div class="mb-6">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Mô tả <span class="text-red-500">*</span>
+            <!-- <span class="text-gray-500 text-xs ml-2">(Tối đa 100 ký tự)</span> -->
           </label>
           <textarea 
             [(ngModel)]="editPromotion.description" 
             name="editDescription"
             rows="3"
             required
+            maxlength="100"
+            (input)="onEditDescriptionInput()"
             placeholder="Mô tả chi tiết về mã khuyến mãi..."
             class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none">
           </textarea>
+          <span *ngIf="editValidationErrors.description" class="text-red-500 text-sm mt-1 block">{{ editValidationErrors.description }}</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">
               Loại giảm giá <span class="text-red-500">*</span>
+              <span *ngIf="isPromotionUsed()" class="text-orange-600 text-xs ml-2">(Không thể sửa)</span>
             </label>
             <select 
-              [(ngModel)]="editPromotion.discount_type" 
+              [(ngModel)]="editPromotion.discount_type"
+              (change)="onEditDiscountTypeChange()"
               name="editDiscountType"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+              [disabled]="isPromotionUsed()"
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed">
               <option value="PERCENTAGE">Phần trăm (%)</option>
-              <option value="FIXED">Số tiền cố định</option>
+              <option value="FIXED_AMOUNT">Số tiền cố định</option>
             </select>
           </div>
 
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">
               Giá trị giảm giá <span class="text-red-500">*</span>
+              <span *ngIf="editPromotion.discount_type === 'PERCENTAGE'" class="text-gray-500 text-xs ml-2">(Tối đa 100%)</span>
+              <span *ngIf="editPromotion.discount_type === 'FIXED_AMOUNT'" class="text-gray-500 text-xs ml-2">(Tối đa 1 tỷ VNĐ)</span>
+              <span *ngIf="isPromotionUsed()" class="text-orange-600 text-xs ml-2">(Không thể sửa)</span>
             </label>
-            <input 
-              type="number" 
-              [(ngModel)]="editPromotion.discount_value" 
-              name="editDiscountValue"
-              required
-              min="0"
-              [max]="editPromotion.discount_type === 'PERCENTAGE' ? 100 : null"
-              placeholder="0"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            <div class="relative">
+              <input 
+                *ngIf="editPromotion.discount_type === 'PERCENTAGE'"
+                type="number" 
+                [(ngModel)]="editPromotion.discount_value" 
+                name="editDiscountValue"
+                required
+                min="0"
+                max="100"
+                [disabled]="isPromotionUsed()"
+                (input)="onEditDiscountValueInput($event)"
+                placeholder="0"
+                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed">
+              <input 
+                *ngIf="editPromotion.discount_type === 'FIXED_AMOUNT'"
+                type="text" 
+                [(ngModel)]="displayEditDiscountValue" 
+                name="editDiscountValue_display"
+                required
+                [disabled]="isPromotionUsed()"
+                (input)="onEditDiscountValueInput($event)"
+                placeholder="0"
+                class="w-full px-4 py-3 pr-16 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed">
+              <span *ngIf="editPromotion.discount_type === 'FIXED_AMOUNT'" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">VNĐ</span>
+            </div>
+            <span *ngIf="editValidationErrors.discount_value" class="text-red-500 text-sm mt-1 block">{{ editValidationErrors.discount_value }}</span>
           </div>
         </div>
 
@@ -728,7 +811,10 @@
               [(ngModel)]="editPromotion.end_date" 
               name="editEndDate"
               required
+              [min]="editPromotion.start_date"
+              (change)="onEditEndDateChange()"
               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            <span *ngIf="editValidationErrors.end_date" class="text-red-500 text-sm mt-1 block">{{ editValidationErrors.end_date }}</span>
           </div>
         </div>
 
@@ -736,6 +822,7 @@
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">
               Số lượng <span class="text-red-500">*</span>
+              <span class="text-gray-500 text-xs ml-2">(Tối đa 1,000,000)</span>
             </label>
             <input 
               type="number" 
@@ -743,8 +830,11 @@
               name="editQuantity"
               required
               min="1"
+              max="1000000"
+              (input)="onEditQuantityInput()"
               placeholder="100"
               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            <span *ngIf="editValidationErrors.quantity" class="text-red-500 text-sm mt-1 block">{{ editValidationErrors.quantity }}</span>
           </div>
 
           <div>
@@ -778,12 +868,12 @@
           <button 
             type="button"
             (click)="updatePromotion()"
-            [disabled]="isLoading"
-            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2 disabled:opacity-50">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            [disabled]="isLoading || !hasChanges()"
+            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
             </svg>
-            <span>Cập nhật</span>
+            <span class="text-white">Lưu thay đổi</span>
           </button>
         </div>
       </div>
@@ -791,3 +881,33 @@
   </div>
 </div>
 
+
+<!-- Success Popup Modal -->
+<div *ngIf="showSuccessModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 transform transition-all animate-bounce-in">
+    <div class="text-center">
+      <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+        <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-900 mb-2">Thành công!</h3>
+      <p class="text-gray-600 text-lg">Cập nhật mã khuyến mãi thành công</p>
+    </div>
+  </div>
+</div>
+
+<!-- Error Popup Modal -->
+<div *ngIf="showErrorModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 transform transition-all animate-bounce-in">
+    <div class="text-center">
+      <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+        <svg class="h-10 w-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-900 mb-2">Lỗi!</h3>
+      <p class="text-gray-600 text-lg">{{ errorMessage }}</p>
+    </div>
+  </div>
+</div>

@@ -67,10 +67,16 @@ export class CustomerListComponent implements OnInit {
   showDeleteConfirmModal: boolean = false;
   
   activeTab: 'info' | 'bookings' | 'chat' | 'summary' | 'reviews' = 'info';
+  copiedUserId: string | null = null;
   selectedChatRoom: ChatRoom | null = null;
   
   createUserForm: FormGroup;
   editUserForm: FormGroup;
+  
+  showPassword: boolean = false;
+  showPasswordConfirm: boolean = false;
+  showEditPassword: boolean = false;
+  showEditPasswordConfirm: boolean = false;
   
   isCreating: boolean = false;
   isUpdating: boolean = false;
@@ -90,20 +96,22 @@ export class CustomerListComponent implements OnInit {
   ) {
     this.createUserForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      full_name: ['', Validators.required],
+      full_name: ['', [Validators.required, Validators.maxLength(50)]],
       phone_number: ['', Validators.required],
-      password: [''],
+      password: ['', Validators.required],
+      passwordConfirm: ['', Validators.required],
       role: ['user', Validators.required],
       is_active: [true]
-    });
+    }, { validators: this.passwordMatchValidator });
     
     this.editUserForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      full_name: ['', Validators.required],
+      full_name: ['', [Validators.required, Validators.maxLength(50)]],
       phone_number: ['', Validators.required],
       password: [''],
+      passwordConfirm: [''],
       is_active: [true]
-    });
+    }, { validators: this.editPasswordMatchValidator });
   }
 
   ngOnInit() {
@@ -119,6 +127,10 @@ export class CustomerListComponent implements OnInit {
       if (response?.EC === 0 && response?.data) {
         // Chỉ lấy những user có role là 'user', loại bỏ admin
         this.allUsers = response.data.users.filter((user: UserProfile) => user.role === 'user');
+        
+        // Load booking count for each user
+        await this.loadBookingCounts();
+        
         this.filteredUsers = [...this.allUsers];
       } else {
         this.errorMessage = response?.EM || 'Không thể tải danh sách users';
@@ -128,6 +140,29 @@ export class CustomerListComponent implements OnInit {
       console.error('Error loading users:', error);
     } finally {
       this.isLoadingUsers = false;
+    }
+  }
+
+  async loadBookingCounts() {
+    try {
+      // Load booking counts in parallel for all users
+      const promises = this.allUsers.map(async (user) => {
+        try {
+          const summaryResponse = await this.adminUserService.getUserSummary(user.user_id).toPromise();
+          if (summaryResponse?.EC === 0 && summaryResponse?.data?.kpi) {
+            user.total_bookings = summaryResponse.data.kpi.total_bookings || 0;
+          } else {
+            user.total_bookings = 0;
+          }
+        } catch (error) {
+          console.error(`Error loading booking count for user ${user.user_id}:`, error);
+          user.total_bookings = 0;
+        }
+      });
+      
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('Error loading booking counts:', error);
     }
   }
 
@@ -142,10 +177,10 @@ export class CustomerListComponent implements OnInit {
     // Search by text (email, name, phone, ID)
     if (term) {
       filtered = filtered.filter(user =>
-        user.email.toLowerCase().includes(term) ||
-        user.full_name.toLowerCase().includes(term) ||
-        user.user_id.toLowerCase().includes(term) ||
-        (user.phone_number && user.phone_number.includes(term))
+        (user.email?.toLowerCase() || '').includes(term) ||
+        (user.full_name?.toLowerCase() || '').includes(term) ||
+        (user.user_id?.toLowerCase() || '').includes(term) ||
+        (user.phone_number?.toLowerCase() || '').includes(term)
       );
     }
     
@@ -219,23 +254,87 @@ export class CustomerListComponent implements OnInit {
   }
 
   openCreateUserModal() {
+    const generatedPassword = this.generatePassword();
     this.createUserForm.reset({
       role: 'user',
-      is_active: true
+      is_active: true,
+      password: generatedPassword,
+      passwordConfirm: generatedPassword
     });
     this.showCreateUserModal = true;
+    this.showPassword = true;
+    this.showPasswordConfirm = false;
     this.errorMessage = '';
+  }
+
+  generatePassword(): string {
+    const length = 12;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  }
+
+  passwordMatchValidator(formGroup: FormGroup) {
+    const password = formGroup.get('password');
+    const passwordConfirm = formGroup.get('passwordConfirm');
+    
+    if (!password || !passwordConfirm) {
+      return null;
+    }
+    
+    if (password.value !== passwordConfirm.value) {
+      passwordConfirm.setErrors({ mismatch: true });
+      return { mismatch: true };
+    } else {
+      const errors = passwordConfirm.errors;
+      if (errors) {
+        delete errors['mismatch'];
+        if (Object.keys(errors).length === 0) {
+          passwordConfirm.setErrors(null);
+        }
+      }
+      return null;
+    }
+  }
+
+  editPasswordMatchValidator(formGroup: FormGroup) {
+    const password = formGroup.get('password');
+    const passwordConfirm = formGroup.get('passwordConfirm');
+    
+    if (!password || !passwordConfirm) {
+      return null;
+    }
+    
+    // Only validate if password is entered
+    if (password.value && password.value !== passwordConfirm.value) {
+      passwordConfirm.setErrors({ mismatch: true });
+      return { mismatch: true };
+    } else {
+      const errors = passwordConfirm.errors;
+      if (errors) {
+        delete errors['mismatch'];
+        if (Object.keys(errors).length === 0) {
+          passwordConfirm.setErrors(null);
+        }
+      }
+      return null;
+    }
   }
 
   closeCreateUserModal() {
     this.showCreateUserModal = false;
     this.createUserForm.reset();
+    this.showPassword = false;
+    this.showPasswordConfirm = false;
     this.errorMessage = '';
   }
 
   async createUser() {
     if (this.createUserForm.invalid) {
-      this.errorMessage = 'Vui lòng điền đầy đủ thông tin';
+      await this.dialogService.alert('Lỗi tạo tài khoản', 'Vui lòng điền đầy đủ thông tin và đảm bảo mật khẩu khớp nhau.');
       return;
     }
     
@@ -243,22 +342,19 @@ export class CustomerListComponent implements OnInit {
     this.errorMessage = '';
     
     try {
+      const { passwordConfirm, ...formData } = this.createUserForm.value;
       const request: CreateUserRequest = {
-        ...this.createUserForm.value,
+        ...formData,
         role: 'user' // Force role to be 'user'
       };
       const response = await this.adminUserService.createUser(request).toPromise();
       
       if (response?.EC === 0) {
-        this.successMessage = 'Tạo user thành công!';
-        if (response.data.password) {
-          await this.dialogService.alert('Tạo user thành công', `User đã được tạo với mật khẩu: ${response.data.password}`);
-        }
+        await this.dialogService.alert('Thành công', 'Tạo user thành công!');
         this.closeCreateUserModal();
         await this.loadAllUsers();
-        setTimeout(() => this.successMessage = '', 3000);
       } else {
-        this.errorMessage = response?.EM || 'Không thể tạo user';
+        await this.dialogService.alert('Lỗi tạo tài khoản', response?.EM || 'Không thể tạo user. Vui lòng thử lại.');
       }
     } catch (error: any) {
       console.error('Error creating user:', error);
@@ -278,9 +374,15 @@ export class CustomerListComponent implements OnInit {
          errorMessage.toLowerCase().includes('duplicate'));
       
       if (isDuplicateEmail) {
-        this.errorMessage = `Email "${this.createUserForm.value.email}" đã tồn tại trong hệ thống. Vui lòng sử dụng email khác.`;
+        await this.dialogService.alert(
+          'Lỗi tạo tài khoản', 
+          `Email "${this.createUserForm.value.email}" đã tồn tại trong hệ thống. Vui lòng sử dụng email khác.`
+        );
       } else {
-        this.errorMessage = errorMessage || 'Lỗi khi tạo user. Vui lòng thử lại.';
+        await this.dialogService.alert(
+          'Lỗi tạo tài khoản', 
+          errorMessage || 'Lỗi khi tạo user. Vui lòng thử lại.'
+        );
       }
     } finally {
       this.isCreating = false;
@@ -418,9 +520,12 @@ export class CustomerListComponent implements OnInit {
       full_name: user.full_name,
       phone_number: user.phone_number,
       is_active: user.is_active,
-      password: ''
+      password: '',
+      passwordConfirm: ''
     });
     this.showEditUserModal = true;
+    this.showEditPassword = false;
+    this.showEditPasswordConfirm = false;
     this.errorMessage = '';
   }
 
@@ -428,6 +533,8 @@ export class CustomerListComponent implements OnInit {
     this.showEditUserModal = false;
     this.selectedUser = null;
     this.editUserForm.reset();
+    this.showEditPassword = false;
+    this.showEditPasswordConfirm = false;
     this.errorMessage = '';
   }
 
@@ -442,7 +549,7 @@ export class CustomerListComponent implements OnInit {
     
     try {
       // Không gửi role trong request, chỉ cập nhật các trường khác
-      const formValue = this.editUserForm.value;
+      const { passwordConfirm, ...formValue } = this.editUserForm.value;
       const request: UpdateUserRequest = {
         email: formValue.email,
         full_name: formValue.full_name,
@@ -531,8 +638,14 @@ export class CustomerListComponent implements OnInit {
     const confirmMsg = newStatus 
       ? `Kích hoạt tài khoản ${user.email}?`
       : `Vô hiệu hóa tài khoản ${user.email}?`;
-    
-    if (!confirm(confirmMsg)) return;
+
+    const confirmed = await this.dialogService.confirm({
+      title: newStatus ? 'Kích hoạt tài khoản' : 'Vô hiệu hóa tài khoản',
+      message: confirmMsg,
+      confirmText: newStatus ? 'Kích hoạt' : 'Vô hiệu hóa',
+      cancelText: 'Hủy'
+    });
+    if (!confirmed) return;
     
     try {
       const response = await this.adminUserService.updateUserStatus(user.user_id, {
@@ -560,6 +673,25 @@ export class CustomerListComponent implements OnInit {
     return new Intl.NumberFormat('vi-VN').format(amount);
   }
 
+  getMessageContent(content: string): string {
+    try {
+      // Try to parse as JSON array (Claude API response format)
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        // Filter only text type messages and join them
+        const textMessages = parsed
+          .filter((item: any) => item.type === 'text')
+          .map((item: any) => item.text)
+          .join('\n\n');
+        return textMessages || content;
+      }
+      return content;
+    } catch {
+      // If not JSON or parsing fails, return original content
+      return content;
+    }
+  }
+
   getRoleBadgeClass(role: string): string {
     switch (role) {
       case 'admin': return 'bg-red-100 text-red-800';
@@ -581,15 +713,37 @@ export class CustomerListComponent implements OnInit {
       default: return 'bg-gray-100 text-gray-800';
     }
   }
-
+  getBookingStatusText(status: string): string {
+    switch (status.toLowerCase()) {
+      case 'confirmed': return 'Đã xác nhận';
+      case 'pending': return 'Chờ xử lý';
+      case 'completed': return 'Hoàn thành';
+      case 'cancelled': return 'Đã hủy';
+      default: return status;
+    }
+  }
   // Copy to clipboard
-  async copyToClipboard(text: string) {
+  async copyToClipboard(userId: string) {
     try {
-      await navigator.clipboard.writeText(text);
-      await this.dialogService.alert('Thành công', 'Đã copy vào clipboard!');
+      await navigator.clipboard.writeText(userId);
+      this.copiedUserId = userId;
+      setTimeout(() => {
+        this.copiedUserId = null;
+      }, 10000);
     } catch (err) {
       console.error('Failed to copy:', err);
-      await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard!');
     }
+  }
+
+  onCreatePhoneInput(event: any) {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/\D/g, '').slice(0, 10);
+    this.createUserForm.get('phone_number')?.setValue(value, { emitEvent: false });
+  }
+
+  onEditPhoneInput(event: any) {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/\D/g, '').slice(0, 10);
+    this.editUserForm.get('phone_number')?.setValue(value, { emitEvent: false });
   }
 }

@@ -6,7 +6,7 @@ import { ConfigService } from './config.service';
 export interface PromotionCreateRequest {
   name: string;
   description: string;
-  discount_type: 'PERCENTAGE' | 'FIXED';
+  discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT';
   discount_value: number;
   start_date: string;
   end_date: string;

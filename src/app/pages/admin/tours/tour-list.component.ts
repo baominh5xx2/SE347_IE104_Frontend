@@ -1159,7 +1159,7 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
   }
 
   getAveragePrice(): string {
-    if (this.tours.length === 0) return '0 ₫';
+    if (this.tours.length === 0) return '0 VNĐ';
     const total = this.tours.reduce((sum, tour) => sum + tour.price, 0);
     const average = total / this.tours.length;
     return this.formatPrice(average);
@@ -1206,7 +1206,7 @@ Tour Mẫu Đà Nẵng,Đà Nẵng,Thành phố đáng sống nhất Việt Nam,
 
       await this.dialogService.alert(
         'Hủy Tour Thành Công',
-        `Tour đã bị hủy\n Số bookings đã hủy: ${result.cancelled_bookings}\n Thông báo đã gửi: ${result.notifications_sent}`
+        `Tour đã bị hủy\n Số bookings đã hủy: ${result.cancelled_bookings}`
       );
 
       await this.loadTours();

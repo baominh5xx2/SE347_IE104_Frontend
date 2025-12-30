@@ -15,6 +15,7 @@ export interface UserProfile {
   created_at: string;
   updated_at: string;
   last_access_time?: string;
+  total_bookings?: number;
 }
 
 export interface UserProfileResponse {

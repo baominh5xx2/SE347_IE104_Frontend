@@ -395,6 +395,34 @@ export class AdminBookingService {
   }
 
   /**
+   * POST /api/v1/bookings/admin/create
+   * Admin tạo booking cho khách hàng (bỏ qua OTP, status = pending)
+   * 
+   * REQUIRE ADMIN AUTHENTICATION
+   * 
+   * Flow:
+   * 1. Validate package & check slots
+   * 2. Create booking với status="pending" (không cần OTP)
+   * 3. Update package slots
+   * 4. Return booking_id với status="pending"
+   * 
+   * Khác với /create-with-otp:
+   * - Không cần OTP verification
+   * - Status = "pending" ngay (thay vì "otp_sent")
+   * - Email là optional (không bắt buộc)
+   * - Yêu cầu admin authentication
+   */
+  createBookingByAdmin(booking: BookingCreateRequest): Observable<BookingOTPResponse> {
+    return this.http.post<BookingOTPResponse>(
+      `${this.apiBaseUrl}/bookings/admin/create`,
+      booking,
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
+  /**
    * GET /api/v1/bookings/{booking_id}
    * Lấy chi tiết một booking (deprecated - dùng getBookingDetailAdmin thay thế)
    * @deprecated Sử dụng getBookingDetailAdmin() để lấy thêm thông tin tour package

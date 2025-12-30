@@ -139,4 +139,14 @@ export class AdminPaymentService {
       }
     );
   }
+
+  confirmCashPayment(bookingId: string, note: string): Observable<AdminCreatePaymentResponse> {
+    return this.http.post<AdminCreatePaymentResponse>(
+      `${this.apiBaseUrl}/payments/admin/confirm-cash`,
+      { booking_id: bookingId, note: note },
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
 }
