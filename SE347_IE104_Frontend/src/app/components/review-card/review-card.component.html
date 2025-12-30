@@ -1,0 +1,45 @@
+<div class="review-card">
+  <div class="review-header">
+    <div class="avatar-container">
+      @if (shouldShowAvatar()) {
+        <img 
+          [src]="review.user_profile_picture" 
+          [alt]="review.user_full_name || 'User'"
+          class="avatar-image"
+          (error)="onAvatarError()"
+        />
+      }
+      @if (!shouldShowAvatar()) {
+        <div class="avatar-fallback">
+          {{ getInitials() }}
+        </div>
+      }
+    </div>
+    <div class="reviewer-info">
+      <h4 class="reviewer-name">{{ review.user_full_name || review.user_email || 'Khách hàng' }}</h4>
+      @if (review.package_name) {
+        <p class="tour-name">{{ review.package_name }}</p>
+      }
+      <div class="rating-stars">
+        @for (isFilled of getStars(); track $index) {
+          <span class="star" [class.filled]="isFilled">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path 
+                [attr.fill]="isFilled ? 'currentColor' : 'none'"
+                [attr.stroke]="isFilled ? 'none' : 'currentColor'"
+                stroke-width="1.5"
+                d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+              />
+            </svg>
+          </span>
+        }
+      </div>
+    </div>
+  </div>
+  
+  <div class="review-content">
+    <p class="review-comment">{{ truncateComment(review.comment || '') }}</p>
+    <span class="review-date">{{ formatDate(review.created_at) }}</span>
+  </div>
+</div>
+
