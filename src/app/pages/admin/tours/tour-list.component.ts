@@ -643,7 +643,7 @@ export class TourListComponent implements OnInit {
     }
   }
 
-  removeImage(index: number) {
+  async removeImage(index: number) {
     // Xác định số ảnh cũ từ server (không phải ảnh mới upload)
     const oldImagesCount = this.originalImageUrls.length;
     
@@ -661,6 +661,35 @@ export class TourListComponent implements OnInit {
     }
     
     this.hasImageChanges = true; // Đánh dấu có thay đổi
+    
+    // Nếu đang edit tour, gọi API update tour ngay khi xóa ảnh
+    if (this.currentTour.package_id) {
+      try {
+        // Chỉ lấy các URL string (bỏ qua File objects nếu có)
+        const urlStrings = this.imageUrls.filter(url => typeof url === 'string' && url.trim() !== '');
+        const updateData: TourPackageUpdateRequest = {
+          image_urls: urlStrings.length > 0 ? urlStrings.join('|') : ''
+        };
+        const response = await this.tourService.updateTourPackage(this.currentTour.package_id, updateData);
+        // Cập nhật currentTour.image_urls từ response
+        if (response && response.package && response.package.image_urls) {
+          this.currentTour.image_urls = response.package.image_urls;
+          const updatedUrls = response.package.image_urls ? response.package.image_urls.split('|').filter((url: string) => url.trim() !== '') : [];
+          this.imageUrls = updatedUrls;
+          this.originalImageUrls = [...updatedUrls];
+          this.originalImageCount = updatedUrls.length;
+        } else {
+          // Fallback: cập nhật từ local data
+          this.originalImageUrls = [...urlStrings];
+          this.originalImageCount = urlStrings.length;
+          this.imageUrls = [...urlStrings];
+          this.currentTour.image_urls = urlStrings.length > 0 ? urlStrings.join('|') : '';
+        }
+      } catch (error: any) {
+        console.error('Error updating tour when removing image:', error);
+        // Không hiển thị lỗi, chỉ log
+      }
+    }
   }
 
   onDragStart(index: number) {
