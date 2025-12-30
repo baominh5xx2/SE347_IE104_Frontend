@@ -18,6 +18,18 @@ interface StatusOption {
   styleUrl: './payment-management.component.scss'
 })
 export class PaymentManagementComponent implements OnInit {
+    /**
+     * Get payment user name with fallback: user_name, then prefix of contact_email, else '—'
+     */
+    getPaymentUserName(payment: any): string {
+      if (!payment) return '—';
+      if (payment.user_name) return payment.user_name;
+      if (payment.contact_email && typeof payment.contact_email === 'string') {
+        const idx = payment.contact_email.indexOf('@');
+        if (idx > 0) return payment.contact_email.substring(0, idx);
+      }
+      return '—';
+    }
   payments: AdminPaymentItem[] = [];
   filteredPayments: AdminPaymentItem[] = [];
   total = 0;
@@ -86,6 +98,7 @@ export class PaymentManagementComponent implements OnInit {
     // Default payment method options
     this.paymentMethodOptions = [
       { value: 'bank_transfer', label: 'Chuyển khoản ngân hàng' },
+      { value: 'cash', label: 'Tiền mặt' },
       { value: 'vnpay', label: 'VNPay' }
     ];
   }
@@ -237,10 +250,10 @@ export class PaymentManagementComponent implements OnInit {
       const matchesStatus = !this.statusFilter || p.payment_status === this.statusFilter;
       const userFilterLower = this.userFilter.toLowerCase();
       const matchesUser = !this.userFilter ||
-        (p.user_id || '').includes(this.userFilter) ||
-        (p.user_name || '').toLowerCase().includes(userFilterLower) ||
-        (p.contact_email || '').toLowerCase().includes(userFilterLower) ||
-        (p.contact_phone || '').includes(this.userFilter);
+        (p.user_id?.toLowerCase() || '').includes(userFilterLower) ||
+        (p.user_name?.toLowerCase() || '').includes(userFilterLower) ||
+        (p.contact_email?.toLowerCase() || '').includes(userFilterLower) ||
+        (p.contact_phone?.toLowerCase() || '').includes(userFilterLower);
       const matchesMethod = !this.paymentMethodFilter || p.payment_method === this.paymentMethodFilter;
       const matchesTour = !this.tourFilter || (p.tour_name || '').toLowerCase().includes(this.tourFilter.toLowerCase());
 
@@ -354,6 +367,15 @@ export class PaymentManagementComponent implements OnInit {
     return map[status] || status;
   }
 
+  getPaymentMethodText(method: string): string {
+    const map: { [key: string]: string } = {
+      bank_transfer: 'Chuyển khoản ngân hàng',
+      cash: 'Tiền mặt',
+      vnpay: 'VNPay'
+    };
+    return map[method] || method;
+  }
+
   /**
    * Process a pending payment - mark as completed
    */
@@ -369,8 +391,16 @@ export class PaymentManagementComponent implements OnInit {
 
     this.isLoading = true;
     try {
-      // Use confirmPayment to update existing pending payment to completed
-      const response = await this.adminPaymentService.confirmPayment(payment.payment_id).toPromise();
+      let response;
+      
+      // For cash payment, use confirm-cash API
+      if (payment.payment_method === 'cash') {
+        const note = payment.notes || 'Khách thanh toán tiền mặt';
+        response = await this.adminPaymentService.confirmCashPayment(payment.booking_id, note).toPromise();
+      } else {
+        // For other payment methods, use confirmPayment to update existing pending payment to completed
+        response = await this.adminPaymentService.confirmPayment(payment.payment_id).toPromise();
+      }
 
       if (response && response.EC === 0) {
         await this.dialogService.alert('Thành công', 'Đã xác nhận thanh toán thành công!');

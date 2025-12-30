@@ -61,6 +61,7 @@ export class BookingListComponent implements OnInit {
   deleteId: string = '';
   cancelId: string = '';
   editingBooking: Booking | null = null;
+  originalEditingBooking: Booking | null = null;
   selectedStatusForEdit: Booking['status'] | '' = '';
   newBooking: any = {
     contact_name: '',
@@ -90,6 +91,9 @@ export class BookingListComponent implements OnInit {
   tourSearchTerm: string = '';
   isLoadingTours = false;
   tourCarouselIndex = 0;
+  editCopySuccess = false;
+  detailCopySuccess = false;
+  userCarouselIndex = 0;
 
   // Expose Math to template
   Math = Math;
@@ -143,7 +147,24 @@ export class BookingListComponent implements OnInit {
       const response = await this.adminBookingService.getAllBookingsAdmin(params).toPromise();
 
       if (response && response.EC === 0) {
-        this.bookings = response.data.map(item => this.mapAdminBookingItemToBooking(item));
+        // Map bookings and load user phones for filtering
+        this.bookings = await Promise.all(
+          response.data.map(async item => {
+            const booking = this.mapAdminBookingItemToBooking(item);
+            // Load user phone if user_id exists
+            if (item.user_id) {
+              try {
+                const userRes = await this.adminUserService.getUserProfile(item.user_id).toPromise();
+                if (userRes && userRes.EC === 0) {
+                  booking.customerPhone = userRes.data.phone_number || '';
+                }
+              } catch (e) {
+                // Silently ignore; keep empty phone
+              }
+            }
+            return booking;
+          })
+        );
         this.stats.total_bookings = response.total;
       } else {
         this.errorMessage = response?.EM || 'Không thể tải danh sách bookings';
@@ -259,9 +280,21 @@ export class BookingListComponent implements OnInit {
           ...booking,
           customerPhone: detail.contact_phone,
           customerName: detail.contact_name,
-          customerEmail: detail.contact_email,
+          customerEmail: booking.userEmail || detail.contact_email,
           specialRequests: detail.special_requests
         };
+        // Lấy thêm thông tin user để hiển thị đúng email/SĐT của khách hàng
+        if (booking.userId) {
+          try {
+            const userRes = await this.adminUserService.getUserProfile(booking.userId).toPromise();
+            if (userRes && userRes.EC === 0 && this.currentBooking) {
+              this.currentBooking.customerEmail = userRes.data.email || this.currentBooking.customerEmail;
+              this.currentBooking.customerPhone = userRes.data.phone_number || this.currentBooking.customerPhone;
+            }
+          } catch (e) {
+            // Bỏ qua, giữ thông tin liên hệ nếu không lấy được profile
+          }
+        }
         this.showDetailModal = true;
       } else {
         this.errorMessage = response?.EM || 'Không thể tải chi tiết booking';
@@ -417,16 +450,32 @@ export class BookingListComponent implements OnInit {
           ...booking,
           customerPhone: detail.contact_phone,
           customerName: detail.contact_name,
-          customerEmail: detail.contact_email,
+          customerEmail: booking.userEmail || detail.contact_email,
           specialRequests: detail.special_requests,
           numberOfPeople: detail.number_of_people,
           totalAmount: detail.total_amount
         } as Booking;
+        this.editingBooking.contact_email = this.editingBooking.customerEmail;
+        // Lấy thêm thông tin user để hiển thị đúng email/SĐT khách hàng (read-only section)
+        if (booking.userId) {
+          try {
+            const userRes = await this.adminUserService.getUserProfile(booking.userId).toPromise();
+            if (userRes && userRes.EC === 0 && this.editingBooking) {
+              this.editingBooking.customerEmail = userRes.data.email || this.editingBooking.customerEmail;
+              this.editingBooking.customerPhone = userRes.data.phone_number || this.editingBooking.customerPhone;
+              this.editingBooking.contact_email = this.editingBooking.customerEmail;
+            }
+          } catch (e) {
+            // Ignore errors; keep contact info
+          }
+        }
       } else {
         // Fallback dùng dữ liệu đang có
         this.editingBooking = JSON.parse(JSON.stringify(booking));
       }
       this.selectedStatusForEdit = this.editingBooking ? this.editingBooking.status : '';
+      // Lưu lại bản gốc để kiểm tra chỉnh sửa
+      this.originalEditingBooking = this.editingBooking ? JSON.parse(JSON.stringify(this.editingBooking)) : null;
       this.showEditModal = true;
     } catch (error) {
       console.error('Error loading booking detail before edit:', error);
@@ -441,26 +490,23 @@ export class BookingListComponent implements OnInit {
   closeEditModal() {
     this.showEditModal = false;
     this.editingBooking = null;
+    this.originalEditingBooking = null;
     this.selectedStatusForEdit = '';
   }
 
   async saveBooking() {
     if (!this.editingBooking) return;
-    if (!this.selectedStatusForEdit) {
-      this.selectedStatusForEdit = this.editingBooking.status;
-    }
-    const targetStatus = this.selectedStatusForEdit;
+    const targetStatus = this.editingBooking.status;
 
     this.isLoading = true;
     try {
       let response;
 
-      // Chuẩn bị dữ liệu cập nhật với tất cả các trường
+      // Chuẩn bị dữ liệu cập nhật (không cho phép sửa email, mã KM)
       const updateData: any = {
         status: targetStatus,
         contact_name: this.editingBooking.customerName,
         contact_phone: this.editingBooking.customerPhone,
-        contact_email: this.editingBooking.customerEmail,
         number_of_people: this.editingBooking.numberOfPeople,
         special_requests: this.editingBooking.specialRequests
       };
@@ -483,6 +529,8 @@ export class BookingListComponent implements OnInit {
           this.applyFilters();
         }
         this.editingBooking.status = targetStatus;
+        // Cập nhật lại bản gốc sau khi lưu
+        this.originalEditingBooking = this.editingBooking ? JSON.parse(JSON.stringify(this.editingBooking)) : null;
         this.closeEditModal();
         this.closeDetailModal();
       } else {
@@ -494,6 +542,20 @@ export class BookingListComponent implements OnInit {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  // Kiểm tra xem có chỉnh sửa gì trong modal Edit hay không
+  isEditDirty(): boolean {
+    if (!this.editingBooking || !this.originalEditingBooking) return false;
+    const a = this.editingBooking;
+    const b = this.originalEditingBooking;
+    return (
+      a.customerName !== b.customerName ||
+      a.customerPhone !== b.customerPhone ||
+      a.numberOfPeople !== b.numberOfPeople ||
+      (a.specialRequests || '') !== (b.specialRequests || '') ||
+      a.status !== b.status
+    );
   }
 
   getStatusColor(status: string): string {
@@ -526,10 +588,8 @@ export class BookingListComponent implements OnInit {
   }
 
   formatPrice(price: number): string {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
+    // Format with thousands separators and explicit unit VNĐ
+    return `${new Intl.NumberFormat('vi-VN').format(price)} VNĐ`;
   }
 
   formatDate(date: Date): string {
@@ -550,12 +610,14 @@ export class BookingListComponent implements OnInit {
       number_of_people: 1,
       package_id: '',
       special_requests: '',
-      user_id: ''
+      user_id: '',
+      skip_otp: true
     };
     this.selectedUserInfo = null;
     this.selectedTourInfo = null;
     this.userSearchTerm = '';
     this.tourSearchTerm = '';
+    this.userCarouselIndex = 0;
     this.tourCarouselIndex = 0;
     this.showAddModal = true;
     
@@ -604,6 +666,7 @@ export class BookingListComponent implements OnInit {
     const searchLower = this.userSearchTerm.toLowerCase().trim();
     if (!searchLower) {
       this.filteredUsers = [...this.allUsers];
+      this.userCarouselIndex = 0;
       return;
     }
     
@@ -613,6 +676,7 @@ export class BookingListComponent implements OnInit {
       const phone = (user.phone_number || '').toLowerCase();
       return name.includes(searchLower) || email.includes(searchLower) || phone.includes(searchLower);
     });
+    this.userCarouselIndex = 0;
   }
 
   filterTours() {
@@ -645,12 +709,10 @@ export class BookingListComponent implements OnInit {
     if (!this.newBooking.contact_name) {
       this.newBooking.contact_name = user.full_name;
     }
-    if (!this.newBooking.contact_phone) {
-      this.newBooking.contact_phone = user.phone_number;
-    }
-    if (!this.newBooking.contact_email) {
-      this.newBooking.contact_email = user.email;
-    }
+    // Always set contact_phone from user (user can edit)
+    this.newBooking.contact_phone = user.phone_number;
+    // Always set contact_email from user (read-only)
+    this.newBooking.contact_email = user.email;
   }
 
   selectTour(tour: any) {
@@ -670,12 +732,42 @@ export class BookingListComponent implements OnInit {
     }
   }
 
+  scrollUserCarousel(direction: 'left' | 'right') {
+    const visibleCount = 10; // Hiển thị 10 users mỗi trang
+    if (direction === 'left') {
+      this.userCarouselIndex = Math.max(0, this.userCarouselIndex - 1);
+    } else {
+      this.userCarouselIndex = Math.min(
+        Math.max(0, this.filteredUsers.length - visibleCount),
+        this.userCarouselIndex + 1
+      );
+    }
+  }
+
   // Check if number of people exceeds available slots
   onNumberOfPeopleChange() {
-    if (this.selectedTourInfo && this.newBooking.number_of_people > this.selectedTourInfo.available_slots) {
-      this.slotWarningMessage = `Số người (đặt ${this.newBooking.number_of_people}) vượt quá số slot còn lại của tour (${this.selectedTourInfo.available_slots} slots).`;
+    if (!this.selectedTourInfo) {
+      // Guard: input is disabled when no tour selected
+      return;
+    }
+    const max = this.selectedTourInfo.available_slots || 0;
+    if (this.newBooking.number_of_people < 1) {
+      this.newBooking.number_of_people = 1;
+    }
+    if (this.newBooking.number_of_people > max) {
+      this.newBooking.number_of_people = max;
+      this.slotWarningMessage = `Số người vượt quá số slot còn lại (${max}).`;
       this.showSlotWarning = true;
     }
+  }
+
+  // Enforce 10-digit numeric phone for contact_phone
+  onContactPhoneInput(event: any) {
+    let value = (event?.target?.value || '').replace(/\D/g, '');
+    if (value.length > 10) {
+      value = value.slice(0, 10);
+    }
+    this.newBooking.contact_phone = value;
   }
 
   closeSlotWarning() {
@@ -759,18 +851,20 @@ export class BookingListComponent implements OnInit {
     this.errorMessage = '';
 
     try {
-      console.log('📝 Creating booking:', this.newBooking);
-      const response = await this.adminBookingService.createBookingWithOTP(this.newBooking).toPromise();
+      console.log('📝 Creating booking via admin API:', this.newBooking);
+      const response = await this.adminBookingService.createBookingByAdmin(this.newBooking).toPromise();
 
-      console.log('✅ Create booking response:', response);
+      console.log('✅ Admin create booking response:', response);
 
       if (response && response.EC === 0) {
-        // Admin tạo booking thành công - Backend tự động xử lý OTP hoặc skip OTP
+        const bookingId = response.data.booking_id;
+        
+        // Booking được tạo với status = "pending", chờ thanh toán
         await this.loadBookings();
         this.closeAddModal();
         await this.dialogService.alert(
           'Thành công',
-          'Đã tạo booking thành công! \n Booking ID: ' + response.data.booking_id
+          `Đã tạo booking thành công!\n\nBooking ID: ${bookingId}`
         );
       } else {
         this.errorMessage = response?.EM || 'Không thể tạo booking';
@@ -831,6 +925,33 @@ export class BookingListComponent implements OnInit {
       await this.dialogService.alert('Lỗi', error?.error?.EM || 'Lỗi khi thanh toán');
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  // Copy booking ID in Edit modal with 10s success state
+  async copyBookingId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      this.editCopySuccess = true;
+      setTimeout(() => {
+        this.editCopySuccess = false;
+      }, 10000);
+    } catch (error) {
+      // Fallback to dialog on error
+      await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard');
+    }
+  }
+
+  // Copy booking ID in Detail modal with 10s success state
+  async copyDetailBookingId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      this.detailCopySuccess = true;
+      setTimeout(() => {
+        this.detailCopySuccess = false;
+      }, 10000);
+    } catch (error) {
+      await this.dialogService.alert('Lỗi', 'Không thể copy vào clipboard');
     }
   }
 }

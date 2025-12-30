@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminPromotionService, Promotion, PromotionCreateRequest, PromotionUpdateRequest } from '../../../services/admin/admin-promotion.service';
+import { AdminPromotionService, PromotionCreateRequest, PromotionUpdateRequest } from '../../../services/admin/admin-promotion.service';
+import type { Promotion } from '../../../services/admin/admin-promotion.service';
 
 @Component({
   selector: 'app-promotion-list',
@@ -13,6 +14,23 @@ import { AdminPromotionService, Promotion, PromotionCreateRequest, PromotionUpda
 export class PromotionListComponent implements OnInit {
   promotions: Promotion[] = [];
   filteredPromotions: Promotion[] = [];
+
+  currentPromotion: Partial<Promotion> = {};
+  editPromotion: Partial<Promotion> | null = null;
+  originalEditPromotion: Partial<Promotion> | null = null;
+  displayDiscountValue: string = '';
+  displayEditDiscountValue: string = '';
+  validationErrors = {
+    name: '',
+    description: '',
+    discount_value: '',
+    start_date: '',
+    end_date: '',
+    quantity: ''
+  };
+  deleteId: string = '';
+  showDeleteModal: boolean = false;
+  showErrorModal: boolean = false;
   
   searchTerm = '';
   statusFilter: string = '';
@@ -21,6 +39,7 @@ export class PromotionListComponent implements OnInit {
   showAdvancedFilters = false;
   
   // Discount filter
+  discountTypeFilter: string = ''; // '', 'PERCENTAGE', 'FIXED_AMOUNT'
   minDiscountFilter: number | '' = '';
   maxDiscountFilter: number | '' = '';
   isDiscountFilterActive = false;
@@ -42,11 +61,34 @@ export class PromotionListComponent implements OnInit {
   
   showAddModal = false;
   showEditModal = false;
-  showDeleteModal = false;
+  showSuccessModal = false;
+
+  isCreatePromotionFormValid(): boolean {
+    // Check all required fields for create form
+    const p = this.currentPromotion;
+    if (!p) return false;
+    if (!p.name || !p.name.trim() || p.name.length > 20) return false;
+    if (!p.description || !p.description.trim() || p.description.length > 100) return false;
+    if (!p.discount_type || (p.discount_type !== 'PERCENTAGE' && p.discount_type !== 'FIXED_AMOUNT')) return false;
+    if (!p.discount_value || p.discount_value <= 0) return false;
+    if (p.discount_type === 'PERCENTAGE' && p.discount_value > 100) return false;
+    if (p.discount_type === 'FIXED_AMOUNT' && p.discount_value > 1000000000) return false;
+    if (!p.start_date) return false;
+    if (!p.end_date) return false;
+    if (p.start_date && p.end_date && new Date(p.start_date) >= new Date(p.end_date)) return false;
+    if (!p.quantity || p.quantity <= 0 || p.quantity > 1000000) return false;
+    if (typeof p.is_active !== 'boolean') return false;
+    return true;
+  }
   
-  currentPromotion: Partial<PromotionCreateRequest> = {};
-  editPromotion: Promotion | null = null;
-  deleteId = '';
+  editValidationErrors = {
+    name: '',
+    description: '',
+    discount_value: '',
+    start_date: '',
+    end_date: '',
+    quantity: ''
+  };
   
   isLoading = false;
   errorMessage = '';
@@ -55,7 +97,9 @@ export class PromotionListComponent implements OnInit {
   constructor(private promotionService: AdminPromotionService) {}
 
   ngOnInit() {
-    this.loadPromotions();
+    if (this.loadPromotions) {
+      this.loadPromotions();
+    }
   }
 
   loadPromotions() {
@@ -89,15 +133,53 @@ export class PromotionListComponent implements OnInit {
 
   applyFilters() {
     this.filteredPromotions = this.promotions.filter(promo => {
+      // Search filter
       const matchesSearch = !this.searchTerm || 
         promo.name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        promo.description.toLowerCase().includes(this.searchTerm.toLowerCase());
+        promo.description.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+        promo.code.toLowerCase().includes(this.searchTerm.toLowerCase());
       
-      return matchesSearch;
+      // Status filter
+      const matchesStatus = !this.statusFilter ||
+        (this.statusFilter === 'active' && promo.is_active) ||
+        (this.statusFilter === 'inactive' && !promo.is_active);
+      
+      // Discount filter
+      const matchesDiscount = !this.isDiscountFilterActive || (
+        (!this.discountTypeFilter || promo.discount_type === this.discountTypeFilter) &&
+        (this.minDiscountFilter === '' || promo.discount_value >= this.minDiscountFilter) &&
+        (this.maxDiscountFilter === '' || promo.discount_value <= this.maxDiscountFilter)
+      );
+      
+      // Date range filter
+      const matchesDateRange = !this.isDateRangeFilterActive || (
+        (!this.startDateFilter || new Date(promo.start_date) >= new Date(this.startDateFilter)) &&
+        (!this.endDateFilter || new Date(promo.end_date) <= new Date(this.endDateFilter))
+      );
+      
+      // Quantity filter
+      const matchesQuantity = !this.isQuantityFilterActive || (
+        (this.minQuantityFilter === '' || promo.quantity >= this.minQuantityFilter) &&
+        (this.maxQuantityFilter === '' || promo.quantity <= this.maxQuantityFilter)
+      );
+      
+      // User count filter
+      const matchesUserCount = !this.isUserCountFilterActive || (
+        (this.minUserCountFilter === '' || promo.used_count >= this.minUserCountFilter) &&
+        (this.maxUserCountFilter === '' || promo.used_count <= this.maxUserCountFilter)
+      );
+      
+      return matchesSearch && matchesStatus && matchesDiscount && matchesDateRange && matchesQuantity && matchesUserCount;
     });
   }
 
   onFilterChange() {
+    // Update filter activation flags
+    this.isDiscountFilterActive = !!(this.discountTypeFilter || this.minDiscountFilter || this.maxDiscountFilter);
+    this.isDateRangeFilterActive = !!(this.startDateFilter || this.endDateFilter);
+    this.isQuantityFilterActive = !!(this.minQuantityFilter || this.maxQuantityFilter);
+    this.isUserCountFilterActive = !!(this.minUserCountFilter || this.maxUserCountFilter);
+    
     this.applyFilters();
   }
 
@@ -112,6 +194,7 @@ export class PromotionListComponent implements OnInit {
       quantity: 0,
       is_active: true
     };
+    this.displayDiscountValue = '';
     this.showAddModal = true;
     this.errorMessage = '';
   }
@@ -121,8 +204,35 @@ export class PromotionListComponent implements OnInit {
     this.currentPromotion = {};
   }
 
+  hasChanges(): boolean {
+    if (!this.editPromotion || !this.originalEditPromotion) return false;
+    
+    return this.editPromotion.name !== this.originalEditPromotion.name ||
+           this.editPromotion.description !== this.originalEditPromotion.description ||
+           this.editPromotion.discount_type !== this.originalEditPromotion.discount_type ||
+           this.editPromotion.discount_value !== this.originalEditPromotion.discount_value ||
+           this.editPromotion.start_date !== this.originalEditPromotion.start_date ||
+           this.editPromotion.end_date !== this.originalEditPromotion.end_date ||
+           this.editPromotion.quantity !== this.originalEditPromotion.quantity ||
+           this.editPromotion.is_active !== this.originalEditPromotion.is_active;
+  }
+
+  onEditDiscountTypeChange() {
+    if (!this.editPromotion) return;
+    
+    // Reset discount value và display value khi đổi loại
+    this.editPromotion.discount_value = 0;
+    this.displayEditDiscountValue = '';
+  }
+
+  isPromotionUsed(): boolean {
+    return this.editPromotion ? (this.editPromotion.used_count || 0) > 0 : false;
+  }
+
   openEditModal(promo: Promotion) {
     this.editPromotion = { ...promo };
+    this.originalEditPromotion = { ...promo };
+    this.displayEditDiscountValue = promo.discount_type === 'FIXED_AMOUNT' ? this.formatNumber(promo.discount_value.toString()) : '';
     this.showEditModal = true;
     this.errorMessage = '';
   }
@@ -130,6 +240,7 @@ export class PromotionListComponent implements OnInit {
   closeEditModal() {
     this.showEditModal = false;
     this.editPromotion = null;
+    this.originalEditPromotion = null;
   }
 
   savePromotion() {
@@ -143,7 +254,7 @@ export class PromotionListComponent implements OnInit {
     const data: PromotionCreateRequest = {
       name: this.currentPromotion.name!,
       description: this.currentPromotion.description!,
-      discount_type: this.currentPromotion.discount_type as 'PERCENTAGE' | 'FIXED',
+      discount_type: this.currentPromotion.discount_type as 'PERCENTAGE' | 'FIXED_AMOUNT',
       discount_value: this.currentPromotion.discount_value!,
       start_date: this.formatDateTime(this.currentPromotion.start_date!),
       end_date: this.formatDateTime(this.currentPromotion.end_date!),
@@ -154,10 +265,9 @@ export class PromotionListComponent implements OnInit {
     this.promotionService.createPromotion(data).subscribe({
       next: (response) => {
         if (response.EC === 0) {
-          this.successMessage = 'Tạo mã khuyến mãi thành công';
+          this.showSuccessModal = true;
           this.loadPromotions();
           this.closeAddModal();
-          setTimeout(() => this.successMessage = '', 3000);
         } else {
           this.errorMessage = response.EM || 'Không thể tạo mã khuyến mãi';
         }
@@ -241,39 +351,183 @@ export class PromotionListComponent implements OnInit {
   }
 
   validatePromotion(): boolean {
+    let isValid = true;
+    this.validationErrors = {
+      name: '',
+      description: '',
+      discount_value: '',
+      start_date: '',
+      end_date: '',
+      quantity: ''
+    };
+
     if (!this.currentPromotion.name?.trim()) {
-      this.errorMessage = 'Vui lòng nhập tên mã khuyến mãi';
-      return false;
+      this.validationErrors.name = 'Vui lòng nhập tên mã khuyến mãi';
+      isValid = false;
+    } else if (this.currentPromotion.name.length > 20) {
+      this.validationErrors.name = 'Tên mã không quá 20 ký tự';
+      isValid = false;
     }
+
     if (!this.currentPromotion.description?.trim()) {
-      this.errorMessage = 'Vui lòng nhập mô tả';
-      return false;
+      this.validationErrors.description = 'Vui lòng nhập mô tả';
+      isValid = false;
+    } else if (this.currentPromotion.description.length > 100) {
+      this.validationErrors.description = 'Mô tả không quá 100 chữ';
+      isValid = false;
     }
+
     if (!this.currentPromotion.discount_value || this.currentPromotion.discount_value <= 0) {
-      this.errorMessage = 'Giá trị giảm giá phải lớn hơn 0';
-      return false;
+      this.validationErrors.discount_value = 'Giá trị giảm giá phải lớn hơn 0';
+      isValid = false;
+    } else if (this.currentPromotion.discount_type === 'PERCENTAGE' && this.currentPromotion.discount_value > 100) {
+      this.validationErrors.discount_value = 'Giảm giá phần trăm không quá 100%';
+      isValid = false;
     }
-    if (this.currentPromotion.discount_type === 'PERCENTAGE' && this.currentPromotion.discount_value > 100) {
-      this.errorMessage = 'Giảm giá phần trăm không được vượt quá 100%';
-      return false;
-    }
+
     if (!this.currentPromotion.start_date) {
-      this.errorMessage = 'Vui lòng chọn ngày bắt đầu';
-      return false;
+      this.validationErrors.start_date = 'Vui lòng chọn ngày bắt đầu';
+      isValid = false;
     }
+
     if (!this.currentPromotion.end_date) {
-      this.errorMessage = 'Vui lòng chọn ngày kết thúc';
-      return false;
+      this.validationErrors.end_date = 'Vui lòng chọn ngày kết thúc';
+      isValid = false;
+    } else if (this.currentPromotion.start_date && new Date(this.currentPromotion.start_date) >= new Date(this.currentPromotion.end_date)) {
+      this.validationErrors.end_date = 'Ngày kết thúc phải lớn hơn ngày bắt đầu';
+      isValid = false;
     }
-    if (new Date(this.currentPromotion.start_date) >= new Date(this.currentPromotion.end_date)) {
-      this.errorMessage = 'Ngày kết thúc phải sau ngày bắt đầu';
-      return false;
-    }
+
     if (!this.currentPromotion.quantity || this.currentPromotion.quantity <= 0) {
-      this.errorMessage = 'Số lượng phải lớn hơn 0';
-      return false;
+      this.validationErrors.quantity = 'Số lượng phải lớn hơn 0';
+      isValid = false;
+    } else if (this.currentPromotion.quantity > 1000000) {
+      this.validationErrors.quantity = 'Số lượng không quá 1,000,000';
+      isValid = false;
     }
-    return true;
+
+    return isValid;
+  }
+
+  // Validate while typing
+  onNameInput() {
+    this.validationErrors.name = '';
+    if (this.currentPromotion.name && this.currentPromotion.name.length > 20) {
+      this.currentPromotion.name = this.currentPromotion.name.substring(0, 20);
+    }
+  }
+
+  onDescriptionInput() {
+    this.validationErrors.description = '';
+    if (this.currentPromotion.description && this.currentPromotion.description.length > 100) {
+      this.currentPromotion.description = this.currentPromotion.description.substring(0, 100);
+    }
+  }
+
+  formatNumber(value: string): string {
+    // Remove all non-digit characters
+    let numStr = value.replace(/\D/g, '');
+    if (!numStr) return '';
+    
+    // Limit to 10 digits (1 billion = 1,000,000,000)
+    if (numStr.length > 10) {
+      numStr = numStr.substring(0, 10);
+    }
+    
+    // Convert to number and check max value
+    const num = parseInt(numStr, 10);
+    if (num > 1000000000) {
+      numStr = '1000000000';
+    }
+    
+    // Add thousand separators
+    return numStr.replace(/(\d)(?=(\d{3})+$)/g, '$1.');
+  }
+
+  parseFormattedNumber(value: string): number {
+    // Remove all dots and parse to number
+    const numStr = value.replace(/\./g, '');
+    return numStr ? parseInt(numStr, 10) : 0;
+  }
+
+  onDiscountValueInput(event?: Event) {
+    this.validationErrors.discount_value = '';
+    
+    if (this.currentPromotion.discount_type === 'FIXED_AMOUNT') {
+      // For FIXED type, format with thousand separators
+      const input = event?.target as HTMLInputElement;
+      if (input) {
+        const cursorPos = input.selectionStart || 0;
+        const oldValue = this.displayDiscountValue;
+        const oldLength = oldValue.length;
+        
+        // Remove all non-digit characters
+        let rawValue = input.value.replace(/\D/g, '');
+        
+        // Limit to 10 digits maximum
+        if (rawValue.length > 10) {
+          rawValue = rawValue.substring(0, 10);
+        }
+        
+        // Parse and validate
+        let numValue = rawValue ? parseInt(rawValue, 10) : 0;
+        if (numValue > 1000000000) {
+          numValue = 1000000000;
+        }
+        if (numValue < 0) {
+          numValue = 0;
+        }
+        
+        // Update both values
+        this.currentPromotion.discount_value = numValue;
+        this.displayDiscountValue = this.formatNumber(numValue.toString());
+        
+        // Restore cursor position
+        const newLength = this.displayDiscountValue.length;
+        const diff = newLength - oldLength;
+        const newCursorPos = Math.max(0, cursorPos + diff);
+        
+        setTimeout(() => {
+          input.value = this.displayDiscountValue;
+          input.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+      }
+    } else {
+      // For PERCENTAGE type, normal number validation
+      setTimeout(() => {
+        if (this.currentPromotion.discount_value) {
+          if (this.currentPromotion.discount_value > 100) {
+            this.currentPromotion.discount_value = 100;
+          }
+          if (this.currentPromotion.discount_value < 0) {
+            this.currentPromotion.discount_value = 0;
+          }
+        }
+      }, 0);
+    }
+  }
+
+  onQuantityInput() {
+    this.validationErrors.quantity = '';
+    setTimeout(() => {
+      if (this.currentPromotion.quantity) {
+        if (this.currentPromotion.quantity > 1000000) {
+          this.currentPromotion.quantity = 1000000;
+        }
+        if (this.currentPromotion.quantity < 1) {
+          this.currentPromotion.quantity = 1;
+        }
+      }
+    }, 0);
+  }
+
+  onEndDateChange() {
+    this.validationErrors.end_date = '';
+    if (this.currentPromotion.start_date && this.currentPromotion.end_date) {
+      if (new Date(this.currentPromotion.start_date) >= new Date(this.currentPromotion.end_date)) {
+        this.validationErrors.end_date = 'Ngày kết thúc phải lớn hơn ngày bắt đầu';
+      }
+    }
   }
 
   updatePromotion() {
@@ -283,35 +537,62 @@ export class PromotionListComponent implements OnInit {
 
     if (!this.editPromotion) return;
 
+    // Ensure promotion_id exists before updating
+    if (!this.editPromotion.promotion_id) {
+      this.errorMessage = 'Không tìm thấy ID của mã khuyến mãi để cập nhật.';
+      this.showErrorModal = true;
+      setTimeout(() => this.showErrorModal = false, 2500);
+      return;
+    }
+
     this.isLoading = true;
     this.errorMessage = '';
 
     const data: PromotionUpdateRequest = {
       name: this.editPromotion.name,
       description: this.editPromotion.description,
-      discount_type: this.editPromotion.discount_type as 'PERCENTAGE' | 'FIXED',
+      discount_type: this.editPromotion.discount_type as 'PERCENTAGE' | 'FIXED_AMOUNT',
       discount_value: this.editPromotion.discount_value,
-      start_date: this.formatDateTime(this.editPromotion.start_date),
-      end_date: this.formatDateTime(this.editPromotion.end_date),
+      start_date: this.formatDateTime(this.editPromotion.start_date || ''),
+      end_date: this.formatDateTime(this.editPromotion.end_date || ''),
       quantity: this.editPromotion.quantity,
       is_active: this.editPromotion.is_active
     };
 
+    console.log('🔄 Updating promotion with data:', data);
+    console.log('📝 Original promotion:', this.originalEditPromotion);
+    console.log('✏️ Edited promotion:', this.editPromotion);
+
     this.promotionService.updatePromotion(this.editPromotion.promotion_id, data).subscribe({
       next: (response) => {
         if (response.EC === 0) {
-          this.successMessage = 'Cập nhật mã khuyến mãi thành công';
           this.loadPromotions();
           this.closeEditModal();
-          setTimeout(() => this.successMessage = '', 3000);
+          this.showSuccessModal = true;
+          setTimeout(() => this.showSuccessModal = false, 2500);
         } else {
           this.errorMessage = response.EM || 'Không thể cập nhật mã khuyến mãi';
+          this.showErrorModal = true;
+          setTimeout(() => this.showErrorModal = false, 2500);
         }
         this.isLoading = false;
       },
       error: (error) => {
-        this.errorMessage = 'Lỗi khi cập nhật mã khuyến mãi';
-        console.error('Update promotion error:', error);
+        console.error('Update promotion error - Full error:', error);
+        console.error('Error status:', error.status);
+        console.error('Error message:', error.message);
+        console.error('Error error:', error.error);
+        
+        if (error.error?.detail) {
+          this.errorMessage = error.error.detail;
+        } else if (error.error?.EM) {
+          this.errorMessage = error.error.EM;
+        } else {
+          this.errorMessage = 'Lỗi khi cập nhật mã khuyến mãi';
+        }
+        
+        this.showErrorModal = true;
+        setTimeout(() => this.showErrorModal = false, 2500);
         this.isLoading = false;
       }
     });
@@ -320,40 +601,159 @@ export class PromotionListComponent implements OnInit {
   validateEditPromotion(): boolean {
     if (!this.editPromotion) return false;
 
+    let isValid = true;
+    this.editValidationErrors = {
+      name: '',
+      description: '',
+      discount_value: '',
+      start_date: '',
+      end_date: '',
+      quantity: ''
+    };
+
     if (!this.editPromotion.name?.trim()) {
-      this.errorMessage = 'Vui lòng nhập tên mã khuyến mãi';
-      return false;
+      this.editValidationErrors.name = 'Vui lòng nhập tên mã khuyến mãi';
+      isValid = false;
+    } else if (this.editPromotion.name.length > 20) {
+      this.editValidationErrors.name = 'Tên mã không quá 20 ký tự';
+      isValid = false;
     }
+
     if (!this.editPromotion.description?.trim()) {
-      this.errorMessage = 'Vui lòng nhập mô tả';
-      return false;
+      this.editValidationErrors.description = 'Vui lòng nhập mô tả';
+      isValid = false;
+    } else if (this.editPromotion.description.length > 100) {
+      this.editValidationErrors.description = 'Mô tả không quá 100 chữ';
+      isValid = false;
     }
+
     if (!this.editPromotion.discount_value || this.editPromotion.discount_value <= 0) {
-      this.errorMessage = 'Giá trị giảm giá phải lớn hơn 0';
-      return false;
+      this.editValidationErrors.discount_value = 'Giá trị giảm giá phải lớn hơn 0';
+      isValid = false;
+    } else if (this.editPromotion.discount_type === 'PERCENTAGE' && this.editPromotion.discount_value > 100) {
+      this.editValidationErrors.discount_value = 'Giảm giá phần trăm không quá 100%';
+      isValid = false;
     }
-    if (this.editPromotion.discount_type === 'PERCENTAGE' && this.editPromotion.discount_value > 100) {
-      this.errorMessage = 'Giảm giá phần trăm không được vượt quá 100%';
-      return false;
-    }
+
     if (!this.editPromotion.start_date) {
-      this.errorMessage = 'Vui lòng chọn ngày bắt đầu';
-      return false;
+      this.editValidationErrors.start_date = 'Vui lòng chọn ngày bắt đầu';
+      isValid = false;
     }
+
     if (!this.editPromotion.end_date) {
-      this.errorMessage = 'Vui lòng chọn ngày kết thúc';
-      return false;
+      this.editValidationErrors.end_date = 'Vui lòng chọn ngày kết thúc';
+      isValid = false;
+    } else if (this.editPromotion.start_date && new Date(this.editPromotion.start_date) >= new Date(this.editPromotion.end_date)) {
+      this.editValidationErrors.end_date = 'Ngày kết thúc phải lớn hơn ngày bắt đầu';
+      isValid = false;
     }
-    if (new Date(this.editPromotion.start_date) >= new Date(this.editPromotion.end_date)) {
-      this.errorMessage = 'Ngày kết thúc phải sau ngày bắt đầu';
-      return false;
-    }
+
     if (!this.editPromotion.quantity || this.editPromotion.quantity <= 0) {
-      this.errorMessage = 'Số lượng phải lớn hơn 0';
-      return false;
+      this.editValidationErrors.quantity = 'Số lượng phải lớn hơn 0';
+      isValid = false;
+    } else if (this.editPromotion.quantity > 1000000) {
+      this.editValidationErrors.quantity = 'Số lượng không quá 1,000,000';
+      isValid = false;
     }
-    return true;
+
+    return isValid;
   }
+
+  // Edit modal validation while typing
+  onEditNameInput() {
+    this.editValidationErrors.name = '';
+    if (this.editPromotion && this.editPromotion.name && this.editPromotion.name.length > 20) {
+      this.editPromotion.name = this.editPromotion.name.substring(0, 20);
+    }
+  }
+
+  onEditDescriptionInput() {
+    this.editValidationErrors.description = '';
+    if (this.editPromotion && this.editPromotion.description && this.editPromotion.description.length > 100) {
+      this.editPromotion.description = this.editPromotion.description.substring(0, 100);
+    }
+  }
+
+  onEditDiscountValueInput(event?: Event) {
+    this.editValidationErrors.discount_value = '';
+    
+    if (this.editPromotion && this.editPromotion.discount_type === 'FIXED_AMOUNT') {
+      // For FIXED type, format with thousand separators
+      const input = event?.target as HTMLInputElement;
+      if (input) {
+        const cursorPos = input.selectionStart || 0;
+        const oldValue = this.displayEditDiscountValue;
+        const oldLength = oldValue.length;
+        
+        // Remove all non-digit characters
+        let rawValue = input.value.replace(/\D/g, '');
+        
+        // Limit to 10 digits maximum
+        if (rawValue.length > 10) {
+          rawValue = rawValue.substring(0, 10);
+        }
+        
+        // Parse and validate
+        let numValue = rawValue ? parseInt(rawValue, 10) : 0;
+        if (numValue > 1000000000) {
+          numValue = 1000000000;
+        }
+        if (numValue < 0) {
+          numValue = 0;
+        }
+        
+        // Update both values
+        this.editPromotion.discount_value = numValue;
+        this.displayEditDiscountValue = this.formatNumber(numValue.toString());
+        
+        // Restore cursor position
+        const newLength = this.displayEditDiscountValue.length;
+        const diff = newLength - oldLength;
+        const newCursorPos = Math.max(0, cursorPos + diff);
+        
+        setTimeout(() => {
+          input.value = this.displayEditDiscountValue;
+          input.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+      }
+    } else {
+      // For PERCENTAGE type, normal number validation
+      setTimeout(() => {
+        if (this.editPromotion && this.editPromotion.discount_value) {
+          if (this.editPromotion.discount_value > 100) {
+            this.editPromotion.discount_value = 100;
+          }
+          if (this.editPromotion.discount_value < 0) {
+            this.editPromotion.discount_value = 0;
+          }
+        }
+      }, 0);
+    }
+  }
+
+  onEditQuantityInput() {
+    this.editValidationErrors.quantity = '';
+    setTimeout(() => {
+      if (this.editPromotion && this.editPromotion.quantity) {
+        if (this.editPromotion.quantity > 1000000) {
+          this.editPromotion.quantity = 1000000;
+        }
+        if (this.editPromotion.quantity < 1) {
+          this.editPromotion.quantity = 1;
+        }
+      }
+    }, 0);
+  }
+
+  onEditEndDateChange() {
+    this.editValidationErrors.end_date = '';
+    if (this.editPromotion && this.editPromotion.start_date && this.editPromotion.end_date) {
+      if (new Date(this.editPromotion.start_date) >= new Date(this.editPromotion.end_date)) {
+        this.editValidationErrors.end_date = 'Ngày kết thúc phải lớn hơn ngày bắt đầu';
+      }
+    }
+  }
+
   formatDateTime(dateString: string): string {
     const date = new Date(dateString);
     return date.toISOString();
@@ -435,6 +835,7 @@ export class PromotionListComponent implements OnInit {
   }
 
   clearDiscountFilter() {
+    this.discountTypeFilter = '';
     this.minDiscountFilter = '';
     this.maxDiscountFilter = '';
     this.isDiscountFilterActive = false;
@@ -567,4 +968,6 @@ export class PromotionListComponent implements OnInit {
     this.loadPromotions();
   }
 }
+
+
 

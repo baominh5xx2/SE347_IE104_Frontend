@@ -12,7 +12,7 @@ import { ReportService, RevenuePeriod, PriceRangeData } from '../../../services/
 })
 export class ReportsComponent implements OnInit {
   // Revenue Report
-  revenuePeriodType: 'week' | 'month' = 'month';
+  revenuePeriodType: 'week' | 'month' = 'week';
   revenueStartDate: string = '';
   revenueEndDate: string = '';
   revenueData: RevenuePeriod[] = [];
@@ -30,20 +30,37 @@ export class ReportsComponent implements OnInit {
   periodEnd: string = '';
   isLoadingPriceRange: boolean = false;
 
+  // Top Customers
+  topCustomers: any[] = [];
+  isLoadingTopCustomers: boolean = false;
+
+  // Top Tours
+  topTours: any[] = [];
+  isLoadingTopTours: boolean = false;
+
   errorMessage: string = '';
 
   constructor(private reportService: ReportService) {
-    // Mặc định: tháng hiện tại
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    this.revenueStartDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    this.revenueEndDate = `${year}-${String(month).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // Mặc định: tháng 12/2025 - từ tuần đầu đến tuần cuối
+    const dec2025Start = new Date(2025, 11, 1); // 1/12/2025
+    const dec2025End = new Date(2025, 11, 31); // 31/12/2025
+    
+    this.revenueStartDate = this.formatDateForInput(dec2025Start);
+    this.revenueEndDate = this.formatDateForInput(dec2025End);
+  }
+
+  private formatDateForInput(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   ngOnInit() {
     this.loadRevenueReport();
     this.loadPriceRangeReport();
+    this.loadTopCustomers();
+    this.loadTopTours();
   }
 
   loadRevenueReport() {
@@ -117,6 +134,26 @@ export class ReportsComponent implements OnInit {
   }
 
   onRevenuePeriodChange() {
+    // Tự động cập nhật date range phù hợp với period type
+    const now = new Date();
+    
+    if (this.revenuePeriodType === 'week') {
+      // Tuần trước: Thứ 2 đến Chủ nhật
+      const lastWeekEnd = new Date(now);
+      lastWeekEnd.setDate(now.getDate() - now.getDay()); // Chủ nhật tuần này
+      const lastWeekStart = new Date(lastWeekEnd);
+      lastWeekStart.setDate(lastWeekEnd.getDate() - 6); // Thứ 2 tuần trước
+      
+      this.revenueStartDate = this.formatDateForInput(lastWeekStart);
+      this.revenueEndDate = this.formatDateForInput(lastWeekEnd);
+    } else {
+      // Tháng hiện tại: ngày 1 đến hôm nay
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      this.revenueStartDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      this.revenueEndDate = `${year}-${String(month).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+    
     this.loadRevenueReport();
   }
 
@@ -282,6 +319,52 @@ export class ReportsComponent implements OnInit {
     const firstPoint = points[0];
     
     return `${linePath} L ${lastPoint.x},${height - padding} L ${firstPoint.x},${height - padding} Z`;
+  }
+
+  loadTopCustomers() {
+    this.isLoadingTopCustomers = true;
+    this.reportService.getTopCustomers(10, this.revenueStartDate, this.revenueEndDate).subscribe({
+      next: (response) => {
+        if (response && response.EC === 0) {
+          this.topCustomers = response.data || [];
+        }
+        this.isLoadingTopCustomers = false;
+      },
+      error: (error) => {
+        console.error('Error loading top customers:', error);
+        this.isLoadingTopCustomers = false;
+      }
+    });
+  }
+
+  loadTopTours() {
+    this.isLoadingTopTours = true;
+    this.reportService.getTopTours(10, this.revenueStartDate, this.revenueEndDate).subscribe({
+      next: (response) => {
+        if (response && response.EC === 0) {
+          this.topTours = response.data || [];
+        }
+        this.isLoadingTopTours = false;
+      },
+      error: (error) => {
+        console.error('Error loading top tours:', error);
+        this.isLoadingTopTours = false;
+      }
+    });
+  }
+
+  getPodiumClass(index: number): string {
+    if (index === 0) return 'h-32 bg-gradient-to-br from-yellow-400 to-yellow-600';
+    if (index === 1) return 'h-24 bg-gradient-to-br from-gray-300 to-gray-500';
+    if (index === 2) return 'h-20 bg-gradient-to-br from-orange-400 to-orange-600';
+    return '';
+  }
+
+  getPodiumPosition(index: number): string {
+    if (index === 0) return '🥇';
+    if (index === 1) return '🥈';
+    if (index === 2) return '🥉';
+    return `${index + 1}`;
   }
 
 }

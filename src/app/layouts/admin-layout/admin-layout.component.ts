@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AdminDialogService } from '../../services/admin/admin-dialog.service';
@@ -13,15 +13,38 @@ import { AuthStateService } from '../../services/auth-state.service';
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.scss'
 })
-export class AdminLayoutComponent {
+export class AdminLayoutComponent implements OnInit {
   showDropdown = false;
   showChatbot = false;
+  adminProfilePicture: string | null = null;
+  adminName: string = 'Admin';
 
   constructor(
     private router: Router,
     private dialogService: AdminDialogService,
     private authStateService: AuthStateService
   ) {}
+
+  ngOnInit() {
+    this.loadAdminProfile();
+  }
+
+  loadAdminProfile() {
+    try {
+      const adminData = localStorage.getItem('admin');
+      if (adminData) {
+        const admin = JSON.parse(adminData);
+        this.adminProfilePicture = admin.profile_picture || null;
+        this.adminName = admin.full_name || admin.email || 'Admin';
+      }
+    } catch (error) {
+      console.error('Error loading admin profile:', error);
+    }
+  }
+
+  getAdminInitial(): string {
+    return this.adminName.charAt(0).toUpperCase();
+  }
 
   toggleDropdown() {
     this.showDropdown = !this.showDropdown;

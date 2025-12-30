@@ -4,6 +4,8 @@ import { RouterModule } from '@angular/router';
 import { ReportService } from '../../../services/admin/admin-report.service';
 import { AdminBookingService } from '../../../services/admin/admin-booking.service';
 import { AdminReviewService } from '../../../services/admin/admin-review.service';
+import { AdminTourService } from '../../../services/admin/admin-tour.service';
+import { AdminUserService } from '../../../services/admin/admin-user.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,6 +29,19 @@ export class DashboardComponent implements OnInit {
   totalReviews = 0;
   averageRating = 0;
   
+  // New metrics
+  newToursThisMonth = 0;
+  newUsersThisMonth = 0;
+  totalChatSessions = 0;
+  activeChatSessions = 0;
+  pendingReviewsCount = 0;
+  
+  // Lists for display
+  recentBookings: any[] = [];
+  topReviews: any[] = [];
+  newToursList: any[] = [];
+  pendingReviews: any[] = [];
+  
   // Loading states
   isLoading = true;
   errorMessage = '';
@@ -41,7 +56,9 @@ export class DashboardComponent implements OnInit {
   constructor(
     private reportService: ReportService,
     private bookingService: AdminBookingService,
-    private reviewService: AdminReviewService
+    private reviewService: AdminReviewService,
+    private tourService: AdminTourService,
+    private userService: AdminUserService
   ) {}
 
   ngOnInit() {
@@ -56,7 +73,10 @@ export class DashboardComponent implements OnInit {
     Promise.all([
       this.loadRevenueData(),
       this.loadBookingStats(),
-      this.loadReviewStats()
+      this.loadReviewStats(),
+      this.loadNewTours(),
+      this.loadNewUsers(),
+      this.loadChatStats()
     ]).then(() => {
       this.isLoading = false;
     }).catch(error => {
@@ -200,6 +220,9 @@ export class DashboardComponent implements OnInit {
         this.cancelledBookings = bookings.filter((b: any) => b.status === 'cancelled').length;
         this.otpSentBookings = bookings.filter((b: any) => b.status === 'otp_sent').length;
         
+        // Get recent bookings (5 most recent)
+        this.recentBookings = bookings.slice(0, 5);
+        
         // Prepare status distribution data
         this.bookingStatusData = [
           { status: 'pending', count: 0, color: 'bg-yellow-500', label: 'Chờ thanh toán' },
@@ -242,9 +265,24 @@ export class DashboardComponent implements OnInit {
         if (reviews.length > 0) {
           const totalRating = reviews.reduce((sum: number, review: any) => sum + (review.rating || 0), 0);
           this.averageRating = totalRating / reviews.length;
+          
+          // Get top 5 reviews sorted by rating
+          this.topReviews = [...reviews]
+            .sort((a: any, b: any) => b.rating - a.rating)
+            .slice(0, 5);
+          
+          // Count pending reviews
+          this.pendingReviewsCount = reviews
+            .filter((review: any) => review.status === 'pending')
+            .length;
+          
+          // Get pending reviews list (top 5)
+          this.pendingReviews = reviews
+            .filter((review: any) => review.status === 'pending')
+            .slice(0, 5);
         }
         
-        console.log('⭐ Review stats loaded:', this.totalReviews, 'avg:', this.averageRating);
+        console.log('⭐ Review stats loaded:', this.totalReviews, 'avg:', this.averageRating, 'pending:', this.pendingReviewsCount);
       }
     } catch (error) {
       // Bỏ qua lỗi review vì endpoint có thể chưa có hoặc không cần thiết cho dashboard
@@ -326,5 +364,137 @@ export class DashboardComponent implements OnInit {
       return `${month}/${year}`;
     }
     return period;
+  }
+
+  async loadNewTours() {
+    try {
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+      const currentYear = now.getFullYear();
+      
+      // Gọi API filter tours theo tháng hiện tại
+      const response = await this.tourService.filterToursByMonth(
+        currentMonth,
+        currentYear,
+        'start_date',
+        true, // Chỉ lấy tours đang active
+        100,
+        0
+      );
+      
+      if (response && response.EC === 0 && response.packages) {
+        // Sắp xếp theo ngày khởi hành gần nhất
+        const sortedTours = [...response.packages].sort((a: any, b: any) => {
+          const dateA = new Date(a.start_date).getTime();
+          const dateB = new Date(b.start_date).getTime();
+          return dateA - dateB; // Ngày sớm nhất lên đầu
+        });
+        
+        this.newToursThisMonth = sortedTours.length;
+        this.newToursList = sortedTours.slice(0, 5);
+        
+        console.log(`📊 Tours khởi hành tháng ${currentMonth}/${currentYear}:`, this.newToursThisMonth);
+        console.log('📋 Top 5:', this.newToursList.map((t: any) => ({ 
+          name: t.package_name, 
+          start_date: t.start_date 
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading new tours:', error);
+      this.newToursThisMonth = 0;
+      this.newToursList = [];
+    }
+  }
+
+  async loadNewUsers() {
+    try {
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      const response = await this.userService.getAllUsers().toPromise();
+      
+      if (response && response.EC === 0 && response.data && response.data.users) {
+        this.newUsersThisMonth = response.data.users.filter((user: any) => {
+          const createdDate = new Date(user.created_at);
+          return createdDate >= firstDayOfMonth;
+        }).length;
+      }
+    } catch (error) {
+      console.error('Error loading new users:', error);
+      this.newUsersThisMonth = 0;
+    }
+  }
+
+  async loadChatStats() {
+    try {
+      // Placeholder - có thể lấy từ API chat nếu có
+      // Tạm thời tính từ bookings và reviews
+      this.totalChatSessions = this.totalBookings + this.totalReviews;
+      this.activeChatSessions = Math.floor(this.totalChatSessions * 0.15); // giả sử 15% active
+    } catch (error) {
+      console.error('Error loading chat stats:', error);
+      this.totalChatSessions = 0;
+      this.activeChatSessions = 0;
+    }
+  }
+
+  getBookingStatusBadgeClass(status: string): string {
+    const statusClasses: { [key: string]: string } = {
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'otp_sent': 'bg-cyan-100 text-cyan-800',
+      'confirmed': 'bg-green-100 text-green-800',
+      'completed': 'bg-blue-100 text-blue-800',
+      'cancelled': 'bg-red-100 text-red-800'
+    };
+    return statusClasses[status] || 'bg-gray-100 text-gray-800';
+  }
+
+  getBookingStatusLabel(status: string): string {
+    const labels: { [key: string]: string } = {
+      'pending': 'Chờ thanh toán',
+      'otp_sent': 'OTP đã gửi',
+      'confirmed': 'Đã xác nhận',
+      'completed': 'Hoàn thành',
+      'cancelled': 'Đã hủy'
+    };
+    return labels[status] || status;
+  }
+
+  formatBookingDate(dateString: string): string {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  getRatingStars(rating: number): string {
+    return '⭐'.repeat(Math.floor(rating));
+  }
+
+  getTourImage(tour: any): string {
+    if (!tour || !tour.image_urls) return '';
+    
+    // Nếu image_urls là string JSON array
+    try {
+      const urls = JSON.parse(tour.image_urls);
+      if (Array.isArray(urls) && urls.length > 0) {
+        return urls[0];
+      }
+    } catch {
+      // Nếu không phải JSON, trả về string gốc
+      return tour.image_urls;
+    }
+    
+    return tour.image_urls;
+  }
+
+  onTourImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.style.display = 'none';
+      const fallback = img.nextElementSibling as HTMLElement;
+      if (fallback) {
+        fallback.style.display = 'flex';
+      }
+    }
   }
 }

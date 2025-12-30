@@ -28,6 +28,13 @@
     <div>
       <h2 class="text-2xl font-bold text-gray-800">Quản lý Thanh toán</h2>
     </div>
+    <button class="px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg"
+      (click)="openCreateModal()">
+      <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Tạo thanh toán
+    </button>
   </div>
 
   <div class="bg-white rounded-lg shadow-lg p-6 space-y-5">
@@ -72,7 +79,7 @@
         <input [(ngModel)]="maxAmountDisplay" (input)="formatNumberInput($event, 'max')" type="text" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" placeholder="vd. 5.000.000">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Tour từ ngày</label>
         <input [(ngModel)]="paidFrom" type="date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
       </div>
       <div>
@@ -84,14 +91,14 @@
     <!-- Action Buttons -->
     <div class="flex justify-end gap-3 pt-3 border-t border-gray-200">
       <button class="px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm" (click)="applyFilters()">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
         </svg>
         Áp dụng lọc
       </button>
       <button class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm" (click)="reloadData()">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
         </svg>
         Tải lại
@@ -131,7 +138,7 @@
             <td class="px-4 py-3 truncate max-w-[200px]" title="{{ p.user_name || p.contact_email || p.user_id }}">{{
               p.user_name || p.contact_email || p.user_id || '—' }}</td>
             <td class="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{{ p.amount | number:'1.0-0' }} VNĐ</td>
-            <td class="px-4 py-3 whitespace-nowrap">{{ p.payment_method }}</td>
+            <td class="px-4 py-3 whitespace-nowrap">{{ getPaymentMethodText(p.payment_method) }}</td>
             <td class="px-4 py-3">
               <span [class]="getStatusClass(p.payment_status)" class="px-2 py-1 rounded-full text-xs font-semibold">{{
                 getStatusText(p.payment_status) }}</span>
@@ -160,6 +167,57 @@
   </div>
 
 
+
+  <!-- Create Payment Modal -->
+  <div *ngIf="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    (click)="closeCreateModal()">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg" (click)="$event.stopPropagation()">
+      <div class="px-6 py-4 border-b border-gray-100">
+        <h3 class="text-lg font-semibold">Tạo thanh toán mới</h3>
+        <p class="text-sm text-gray-500">Tạo payment thủ công cho booking (bypass VNPay)</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Booking ID <span class="text-red-500">*</span></label>
+          <input [(ngModel)]="createPayload.booking_id" type="text" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Nhập Booking ID (uuid)">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Phương thức thanh toán</label>
+          <select [(ngModel)]="createPayload.payment_method" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="bank_transfer">Chuyển khoản ngân hàng</option>
+            <option value="cash">Tiền mặt</option>
+            <option value="vnpay">VNPay</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Mã giao dịch (Transaction ID)</label>
+          <input [(ngModel)]="createPayload.transaction_id" type="text" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="VD: BANK123456">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Ghi chú</label>
+          <textarea [(ngModel)]="createPayload.notes" rows="3" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Nhập ghi chú (VD: Khách chuyển khoản ngân hàng)"></textarea>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+          <p class="font-semibold mb-1">⚠️ Lưu ý:</p>
+          <ul class="list-disc list-inside space-y-1">
+            <li>Số tiền sẽ tự động lấy từ booking.total_amount</li>
+            <li>Payment sẽ được tạo với status 'completed' ngay lập tức</li>
+            <li>Booking status sẽ được cập nhật thành 'confirmed'</li>
+          </ul>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+        <button class="px-4 py-2 rounded-lg border hover:bg-gray-50" (click)="closeCreateModal()" [disabled]="isLoading">Hủy</button>
+        <button class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400" (click)="submitCreate()" [disabled]="isLoading">
+          <span *ngIf="isLoading" class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+          Xác nhận tạo
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Refund Modal -->
   <div *ngIf="showRefundModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
@@ -203,14 +261,15 @@
         </div>
         <div>
           <p class="font-semibold text-gray-800 mb-2">Khách hàng</p>
-          <p><span class="text-gray-500">Tên:</span> {{ selectedPayment?.user_name || '—' }}</p>
+          <p><span class="text-gray-500">Tên:</span> {{ getPaymentUserName(selectedPayment) }}</p>
           <p><span class="text-gray-500">Email:</span> {{ selectedPayment?.contact_email || '—' }}</p>
           <p><span class="text-gray-500">Điện thoại:</span> {{ selectedPayment?.contact_phone || '—' }}</p>
+          <p><span class="text-gray-500">User ID:</span> {{ selectedPayment?.user_id || '—' }}</p>
         </div>
         <div>
           <p class="font-semibold text-gray-800 mb-2">Thanh toán</p>
           <p><span class="text-gray-500">Số tiền:</span> {{ selectedPayment?.amount | number:'1.0-0' }} VNĐ</p>
-          <p><span class="text-gray-500">Phương thức:</span> {{ selectedPayment?.payment_method }}</p>
+          <p><span class="text-gray-500">Phương thức:</span> {{ getPaymentMethodText(selectedPayment?.payment_method || '') }}</p>
           <p><span class="text-gray-500">Trạng thái:</span> {{ getStatusText(selectedPayment?.payment_status || '') }}
           </p>
           <p><span class="text-gray-500">Thanh toán lúc:</span> {{ formatDate(selectedPayment?.paid_at ||
@@ -219,7 +278,6 @@
         <div>
           <p class="font-semibold text-gray-800 mb-2">Mã tham chiếu</p>
           <p><span class="text-gray-500">Booking ID:</span> {{ selectedPayment?.booking_id }}</p>
-          <p><span class="text-gray-500">User ID:</span> {{ selectedPayment?.user_id }}</p>
           <p><span class="text-gray-500">Transaction ID:</span> {{ selectedPayment?.transaction_id || '—' }}</p>
         </div>
         <div class="md:col-span-2">
@@ -233,14 +291,15 @@
         <button *ngIf="selectedPayment?.payment_status === 'pending'"
           class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
           (click)="processPayment(selectedPayment!)">
-          <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="white" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
           Thanh toán
         </button>
-        <button class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          (click)="openRefundModal(selectedPayment!)" [disabled]="!selectedPayment || !canRefund(selectedPayment)">
-          <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button *ngIf="selectedPayment && canRefund(selectedPayment)"
+          class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          (click)="openRefundModal(selectedPayment!)">
+          <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="white" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
           </svg>
           Hoàn tiền

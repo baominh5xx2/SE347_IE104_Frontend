@@ -40,6 +40,30 @@ export interface PeopleByPriceRangeResponse {
   total_bookings_all_ranges: number;
 }
 
+export interface TopCustomerResponse {
+  EC: number;
+  EM: string;
+  data: Array<{
+    user_id: string;
+    user_email: string;
+    user_full_name: string | null;
+    total_revenue: number;
+    total_bookings: number;
+  }>;
+}
+
+export interface TopTourResponse {
+  EC: number;
+  EM: string;
+  data: Array<{
+    tour_id: string;
+    tour_name: string;
+    total_bookings: number;
+    total_revenue: number;
+    total_people: number;
+  }>;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -136,6 +160,50 @@ export class ReportService {
 
     return this.http.get<PeopleByPriceRangeResponse>(
       `${this.apiBaseUrl}/people-by-price-range`,
+      {
+        headers: this.getHeaders(),
+        params: httpParams
+      }
+    );
+  }
+
+  /**
+   * GET /api/v1/reports/top-customers
+   * Get top customers by revenue
+   */
+  getTopCustomers(
+    limit: number = 10,
+    start_date?: string,
+    end_date?: string
+  ): Observable<TopCustomerResponse> {
+    let httpParams = new HttpParams().set('limit', limit.toString());
+    if (start_date) httpParams = httpParams.set('start_date', start_date);
+    if (end_date) httpParams = httpParams.set('end_date', end_date);
+
+    return this.http.get<TopCustomerResponse>(
+      `${this.apiBaseUrl}/top-customers`,
+      {
+        headers: this.getHeaders(),
+        params: httpParams
+      }
+    );
+  }
+
+  /**
+   * GET /api/v1/reports/top-tours
+   * Get top tours by bookings
+   */
+  getTopTours(
+    limit: number = 10,
+    start_date?: string,
+    end_date?: string
+  ): Observable<TopTourResponse> {
+    let httpParams = new HttpParams().set('limit', limit.toString());
+    if (start_date) httpParams = httpParams.set('start_date', start_date);
+    if (end_date) httpParams = httpParams.set('end_date', end_date);
+
+    return this.http.get<TopTourResponse>(
+      `${this.apiBaseUrl}/top-tours`,
       {
         headers: this.getHeaders(),
         params: httpParams
