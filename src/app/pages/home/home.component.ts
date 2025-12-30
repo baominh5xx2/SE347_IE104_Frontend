@@ -12,17 +12,22 @@ import { TravelNews } from '../../shared/models/travel-news.model';
 import { AuthStateService } from '../../services/auth-state.service';
 import { AuthService } from '../../services/auth.service';
 import { take } from 'rxjs/operators';
+import { FavoriteService } from '../../services/favorite.service';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
 
 @Component({
   selector: 'app-home',
   imports: [
     CommonModule,
     RouterLink,
-    HeroComponent, 
-    CouponListComponent, 
+    HeroComponent,
+    CouponListComponent,
     TourCardComponent,
-    TravelNewsCardComponent
+    TravelNewsCardComponent,
+    ToastModule
   ],
+  providers: [MessageService],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
 })
@@ -46,11 +51,13 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     private tourService: TourService,
     private travelNewsService: TravelNewsService,
     private authStateService: AuthStateService,
+    private favoriteService: FavoriteService,
+    private messageService: MessageService,
     private authService: AuthService,
     private route: ActivatedRoute,
     private router: Router,
     private elementRef: ElementRef
-  ) {}
+  ) { }
 
   async ngOnInit() {
     // Check for Google OAuth token in query params - only process once
@@ -71,21 +78,21 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private handleGoogleAuthToken(token: string): void {
     console.log('Processing Google auth token...');
-    
+
     // Store token first
     localStorage.setItem('access_token', token);
-    
+
     // Remove token from URL immediately (before processing)
-    this.router.navigate(['/home'], { 
+    this.router.navigate(['/home'], {
       replaceUrl: true,
       queryParams: {}
     });
-    
+
     // Verify token and login
     this.authService.verifyToken(token).subscribe({
       next: (response) => {
         console.log('Token verification response:', response);
-        
+
         if (response.EC === 0 && response.data) {
           // Create user object from token data
           const user = {
@@ -94,15 +101,15 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
             user_id: response.data.user_id || response.data.email || '',
             role: response.data.role || 'user'
           };
-          
+
           console.log('User object created:', user);
-          
+
           // Store user in localStorage
           localStorage.setItem('user', JSON.stringify(user));
-          
+
           // Update auth state service to trigger UI update
           this.authStateService.login(token, user);
-          
+
           console.log('User logged in successfully:', user.full_name);
         } else {
           console.error('Token verification failed:', response.EM);
@@ -155,23 +162,23 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isLoadingFeaturedTours = true;
     this.errorMessageFeatured = null;
     try {
-      const response = await this.tourService.getTourPackages({ 
-        is_active: true, 
-        limit: 50 
+      const response = await this.tourService.getTourPackages({
+        is_active: true,
+        limit: 50
       });
-      
+
       if (!response || !response.packages || !Array.isArray(response.packages)) {
         console.warn('Invalid response format:', response);
         this.featuredTours = [];
         this.errorMessageFeatured = 'Định dạng dữ liệu không hợp lệ.';
         return;
       }
-      
+
       if (response.packages.length === 0) {
         this.featuredTours = [];
         return;
       }
-      
+
       const featuredTours = response.packages
         .filter(tour => tour.rating && tour.rating >= 4.0)
         .sort((a, b) => {
@@ -179,17 +186,17 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
           const ratingB = b.rating || 0;
           const reviewsA = a.reviews || 0;
           const reviewsB = b.reviews || 0;
-          
+
           if (ratingB !== ratingA) {
             return ratingB - ratingA;
           }
-          
+
           return reviewsB - reviewsA;
         })
         .slice(0, 12);
-      
-      this.featuredTours = featuredTours.length > 0 
-        ? featuredTours 
+
+      this.featuredTours = featuredTours.length > 0
+        ? featuredTours
         : response.packages.slice(0, 12);
     } catch (error: any) {
       console.error('Error loading featured tours:', error);
@@ -207,17 +214,17 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       const isAuthenticated = this.authStateService.getIsAuthenticated();
       const currentUser = this.authStateService.getCurrentUser();
       const userId = currentUser?.user_id || currentUser?.id || 'anonymous';
-      
+
       console.log('Loading recommended tours:', { isAuthenticated, userId, currentUser });
-      
+
       try {
         const response = await this.tourService.recommendTourPackages({
           user_id: userId,
           k: 12
         });
-        
+
         console.log('Recommended tours API response:', response);
-        
+
         if (response && response.packages && Array.isArray(response.packages) && response.packages.length > 0) {
           this.recommendedTours = response.packages;
           console.log('Recommended tours loaded:', this.recommendedTours.length);
@@ -231,23 +238,23 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
           console.warn('Error details:', error.message);
         }
       }
-      
-      const response = await this.tourService.getTourPackages({ 
-        is_active: true, 
-        limit: 50 
+
+      const response = await this.tourService.getTourPackages({
+        is_active: true,
+        limit: 50
       });
-      
+
       if (!response || !response.packages || !Array.isArray(response.packages)) {
         this.recommendedTours = [];
         this.errorMessageRecommended = 'Định dạng dữ liệu không hợp lệ.';
         return;
       }
-      
+
       if (response.packages.length === 0) {
         this.recommendedTours = [];
         return;
       }
-      
+
       const shuffledTours = this.shuffleArray([...response.packages]);
       this.recommendedTours = shuffledTours.slice(0, 12);
       console.log('Fallback recommended tours loaded:', this.recommendedTours.length);
@@ -264,24 +271,24 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isLoadingLatestTours = true;
     this.errorMessageLatest = null;
     try {
-      const response = await this.tourService.getTourPackages({ 
-        is_active: true, 
-        limit: 50 
+      const response = await this.tourService.getTourPackages({
+        is_active: true,
+        limit: 50
       });
-      
+
       if (!response || !response.packages || !Array.isArray(response.packages)) {
         this.latestTours = [];
         this.errorMessageLatest = 'Định dạng dữ liệu không hợp lệ.';
         return;
       }
-      
+
       const toursWithDate = response.packages.filter(tour => tour.created_at);
-      
+
       if (toursWithDate.length === 0) {
         this.latestTours = response.packages.slice(0, 8);
         return;
       }
-      
+
       this.latestTours = toursWithDate
         .sort((a, b) => {
           const dateA = new Date(a.created_at!).getTime();
@@ -324,19 +331,19 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.errorMessageTravelNews = null;
     try {
       const response = await this.travelNewsService.getTravelNews(6);
-      
+
       if (!response || !response.data || !Array.isArray(response.data)) {
         console.warn('Invalid travel news response format:', response);
         this.travelNews = [];
         this.errorMessageTravelNews = 'Định dạng dữ liệu không hợp lệ.';
         return;
       }
-      
+
       if (response.data.length === 0) {
         this.travelNews = [];
         return;
       }
-      
+
       this.travelNews = response.data;
       console.log('Travel news loaded:', this.travelNews.length);
     } catch (error: any) {

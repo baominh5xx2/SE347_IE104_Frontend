@@ -1,6 +1,27 @@
 <div class="tour-card" *ngIf="tour">
   <div class="tour-image">
     <img [src]="getFeaturedImage()" [alt]="tour.package_name">
+    <button type="button" class="favorite-btn" [class.favorited]="isFavorite" [class.loading]="isLoadingFavorite"
+      (click)="onFavoriteClick($event)" (mousedown)="$event.preventDefault()"
+      [title]="isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'" [disabled]="isLoadingFavorite"
+      [attr.aria-label]="isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'">
+      @if (isLoadingFavorite) {
+      <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-dasharray="32" stroke-dashoffset="32">
+          <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite" />
+          <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite" />
+        </circle>
+      </svg>
+      } @else {
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+          [attr.fill]="isFavorite ? 'currentColor' : 'none'" [attr.stroke]="isFavorite ? 'none' : 'currentColor'"
+          stroke-width="2" />
+      </svg>
+      }
+    </button>
     <div class="tour-badge" *ngIf="tour.discount">
       <span>-{{ tour.discount }}%</span>
     </div>
@@ -14,7 +35,7 @@
       <span class="status-inactive">Hết hạn</span>
     </div>
   </div>
-  
+
   <div class="tour-content">
     <div class="tour-header">
       <h3 class="tour-name">{{ tour.package_name }}</h3>
@@ -85,7 +106,8 @@
       </div>
     </div>
 
-    <div class="tour-services-preview" *ngIf="showDetails && tour.included_services && tour.included_services.length > 0">
+    <div class="tour-services-preview"
+      *ngIf="showDetails && tour.included_services && tour.included_services.length > 0">
       <div class="services-label">Dịch vụ:</div>
       <div class="services-list">
         <span class="service-item" *ngFor="let service of tour.included_services.slice(0, 3)">
@@ -116,9 +138,7 @@
           / {{ tour.duration_days }} ngày
         </div>
       </div>
-      <a 
-        [routerLink]="['/tour-details', tour.package_id]" 
-        class="btn-view-details"
+      <a [routerLink]="['/tour-details', tour.package_id]" class="btn-view-details"
         (click)="onViewDetailsClick($event)">
         Xem chi tiết
         <i class="fas fa-arrow-right"></i>
