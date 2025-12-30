@@ -79,6 +79,29 @@ export class BookingListComponent implements OnInit {
   isLoadingUserInfo = false;
   isLoadingTourInfo = false;
 
+  // Danh sách users và tours cho modal add booking
+  allUsers: any[] = [];
+  filteredUsers: any[] = [];
+  userSearchTerm: string = '';
+  isLoadingUsers = false;
+
+  allTours: any[] = [];
+  filteredTours: any[] = [];
+  tourSearchTerm: string = '';
+  isLoadingTours = false;
+  tourCarouselIndex = 0;
+
+  // Expose Math to template
+  Math = Math;
+
+  // Slot warning popup
+  showSlotWarning: boolean = false;
+  slotWarningMessage: string = '';
+
+  // Toggle danh sách
+  showUserList: boolean = true;
+  showTourList: boolean = true;
+
   // UI states
   isLoading: boolean = false;
   errorMessage: string = '';
@@ -519,7 +542,7 @@ export class BookingListComponent implements OnInit {
     }).format(date);
   }
 
-  openAddModal() {
+  async openAddModal() {
     this.newBooking = {
       contact_name: '',
       contact_phone: '',
@@ -531,7 +554,141 @@ export class BookingListComponent implements OnInit {
     };
     this.selectedUserInfo = null;
     this.selectedTourInfo = null;
+    this.userSearchTerm = '';
+    this.tourSearchTerm = '';
+    this.tourCarouselIndex = 0;
     this.showAddModal = true;
+    
+    // Load users and tours
+    await Promise.all([
+      this.loadUsersForBooking(),
+      this.loadToursForBooking()
+    ]);
+  }
+
+  async loadUsersForBooking() {
+    this.isLoadingUsers = true;
+    try {
+      const response = await this.adminUserService.getAllUsers().toPromise();
+      if (response && response.EC === 0) {
+        this.allUsers = response.data.users || [];
+        this.filterUsers();
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      this.allUsers = [];
+      this.filteredUsers = [];
+    } finally {
+      this.isLoadingUsers = false;
+    }
+  }
+
+  async loadToursForBooking() {
+    this.isLoadingTours = true;
+    try {
+      const response = await this.adminTourService.getTourPackages();
+      if (response && response.packages) {
+        this.allTours = response.packages.filter((tour: any) => tour.is_active);
+        this.filterTours();
+      }
+    } catch (error) {
+      console.error('Error loading tours:', error);
+      this.allTours = [];
+      this.filteredTours = [];
+    } finally {
+      this.isLoadingTours = false;
+    }
+  }
+
+  filterUsers() {
+    const searchLower = this.userSearchTerm.toLowerCase().trim();
+    if (!searchLower) {
+      this.filteredUsers = [...this.allUsers];
+      return;
+    }
+    
+    this.filteredUsers = this.allUsers.filter(user => {
+      const name = (user.full_name || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      const phone = (user.phone_number || '').toLowerCase();
+      return name.includes(searchLower) || email.includes(searchLower) || phone.includes(searchLower);
+    });
+  }
+
+  filterTours() {
+    const searchLower = this.tourSearchTerm.toLowerCase().trim();
+    if (!searchLower) {
+      this.filteredTours = [...this.allTours];
+      return;
+    }
+    
+    this.filteredTours = this.allTours.filter(tour => {
+      const name = (tour.package_name || '').toLowerCase();
+      const destination = (tour.destination || '').toLowerCase();
+      return name.includes(searchLower) || destination.includes(searchLower);
+    });
+    this.tourCarouselIndex = 0;
+  }
+
+  onUserSearchChange() {
+    this.filterUsers();
+  }
+
+  onTourSearchChange() {
+    this.filterTours();
+  }
+
+  selectUser(user: any) {
+    this.newBooking.user_id = user.user_id;
+    this.selectedUserInfo = user;
+    // Auto-fill contact info
+    if (!this.newBooking.contact_name) {
+      this.newBooking.contact_name = user.full_name;
+    }
+    if (!this.newBooking.contact_phone) {
+      this.newBooking.contact_phone = user.phone_number;
+    }
+    if (!this.newBooking.contact_email) {
+      this.newBooking.contact_email = user.email;
+    }
+  }
+
+  selectTour(tour: any) {
+    this.newBooking.package_id = tour.package_id;
+    this.selectedTourInfo = tour;
+  }
+
+  scrollTourCarousel(direction: 'left' | 'right') {
+    const visibleCount = 3; // Hiển thị 3 tours cùng lúc
+    if (direction === 'left') {
+      this.tourCarouselIndex = Math.max(0, this.tourCarouselIndex - 1);
+    } else {
+      this.tourCarouselIndex = Math.min(
+        Math.max(0, this.filteredTours.length - visibleCount),
+        this.tourCarouselIndex + 1
+      );
+    }
+  }
+
+  // Check if number of people exceeds available slots
+  onNumberOfPeopleChange() {
+    if (this.selectedTourInfo && this.newBooking.number_of_people > this.selectedTourInfo.available_slots) {
+      this.slotWarningMessage = `Số người (đặt ${this.newBooking.number_of_people}) vượt quá số slot còn lại của tour (${this.selectedTourInfo.available_slots} slots).`;
+      this.showSlotWarning = true;
+    }
+  }
+
+  closeSlotWarning() {
+    this.showSlotWarning = false;
+    this.slotWarningMessage = '';
+  }
+
+  toggleUserList() {
+    this.showUserList = !this.showUserList;
+  }
+
+  toggleTourList() {
+    this.showTourList = !this.showTourList;
   }
 
   closeAddModal() {
@@ -613,7 +770,7 @@ export class BookingListComponent implements OnInit {
         this.closeAddModal();
         await this.dialogService.alert(
           'Thành công',
-          'Đã tạo booking thành công! Booking ID: ' + response.data.booking_id
+          'Đã tạo booking thành công! \n Booking ID: ' + response.data.booking_id
         );
       } else {
         this.errorMessage = response?.EM || 'Không thể tạo booking';

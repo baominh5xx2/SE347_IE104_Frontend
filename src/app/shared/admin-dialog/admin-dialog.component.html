@@ -1,4 +1,4 @@
-<div *ngIf="isVisible" class="dialog-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" (click)="onBackdropClick($event)">
+<div *ngIf="isVisible" class="dialog-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 99999;" (click)="onBackdropClick($event)">
   <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all animate-dialog-enter">
     <!-- Icon -->
     <div class="pt-8 pb-4 flex justify-center">
@@ -29,7 +29,9 @@
       </button>
       <button 
         (click)="onConfirm()"
-        class="flex-1 px-6 py-3 font-medium rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+        [class.flex-1]="dialogConfig?.cancelText"
+        [class.w-full]="!dialogConfig?.cancelText"
+        class="px-6 py-3 font-medium rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
         [ngClass]="{
           'bg-red-500 hover:bg-red-600 text-white': dialogConfig?.type === 'confirm',
           'bg-yellow-500 hover:bg-yellow-600 text-white': dialogConfig?.type === 'warning',
