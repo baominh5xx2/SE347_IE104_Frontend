@@ -157,10 +157,12 @@ export class AdminTourService {
     packageData: TourPackageUpdateRequest
   ): Promise<TourPackageDetailResponse> {
     try {
+      const token = localStorage.getItem('access_token');
       const response = await fetch(`${this.apiBaseUrl}/${packageId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify(packageData),
       });
